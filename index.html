@@ -540,6 +540,10 @@
             <button className="btn-donate" onClick={() => go({ name: "donate" })}>
               <Icon.heart /> 후원
             </button>
+            <button onClick={() => go({ name: "editor" })}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "var(--toss-bg)", border: "1px solid var(--toss-border)", color: "var(--toss-text-2)", fontWeight: 700, fontSize: 14 }}>
+              글 관리
+            </button>
           </div>
         </header>
       );
