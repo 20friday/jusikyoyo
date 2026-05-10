@@ -1,0 +1,39 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+}
+const { title = '주식요약', description = '매일 12시, 장 정리' } = Astro.props;
+---
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title} — 주식요약</title>
+  <meta name="description" content={description} />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+  <div class="app">
+    <header class="hdr">
+      <div class="hdr-inner">
+        <a href="/" class="brand">
+          <div class="brand-mark">주</div>
+          <span class="brand-name">주식요약</span>
+        </a>
+        <div class="hdr-spacer"></div>
+        <a href="/editor" class="btn-pill ghost">글 관리</a>
+        <a href="https://toss.me/" target="_blank" class="btn-pill primary">후원</a>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+  </div>
+</body>
+</html>
+
+<style is:global>
+  @import '../styles/global.css';
+</style>
