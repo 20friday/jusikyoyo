@@ -92,6 +92,7 @@ function EditorApp() {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null);
   const isConfigured = token && repo;
 
   // Separate local state for the config form (so typing doesn't prematurely trigger transitions)
@@ -109,15 +110,14 @@ function EditorApp() {
         data
           .filter((f: any) => f.name.endsWith('.md'))
           .map(async (f: any) => {
-            const raw = atob(
-              (await ghFetch(`/repos/${repo}/contents/${f.path}`, token)).content.replace(/\n/g, '')
-            );
+            const fileData = await ghFetch(`/repos/${repo}/contents/${f.path}`, token);
+            const raw = atob(fileData.content.replace(/\n/g, ''));
             const { meta, body } = parseFrontmatter(raw);
             return {
               name: f.name,
               slug: f.name.replace(/\.md$/, ''),
               path: f.path,
-              sha: f.sha,
+              sha: fileData.sha,  // SHA from individual file fetch (more reliable)
               meta,
               body,
             };
@@ -178,14 +178,16 @@ function EditorApp() {
     }
   }
 
-  async function deleteFile(f: FileEntry) {
-    if (!confirm(`"${f.meta?.title || f.name}"을 삭제할까요?`)) return;
-    if (!isConfigured || !f.sha) return;
+  async function confirmDelete(f: FileEntry) {
+    if (!isConfigured) return;
     setStatus('삭제 중...');
+    setDeleteTarget(null);
     try {
+      // Fetch latest SHA just before deleting to avoid stale SHA errors
+      const latest = await ghFetch(`/repos/${repo}/contents/${f.path}`, token);
       await ghFetch(`/repos/${repo}/contents/${f.path}`, token, {
         method: 'DELETE',
-        body: JSON.stringify({ message: `글 삭제: ${f.name}`, sha: f.sha }),
+        body: JSON.stringify({ message: `글 삭제: ${f.name}`, sha: latest.sha }),
       });
       setStatus('삭제 완료');
       loadFiles();
@@ -268,8 +270,27 @@ function EditorApp() {
           </div>
         </div>
 
-        {status && <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16 }}>{status}</p>}
+        {status && (
+          <p style={{ fontSize: 13, marginBottom: 16, fontWeight: 600,
+            color: status.includes('오류') ? 'var(--up)' : status.includes('완료') ? 'var(--blue)' : 'var(--text-3)' }}>
+            {status}
+          </p>
+        )}
         {loading && <p style={{ fontSize: 13, color: 'var(--text-3)' }}>불러오는 중...</p>}
+
+        {/* 삭제 확인 배너 */}
+        {deleteTarget && (
+          <div style={{ background: '#fff0ef', border: '1px solid #ffd0cc', borderRadius: 12,
+            padding: '16px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ flex: 1, fontSize: 14, color: 'var(--up)', fontWeight: 600 }}>
+              "{deleteTarget.meta?.title || deleteTarget.name}" 을 삭제할까요?
+            </span>
+            <button className="btn-pill primary" style={{ background: 'var(--up)', fontSize: 13 }}
+              onClick={() => confirmDelete(deleteTarget)}>삭제</button>
+            <button className="btn-pill ghost" style={{ fontSize: 13 }}
+              onClick={() => setDeleteTarget(null)}>취소</button>
+          </div>
+        )}
 
         <div className="ed-list">
           {files.map(f => (
@@ -285,7 +306,7 @@ function EditorApp() {
                 <button
                   className="btn-pill ghost"
                   style={{ fontSize: 12, color: '#f04452' }}
-                  onClick={() => deleteFile(f)}
+                  onClick={() => setDeleteTarget(f)}
                 >삭제</button>
               </div>
             </div>
