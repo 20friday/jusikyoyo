@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-
-import { MarkdownEditor } from './MarkdownEditor';
-import { PostPreview } from './PostPreview';
+import { NotionEditor } from './NotionEditor';
 
 interface PostMeta {
   title: string;
@@ -335,86 +333,60 @@ function EditorApp() {
   }
 
   // ===== EDIT VIEW =====
-  const fullContent = buildFrontmatter(meta, body);
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="notion-shell">
       {/* Top bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        padding: '10px 16px', background: 'var(--card)',
-        borderBottom: '1px solid var(--border)',
-      }}>
-        <button className="btn-pill ghost" onClick={() => setView('list')}>← 목록</button>
-        <input
-          className="meta-input" style={{ flex: 1, fontWeight: 700, fontSize: 15 }}
-          placeholder="제목 입력..."
-          value={meta.title}
-          onChange={e => setMeta(m => ({ ...m, title: e.target.value }))}
-        />
-        <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{status}</span>
-        <button className="btn-pill ghost" onClick={() => save(false)}>임시저장</button>
-        <button className="btn-pill primary" onClick={() => save(true)}>발행</button>
+      <div className="notion-topbar">
+        <button className="btn-pill ghost" style={{ fontSize: 13 }} onClick={() => setView('list')}>← 목록</button>
+        <span className="notion-status">{status}</span>
+        <button className="btn-pill ghost" style={{ fontSize: 13 }} onClick={() => save(false)}>임시저장</button>
+        <button className="btn-pill primary" style={{ fontSize: 13 }} onClick={() => save(true)}>발행</button>
       </div>
 
-      {/* Meta bar */}
-      <div className="meta-bar">
-        <div className="meta-row">
-          <span className="meta-label">날짜</span>
-          <input className="meta-input" style={{ maxWidth: 130 }} value={meta.date}
-            onChange={e => setMeta(m => ({ ...m, date: e.target.value }))} placeholder="2026-05-08" />
-          <span className="meta-label">방송</span>
-          <input className="meta-input" style={{ maxWidth: 160 }} value={meta.show}
-            onChange={e => setMeta(m => ({ ...m, show: e.target.value }))} placeholder="삼프로TV" />
-          <span className="meta-label">진행자</span>
-          <input className="meta-input" value={meta.hosts}
-            onChange={e => setMeta(m => ({ ...m, hosts: e.target.value }))} placeholder="여도훈, 박명석" />
-        </div>
-        <div className="meta-row">
-          <span className="meta-label">요약</span>
-          <input className="meta-input" style={{ flex: 1 }} value={meta.summary}
-            onChange={e => setMeta(m => ({ ...m, summary: e.target.value }))} placeholder="한 줄 요약..." />
-          <span className="meta-label">태그</span>
-          <input className="meta-input" style={{ maxWidth: 200 }} value={meta.tags}
-            onChange={e => setMeta(m => ({ ...m, tags: e.target.value }))} placeholder="반도체, 테슬라" />
-        </div>
-      </div>
+      {/* Scrollable content area */}
+      <div className="notion-scroll">
+        <div className="notion-page">
+          {/* Title */}
+          <textarea
+            className="notion-title"
+            placeholder="제목 없음"
+            value={meta.title}
+            rows={1}
+            onChange={e => {
+              e.target.style.height = 'auto';
+              e.target.style.height = e.target.scrollHeight + 'px';
+              setMeta(m => ({ ...m, title: e.target.value }));
+            }}
+          />
 
-      {/* Editor + Preview */}
-      <div className="editor-shell" style={{ flex: 1 }}>
-        <div className="editor-pane">
-          <div className="editor-toolbar">
-            <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700 }}>블록 삽입</span>
-            <span className="toolbar-sep" />
-            {[
-              ['## 제목2', '## '],
-              ['### 제목3', '### '],
-              ['인용', '> '],
-              ['목록', '- '],
-            ].map(([label, prefix]) => (
-              <button key={label} className="toolbar-btn"
-                onClick={() => setBody(b => b + '\n' + prefix)}>
-                {label}
-              </button>
-            ))}
-            <span className="toolbar-sep" />
-            {[
-              ['지수', '::index{name="나스닥" change="-0.5%" dir="down"}'],
-              ['종목', '::stock{name="삼성전자" change="-1.2%" dir="down"}'],
-              ['박스↑', ':::callout{type="up"}\n내용\n:::'],
-              ['박스↓', ':::callout{type="down"}\n내용\n:::'],
-              ['박스ℹ', ':::callout{type="info"}\n내용\n:::'],
-            ].map(([label, snippet]) => (
-              <button key={label} className="toolbar-btn"
-                onClick={() => setBody(b => b + '\n\n' + snippet + '\n')}>
-                {label}
-              </button>
-            ))}
+          {/* Meta fields */}
+          <div className="notion-meta-block">
+            <div className="notion-meta-row">
+              <span className="notion-meta-key">방송</span>
+              <input className="notion-meta-val" value={meta.show} onChange={e => setMeta(m => ({ ...m, show: e.target.value }))} placeholder="12시에 만나요" />
+            </div>
+            <div className="notion-meta-row">
+              <span className="notion-meta-key">날짜</span>
+              <input className="notion-meta-val" value={meta.date} onChange={e => setMeta(m => ({ ...m, date: e.target.value }))} placeholder="2026-05-08" />
+            </div>
+            <div className="notion-meta-row">
+              <span className="notion-meta-key">진행자</span>
+              <input className="notion-meta-val" value={meta.hosts} onChange={e => setMeta(m => ({ ...m, hosts: e.target.value }))} placeholder="이광수, 권다영" />
+            </div>
+            <div className="notion-meta-row">
+              <span className="notion-meta-key">요약</span>
+              <input className="notion-meta-val" style={{ flex: 1 }} value={meta.summary} onChange={e => setMeta(m => ({ ...m, summary: e.target.value }))} placeholder="한 줄 요약..." />
+            </div>
+            <div className="notion-meta-row">
+              <span className="notion-meta-key">태그</span>
+              <input className="notion-meta-val" value={meta.tags} onChange={e => setMeta(m => ({ ...m, tags: e.target.value }))} placeholder="반도체, 현대차" />
+            </div>
           </div>
-          <MarkdownEditor value={body} onChange={setBody} />
-        </div>
-        <div className="preview-pane">
-          <PostPreview meta={meta} body={body} />
+
+          <div className="notion-divider" />
+
+          {/* Body editor */}
+          <NotionEditor value={body} onChange={setBody} />
         </div>
       </div>
     </div>
