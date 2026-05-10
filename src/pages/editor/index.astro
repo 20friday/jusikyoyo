@@ -1,15 +1,9 @@
 ---
 import Base from '../../layouts/Base.astro';
+import EditorApp from '../../components/editor/EditorApp';
 ---
 <Base title="에디터">
-  <div id="editor-root" style="height: calc(100vh - 57px);">
-    <noscript>에디터를 사용하려면 JavaScript를 활성화하세요.</noscript>
+  <div style="height: calc(100vh - 57px);">
+    <EditorApp client:only="react" />
   </div>
 </Base>
-
-<script>
-  // Dynamically import the React editor to avoid SSR issues
-  import('../../components/editor/EditorApp').then(({ mount }) => {
-    mount(document.getElementById('editor-root')!);
-  });
-</script>

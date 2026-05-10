@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { createRoot } from 'react-dom/client';
+
 import { MarkdownEditor } from './MarkdownEditor';
 import { PostPreview } from './PostPreview';
 
@@ -373,7 +373,4 @@ function EditorApp() {
   );
 }
 
-export function mount(el: HTMLElement) {
-  const root = createRoot(el);
-  root.render(<EditorApp />);
-}
+export default EditorApp;
