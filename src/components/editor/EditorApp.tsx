@@ -192,10 +192,9 @@ function EditorApp() {
     setStatus('삭제 중...');
     setDeleteTarget(null);
     try {
-      const latest = await ghFetch(`/repos/${repo}/contents/${f.path}`, token);
       await ghFetch(`/repos/${repo}/contents/${f.path}`, token, {
         method: 'DELETE',
-        body: JSON.stringify({ message: `글 삭제: ${f.name}`, sha: latest.sha }),
+        body: JSON.stringify({ message: `글 삭제: ${f.name}`, sha: f.sha }),
       });
       setStatus('삭제 완료');
       loadFiles();
