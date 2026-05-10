@@ -5,6 +5,12 @@ import Base from '../layouts/Base.astro';
 const allPosts = await getCollection('posts', ({ data }) => data.published !== false);
 const posts = allPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
 const shows = ['전체', ...new Set(posts.map(p => p.data.show))];
+
+const days = ['일', '월', '화', '수', '목', '금', '토'];
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+}
 ---
 <Base title="피드">
   <div class="page">
@@ -32,7 +38,7 @@ const shows = ['전체', ...new Set(posts.map(p => p.data.show))];
               <div class="card-meta">
                 <span class="card-show">{show}</span>
                 <span class="card-dot"></span>
-                <span class="card-date">{date.replace(/-/g, '.')}</span>
+                <span class="card-date">{formatDate(date)}</span>
                 <span class="card-dot"></span>
                 <span class="card-hosts">{hosts.join(' · ')}</span>
               </div>

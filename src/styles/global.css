@@ -108,19 +108,22 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 /* ===== 포스트 카드 ===== */
 .post-card {
   background: var(--card); border-radius: 16px;
-  padding: 24px; margin-bottom: 12px;
+  padding: 28px; margin-bottom: 12px;
   border: 1px solid var(--border);
   cursor: pointer; transition: box-shadow 160ms ease, transform 160ms ease;
   display: block; text-decoration: none;
 }
 .post-card:hover { box-shadow: 0 8px 24px -4px rgba(0,0,0,0.08); transform: translateY(-1px); }
-.card-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.card-show { font-size: 12px; font-weight: 700; color: var(--blue); }
+.card-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.card-show {
+  font-size: 12px; font-weight: 700; color: var(--blue);
+  background: #e8f1fe; padding: 3px 9px; border-radius: 6px;
+}
 .card-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-3); }
-.card-date { font-size: 12px; color: var(--text-3); }
-.card-hosts { font-size: 12px; color: var(--text-3); }
-.card-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.35; margin-bottom: 8px; }
-.card-summary { font-size: 14px; color: var(--text-2); line-height: 1.6; margin-bottom: 16px; }
+.card-date { font-size: 13px; color: var(--text-3); }
+.card-hosts { font-size: 13px; color: var(--text-3); }
+.card-title { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.35; margin-bottom: 10px; }
+.card-summary { font-size: 15px; color: var(--text-2); line-height: 1.65; margin-bottom: 16px; }
 .card-indices { display: flex; gap: 8px; flex-wrap: wrap; }
 .idx-pill {
   display: inline-flex; align-items: center; gap: 5px;
@@ -131,8 +134,8 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .idx-pill.flat { background: var(--flat-bg); color: var(--flat); }
 .card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 .tag {
-  padding: 3px 8px; border-radius: 6px;
-  font-size: 11px; font-weight: 600; color: var(--text-3);
+  padding: 4px 10px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; color: var(--text-3);
   background: var(--border);
 }
 
@@ -142,12 +145,15 @@ ul, ol { margin: 0; padding-left: 1.4em; }
   padding: 40px; border: 1px solid var(--border);
 }
 .detail-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.detail-show { font-size: 13px; font-weight: 700; color: var(--blue); }
-.detail-date { font-size: 13px; color: var(--text-3); }
-.detail-hosts { font-size: 13px; color: var(--text-3); }
-.detail-title { font-size: 28px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.3; margin-bottom: 12px; }
+.detail-show {
+  font-size: 13px; font-weight: 700; color: var(--blue);
+  background: #e8f1fe; padding: 3px 10px; border-radius: 6px;
+}
+.detail-date { font-size: 14px; color: var(--text-3); }
+.detail-hosts { font-size: 14px; color: var(--text-3); }
+.detail-title { font-size: 32px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.3; margin-bottom: 12px; }
 .detail-summary {
-  font-size: 15px; color: var(--text-2); line-height: 1.7;
+  font-size: 16px; color: var(--text-2); line-height: 1.7;
   padding: 16px 20px; background: var(--bg); border-radius: 12px;
   margin-bottom: 32px; border-left: 3px solid var(--blue);
 }
@@ -155,22 +161,22 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .detail-divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
 
 /* ===== 글 본문 마크다운 ===== */
-.prose { font-size: 15px; line-height: 1.8; color: var(--text-1); }
+.prose { font-size: 16px; line-height: 1.85; color: var(--text-1); }
 .prose h2 {
-  font-size: 20px; font-weight: 800; letter-spacing: -0.02em;
-  margin: 32px 0 12px; padding-bottom: 8px;
+  font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+  margin: 36px 0 14px; padding-bottom: 10px;
   border-bottom: 2px solid var(--border);
 }
-.prose h3 { font-size: 16px; font-weight: 700; margin: 24px 0 8px; }
-.prose p { margin: 0 0 14px; }
-.prose ul, .prose ol { margin: 0 0 14px; padding-left: 1.5em; }
-.prose li { margin-bottom: 4px; }
+.prose h3 { font-size: 18px; font-weight: 700; margin: 28px 0 10px; }
+.prose p { margin: 0 0 16px; }
+.prose ul, .prose ol { margin: 0 0 16px; padding-left: 1.5em; }
+.prose li { margin-bottom: 6px; }
 .prose strong { font-weight: 700; }
 .prose blockquote {
-  margin: 16px 0; padding: 14px 18px;
+  margin: 20px 0; padding: 16px 20px;
   background: var(--bg); border-left: 3px solid var(--text-3);
   border-radius: 0 8px 8px 0; color: var(--text-2);
-  font-style: italic;
+  font-style: italic; font-size: 17px;
 }
 
 /* ===== 커스텀 블록 ===== */

@@ -10,6 +10,10 @@ export async function getStaticPaths() {
 const { post } = Astro.props;
 const { title, date, show, hosts, summary, tags } = post.data;
 const { Content } = await render(post);
+
+const days = ['일', '월', '화', '수', '목', '금', '토'];
+const d = new Date(date + 'T00:00:00');
+const dateKo = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
 ---
 <Base title={title} description={summary}>
   <div class="page">
@@ -18,7 +22,7 @@ const { Content } = await render(post);
         <div class="detail-meta">
           <span class="detail-show">{show}</span>
           <span class="card-dot"></span>
-          <span class="detail-date">{date.replace(/-/g, '.')}</span>
+          <span class="detail-date">{dateKo}</span>
           <span class="card-dot"></span>
           <span class="detail-hosts">{hosts.join(' · ')}</span>
         </div>
@@ -42,7 +46,7 @@ const { Content } = await render(post);
         <p style="font-size:13px; color:var(--text-2); line-height:1.6;">
           <strong>{show}</strong><br />
           {hosts.join(', ')}<br />
-          {date}
+          {dateKo}
         </p>
       </div>
       {tags.length > 0 && (
