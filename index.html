@@ -1,0 +1,981 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>주식요약 — 매일 12시, 장 정리</title>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/variable/pretendardvariable-dynamic-subset.css');
+
+    /* ===== 디자인 시스템 변수 ===== */
+    :root {
+      --toss-blue: #3182f6;
+      --toss-blue-dark: #1b64da;
+      --toss-bg: #f9fafb;
+      --toss-card: #ffffff;
+      --toss-border: #f2f4f6;
+      --toss-divider: #e5e8eb;
+      --toss-text-1: #191f28;
+      --toss-text-2: #4e5968;
+      --toss-text-3: #8b95a1;
+      --toss-up: #f04452;
+      --toss-up-bg: #ffe9eb;
+      --toss-down: #1763d6;
+      --toss-down-bg: #e3edff;
+      --toss-flat: #8b95a1;
+      --toss-flat-bg: #f2f4f6;
+      --content-w: 720px;
+      --font-sans: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+    }
+
+    /* ===== 리셋 & 베이스 ===== */
+    * { box-sizing: border-box; }
+    html { scrollbar-gutter: stable; overflow-y: scroll; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: var(--font-sans);
+      background: var(--toss-bg);
+      color: var(--toss-text-1);
+      -webkit-font-smoothing: antialiased;
+      text-wrap: pretty;
+      word-break: keep-all;
+    }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; padding: 0; color: inherit; }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, h3, h4 { margin: 0; font-family: var(--font-sans); }
+    p { margin: 0; }
+
+    /* ===== 앱 셸 ===== */
+    .app { min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ===== 헤더 ===== */
+    .hdr {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: saturate(180%) blur(12px);
+      -webkit-backdrop-filter: saturate(180%) blur(12px);
+      border-bottom: 1px solid var(--toss-border);
+    }
+    .hdr-inner {
+      max-width: 1100px; margin: 0 auto;
+      padding: 14px 24px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .brand-mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--toss-blue);
+      color: #fff; display: grid; place-items: center;
+      font-weight: 800; font-size: 16px; letter-spacing: -0.02em;
+    }
+    .brand-name { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; color: var(--toss-text-1); }
+    .hdr-spacer { flex: 1; }
+    .hdr-search {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--toss-border); border-radius: 12px;
+      padding: 9px 14px; min-width: 220px;
+      color: var(--toss-text-2); font-size: 14px;
+      transition: background 160ms ease;
+    }
+    .hdr-search:hover { background: var(--toss-divider); }
+    .hdr-search input {
+      border: none; background: transparent; outline: none;
+      font: inherit; color: inherit; flex: 1; min-width: 0;
+    }
+    .hdr-search input::placeholder { color: var(--toss-text-3); }
+    .btn-donate {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--toss-blue); color: #fff;
+      padding: 10px 16px; border-radius: 10px;
+      font-weight: 700; font-size: 14px; letter-spacing: -0.01em;
+      transition: background 160ms ease;
+    }
+    .btn-donate:hover { background: var(--toss-blue-dark); }
+
+    /* ===== 페이지 레이아웃 ===== */
+    .page {
+      max-width: 1100px; width: 100%;
+      margin: 0 auto; padding: 32px 24px 80px;
+      display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 40px;
+    }
+    .page > .feed-col { min-width: 0; width: 100%; min-height: 720px; }
+    .page-narrow { max-width: var(--content-w); margin: 0 auto; padding: 32px 24px 80px; }
+
+    /* ===== 피드 ===== */
+    .feed-h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 6px; color: var(--toss-text-1); }
+    .feed-sub { font-size: 15px; color: var(--toss-text-2); margin: 0 0 24px; }
+
+    .feed-card {
+      background: var(--toss-card); border-radius: 20px;
+      padding: 28px 28px 24px; margin-bottom: 14px;
+      cursor: pointer; transition: transform 200ms ease, box-shadow 200ms ease;
+      border: 1px solid var(--toss-border); display: block; width: 100%;
+    }
+    .feed-card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(25,31,40,0.12); }
+    .feed-meta {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--toss-text-3); font-weight: 500; margin-bottom: 12px;
+    }
+    .feed-meta .show-pill {
+      background: var(--toss-border); color: var(--toss-text-2);
+      padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;
+    }
+    .feed-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.35; margin: 0 0 10px; color: var(--toss-text-1); }
+    .feed-summary { font-size: 15px; color: var(--toss-text-2); line-height: 1.6; margin: 0; }
+
+    /* ===== 사이드바 ===== */
+    .sidebar { display: flex; flex-direction: column; gap: 14px; }
+    .side-card { background: var(--toss-card); border: 1px solid var(--toss-border); border-radius: 16px; padding: 20px; }
+    .side-card h4 { font-size: 13px; font-weight: 700; color: var(--toss-text-3); margin: 0 0 14px; letter-spacing: 0.02em; }
+    .side-donate { background: linear-gradient(135deg, #3182f6 0%, #1b64da 100%); color: #fff; }
+    .side-donate h4 { color: rgba(255,255,255,0.8); }
+    .side-donate p { font-size: 14px; line-height: 1.55; color: rgba(255,255,255,0.92); margin: 0 0 16px; }
+    .side-donate .btn {
+      display: block; width: 100%; background: #fff; color: var(--toss-blue);
+      padding: 12px; border-radius: 10px; font-weight: 700; font-size: 14px; text-align: center;
+    }
+    .tag-list { display: flex; flex-direction: column; gap: 2px; }
+    .tag-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid var(--toss-border); font-size: 14px;
+    }
+    .tag-row:last-child { border-bottom: none; }
+    .tag-row .tag-name { color: var(--toss-text-1); font-weight: 500; }
+    .tag-row .tag-val { font-weight: 700; font-feature-settings: 'tnum'; }
+    .tag-row.up .tag-val { color: var(--toss-up); }
+    .tag-row.down .tag-val { color: var(--toss-down); }
+
+    /* ===== 방송 필터 탭 ===== */
+    .broadcast-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 18px; min-height: 38px; }
+    .broadcast-tab {
+      padding: 8px 14px; border-radius: 999px; background: var(--toss-card);
+      border: 1px solid var(--toss-border); font-size: 13px; font-weight: 700;
+      color: var(--toss-text-2); transition: all 160ms ease;
+    }
+    .broadcast-tab:hover { border-color: var(--toss-divider); color: var(--toss-text-1); }
+    .broadcast-tab.active { background: var(--toss-text-1); color: #fff; border-color: var(--toss-text-1); }
+
+    /* ===== 프리미엄 카드 ===== */
+    .premium-card {
+      position: relative; background: linear-gradient(180deg, #ffffff 0%, #fbfaff 100%);
+      border: 1px solid #e3deff; border-radius: 20px; padding: 26px 28px;
+      margin-bottom: 22px; overflow: hidden;
+    }
+    .premium-card.locked .premium-body { filter: blur(6px); pointer-events: none; user-select: none; opacity: 0.85; }
+    .premium-head { margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .premium-badge {
+      display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: #fff; padding: 4px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 800; letter-spacing: 0.04em; margin-bottom: 8px;
+    }
+    .premium-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--toss-text-1); margin: 0 0 6px; line-height: 1.3; }
+    .premium-sub { font-size: 14px; color: var(--toss-text-2); margin: 0; line-height: 1.5; }
+    .premium-lock-icon { font-size: 22px; opacity: 0.6; }
+    .premium-section-title { font-size: 13px; font-weight: 700; color: var(--toss-text-3); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 10px; }
+    .consensus-list { display: flex; flex-direction: column; gap: 6px; }
+    .consensus-row {
+      display: grid; grid-template-columns: 24px 100px 60px 90px 1fr;
+      align-items: center; gap: 12px; padding: 10px 14px;
+      background: #fff; border: 1px solid var(--toss-border); border-radius: 10px;
+      font-size: 14px; transition: border-color 140ms ease;
+    }
+    .consensus-row:hover { border-color: #c7c2ff; }
+    .consensus-rank { font-weight: 800; color: var(--toss-text-3); font-size: 13px; }
+    .consensus-name { font-weight: 700; color: var(--toss-text-1); }
+    .consensus-sent { font-weight: 700; font-size: 13px; }
+    .consensus-sent.up { color: var(--toss-up); }
+    .consensus-sent.down { color: var(--toss-down); }
+    .consensus-sent.flat { color: var(--toss-flat); }
+    .consensus-mentions { font-weight: 700; color: var(--toss-text-2); font-feature-settings: 'tnum'; font-size: 13px; }
+    .consensus-note { color: var(--toss-text-2); font-size: 13px; }
+    .divergence-list { display: flex; flex-direction: column; gap: 8px; }
+    .divergence-row { background: #fff; border: 1px solid var(--toss-border); border-radius: 12px; padding: 14px 16px; }
+    .divergence-topic { font-size: 13px; font-weight: 800; color: var(--toss-text-1); margin-bottom: 8px; }
+    .divergence-views { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .dv { font-size: 13px; line-height: 1.5; padding: 8px 12px; border-radius: 8px; }
+    .dv.up { background: var(--toss-up-bg); color: var(--toss-up); }
+    .dv.down { background: var(--toss-down-bg); color: var(--toss-down); }
+    .dv span { font-weight: 800; margin-right: 4px; }
+    .premium-overlay {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 35%, rgba(255,255,255,0.95) 60%);
+      padding: 24px;
+    }
+    .premium-overlay-inner {
+      text-align: center; background: #fff; border: 1px solid var(--toss-border);
+      border-radius: 16px; padding: 28px 32px; box-shadow: 0 12px 28px -8px rgba(0,0,0,0.12); max-width: 420px;
+    }
+    .premium-overlay-icon { font-size: 32px; margin-bottom: 8px; }
+    .premium-overlay-inner h3 { font-size: 18px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.01em; }
+    .premium-overlay-inner p { font-size: 14px; color: var(--toss-text-2); margin: 0 0 18px; line-height: 1.55; }
+    .premium-overlay-actions { display: flex; gap: 8px; justify-content: center; }
+    .btn-ghost {
+      background: var(--toss-bg); color: var(--toss-text-2); padding: 10px 16px; border-radius: 10px;
+      font-weight: 700; font-size: 14px; transition: background 140ms ease;
+    }
+    .btn-ghost:hover { background: var(--toss-border); color: var(--toss-text-1); }
+
+    /* ===== 상세 페이지 (에디터 스타일) ===== */
+    .detail-back {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 14px; color: var(--toss-text-2); font-weight: 600; margin-bottom: 24px;
+    }
+    .detail-back:hover { color: var(--toss-text-1); }
+    .page-narrow.editor { max-width: 740px; font-family: var(--font-sans); }
+    .editor .ed-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 14px; color: var(--toss-text-3); font-weight: 500; margin-bottom: 16px; }
+    .editor .ed-show { font-weight: 700; color: var(--toss-text-2); }
+    .editor .ed-h1 { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.25; color: var(--toss-text-1); margin: 0 0 18px; }
+    .editor .ed-lede { font-size: 19px; line-height: 1.65; color: var(--toss-text-2); margin: 0 0 28px; }
+    .editor .ed-hr { border: none; border-top: 1px solid var(--toss-border); margin: 0 0 8px; }
+    .editor .ed-section { margin: 0; padding: 28px 0 32px; border-bottom: 1px solid var(--toss-border); }
+    .editor .ed-section:last-of-type { border-bottom: none; }
+    .editor .ed-emo { display: inline-block; margin-right: 4px; }
+    .editor .ed-table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 15px; }
+    .editor .ed-table th { text-align: left; font-weight: 700; color: var(--toss-text-3); padding: 8px 12px 10px 0; border-bottom: 1.5px solid var(--toss-text-2); font-size: 14px; }
+    .editor .ed-table td { padding: 14px 12px 14px 0; border-bottom: 1px solid var(--toss-border); color: var(--toss-text-1); vertical-align: top; }
+    .editor .ed-table td:first-child { font-weight: 700; }
+    .editor .ed-tnum { font-feature-settings: 'tnum'; font-weight: 700; }
+    .editor .ed-flow { font-weight: 600; }
+    .editor .ed-flow.up { color: var(--toss-up); }
+    .editor .ed-flow.down { color: var(--toss-down); }
+    .editor .ed-flow.flat { color: var(--toss-flat); }
+    .editor .ed-arrow-inline { font-weight: 800; margin-right: 2px; }
+    .editor .ed-h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: var(--toss-text-1); margin: 0 0 16px; padding-bottom: 4px; }
+    .editor .ed-h3 { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; color: var(--toss-text-1); margin: 24px 0 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .editor .ed-host-name { font-weight: 600; color: var(--toss-text-3); font-size: 15px; }
+    .editor .ed-arrow { display: inline-block; min-width: 18px; text-align: center; font-size: 14px; font-weight: 800; }
+    .editor .ed-arrow.up { color: var(--toss-up); }
+    .editor .ed-arrow.down { color: var(--toss-down); }
+    .editor .ed-arrow.flat { color: var(--toss-flat); }
+    .editor .ed-tag { font-size: 13px; font-weight: 600; color: var(--toss-up); }
+    .editor .ed-p { font-size: 16px; line-height: 1.8; color: var(--toss-text-1); margin: 0 0 14px; }
+    .editor .ed-headline { font-weight: 700; color: var(--toss-text-1); }
+    .editor .ed-indices { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 6px; }
+    .editor .ed-indices li { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 15px; padding: 4px 0; border-bottom: 1px dotted var(--toss-border); }
+    .editor .ed-idx-name { color: var(--toss-text-2); font-weight: 700; min-width: 80px; }
+    .editor .ed-idx-val { color: var(--toss-text-1); font-weight: 800; font-feature-settings: 'tnum'; }
+    .editor .ed-idx-chg { font-weight: 800; font-feature-settings: 'tnum'; }
+    .editor .ed-idx-chg.up { color: var(--toss-up); }
+    .editor .ed-idx-chg.down { color: var(--toss-down); }
+    .editor .ed-idx-chg.flat { color: var(--toss-flat); }
+    .editor .ed-idx-note { color: var(--toss-text-3); font-size: 14px; }
+    .editor .ed-sector { margin-bottom: 8px; }
+    .editor .ed-stocks { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 2px; }
+    .editor .ed-stocks li { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; cursor: pointer; font-size: 15px; line-height: 1.7; }
+    .editor .ed-stocks li:hover .ed-stock-name { color: var(--toss-blue); }
+    .editor .ed-stock-name { font-weight: 600; color: var(--toss-text-1); }
+    .editor .ed-stock-chg { font-weight: 800; font-feature-settings: 'tnum'; }
+    .editor .ed-stock-chg.up { color: var(--toss-up); }
+    .editor .ed-stock-chg.down { color: var(--toss-down); }
+    .editor .ed-news { margin-bottom: 18px; }
+    .editor .ed-sched { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
+    .editor .ed-sched li { padding: 10px 0; border-bottom: 1px dotted var(--toss-border); font-size: 15px; line-height: 1.5; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+    .editor .ed-sched li.highlight .ed-sched-event { color: #b86200; font-weight: 800; }
+    .editor .ed-sched-date { font-weight: 800; color: var(--toss-text-2); min-width: 84px; font-feature-settings: 'tnum'; }
+    .editor .ed-sched-event { font-weight: 700; color: var(--toss-text-1); }
+    .editor .ed-sched-why { color: var(--toss-text-3); font-size: 14px; }
+    .editor .ed-warning-list { color: var(--toss-text-2); font-size: 15px; }
+    .editor .ed-classroom { margin-bottom: 20px; }
+    .editor .ed-quote { margin: 12px 0 0; padding: 4px 16px; border-left: 3px solid var(--toss-text-1); font-size: 17px; line-height: 1.6; color: var(--toss-text-1); font-weight: 600; font-style: italic; }
+
+    /* ===== 후원 인라인 ===== */
+    .donate-inline { background: var(--toss-card); border: 1px solid var(--toss-border); border-radius: 20px; padding: 28px 30px; margin-top: 32px; text-align: center; }
+    .donate-inline h3 { font-size: 20px; font-weight: 800; margin: 0 0 8px; letter-spacing: -0.02em; }
+    .donate-inline p { font-size: 14px; line-height: 1.6; color: var(--toss-text-2); margin: 0 0 20px; }
+    .donate-account { display: inline-flex; align-items: center; gap: 12px; background: var(--toss-bg); padding: 14px 20px; border-radius: 12px; font-size: 16px; font-weight: 700; font-feature-settings: 'tnum'; margin-bottom: 14px; }
+    .donate-account .acc-bank { color: var(--toss-text-2); font-weight: 600; }
+    .donate-account .acc-num { color: var(--toss-text-1); }
+    .donate-copy-btn { background: var(--toss-blue); color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; transition: background 160ms ease; }
+    .donate-copy-btn:hover { background: var(--toss-blue-dark); }
+    .donate-copy-btn.copied { background: #00b87b; }
+
+    /* ===== 공유 버튼 ===== */
+    .share-row { display: flex; gap: 8px; margin-top: 16px; padding-top: 20px; border-top: 1px solid var(--toss-border); }
+    .share-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; background: var(--toss-bg); color: var(--toss-text-2); font-size: 13px; font-weight: 700; transition: background 160ms ease; }
+    .share-btn:hover { background: var(--toss-border); color: var(--toss-text-1); }
+    .share-btn.copied { background: #e6f9f1; color: #00875a; }
+
+    /* ===== 후원 페이지 ===== */
+    .donate-hero { background: linear-gradient(135deg, #3182f6 0%, #1b64da 100%); color: #fff; border-radius: 24px; padding: 48px 40px; margin-bottom: 24px; }
+    .donate-hero h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 12px; color: #fff; }
+    .donate-hero p { font-size: 16px; line-height: 1.7; color: rgba(255,255,255,0.9); margin: 0; }
+    .donate-detail-card { background: var(--toss-card); border: 1px solid var(--toss-border); border-radius: 20px; padding: 32px; }
+    .section-title { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 16px; color: var(--toss-text-1); }
+    .donate-row { display: grid; grid-template-columns: 100px 1fr; padding: 16px 0; border-bottom: 1px solid var(--toss-border); font-size: 16px; }
+    .donate-row:last-of-type { border-bottom: none; }
+    .donate-row .lbl { color: var(--toss-text-3); font-weight: 600; }
+    .donate-row .val { color: var(--toss-text-1); font-weight: 700; font-feature-settings: 'tnum'; }
+    .body-md { font-family: var(--font-sans); font-weight: 400; font-size: 16px; line-height: 1.5; color: var(--toss-text-1); }
+
+    /* ===== 종목 페이지 ===== */
+    .detail-meta { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--toss-text-3); font-weight: 500; margin-bottom: 14px; }
+    .detail-meta .show-pill { background: var(--toss-blue); color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; }
+    .detail-h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.25; margin: 0 0 16px; color: var(--toss-text-1); }
+    .stock-summary-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 24px 0 8px; }
+    .stock-summary-card { background: var(--toss-card); border: 1px solid var(--toss-border); border-radius: 14px; padding: 16px 18px; }
+    .ssc-label { font-size: 12px; color: var(--toss-text-3); font-weight: 600; margin-bottom: 6px; }
+    .ssc-val { font-size: 18px; font-weight: 800; color: var(--toss-text-1); letter-spacing: -0.01em; }
+    .stock-summary-card.up .ssc-val { color: var(--toss-up); }
+    .stock-summary-card.down .ssc-val { color: var(--toss-down); }
+    .section { margin: 40px 0; }
+    .section .section-title .emoji { font-size: 20px; }
+    .mention-card { background: var(--toss-card); border: 1px solid var(--toss-border); border-left: 4px solid var(--toss-flat); border-radius: 14px; padding: 18px 22px; margin-bottom: 10px; cursor: pointer; transition: transform 160ms ease, box-shadow 160ms ease; }
+    .mention-card:hover { transform: translateY(-1px); box-shadow: 0 8px 20px -8px rgba(25,31,40,0.1); }
+    .mention-card.up { border-left-color: var(--toss-up); }
+    .mention-card.down { border-left-color: var(--toss-down); }
+    .mention-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--toss-text-3); font-weight: 500; margin-bottom: 8px; }
+    .mention-meta .show-pill { background: var(--toss-border); color: var(--toss-text-2); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+    .mention-dir { font-weight: 800; }
+    .mention-dir.up { color: var(--toss-up); }
+    .mention-dir.down { color: var(--toss-down); }
+    .mention-quote { font-size: 16px; line-height: 1.6; color: var(--toss-text-1); font-weight: 600; margin-bottom: 6px; }
+    .mention-post-title { font-size: 13px; color: var(--toss-text-3); font-weight: 600; }
+
+    /* ===== 푸터 ===== */
+    .site-footer { background: #fff; border-top: 1px solid var(--toss-border); margin-top: 60px; }
+    .site-footer-inner { max-width: 1100px; margin: 0 auto; padding: 32px 24px 48px; }
+    .footer-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .footer-disclaimer { font-size: 12px; line-height: 1.7; color: var(--toss-text-3); margin: 0 0 14px; max-width: 800px; }
+    .footer-disclaimer strong { color: var(--toss-text-2); font-weight: 700; }
+    .footer-meta { font-size: 12px; color: var(--toss-text-3); }
+
+    /* ===== 모바일 ===== */
+    @media (max-width: 900px) {
+      .page { grid-template-columns: 1fr; gap: 24px; }
+      .sidebar { order: -1; }
+      .feed-h1 { font-size: 26px; }
+      .detail-h1 { font-size: 26px; }
+      .hdr-search { display: none; }
+      .feed-card { padding: 22px 20px; }
+      .consensus-row { grid-template-columns: 20px 1fr 60px; }
+      .consensus-mentions, .consensus-note { grid-column: 2 / -1; font-size: 12px; }
+      .divergence-views { grid-template-columns: 1fr; }
+      .stock-summary-row { grid-template-columns: 1fr; }
+      .donate-hero { padding: 32px 24px; }
+      .editor .ed-h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+
+  <script>
+    window.POSTS = [
+      {
+        id: "2026-05-08",
+        date: "2026.05.08",
+        dateLong: "2026년 5월 8일 (금)",
+        weekday: "금",
+        show: "12시에 만나요",
+        hosts: ["이광수", "권다영", "박시동"],
+        title: "현대차그룹 폭주, 외국인 4조 매도에도 코스피 버텼다",
+        summary: "외국인이 코스피에서 4조원 가까이 팔았지만 오후 들어 낙폭을 줄이며 버텼고, 현대차그룹주가 두 가지 호재로 폭등했습니다.",
+        indices: [
+          { name: "코스피", value: "7,415", change: "−0.84%", dir: "down", note: "하락 출발 → 낙폭 축소" },
+          { name: "코스닥", value: "1,200", change: "+0.12%", dir: "up", note: "1,197p까지 밀렸다 반등" },
+          { name: "달러/원", value: "1,464", change: "+0.31%", dir: "up", note: "원화 약세" },
+        ],
+        marketBody: "오늘 장은 하락으로 시작했어요. 외국인이 코스피에서 4조원 가까이 팔아치우면서 지수가 눌렸는데, 오후 들어 낙폭을 많이 줄이면서 버텨냈어요. 코스닥은 한때 1,197까지 밀렸다가 오후엔 1,200선을 다시 넘었어요. 오늘 하락은 우리 시장만의 문제가 아니에요. 미국에서 AI 반도체 차익 실현이 나오면서 대만·일본·홍콩도 다 같이 1% 안팎 빠졌거든요.",
+        sectors: [
+          { name: "반도체", dir: "down", headline: "AI 하드 → 소프트로 갈아타기", body: "미국에서 소프트웨어 기업 실적이 잘 나오자, \"AI 하드웨어는 많이 올랐으니 소프트웨어로 갈아타자\"는 흐름이 나왔어요.", stocks: [{ name: "삼성전자", change: "−2.5%", dir: "down" }, { name: "SK하이닉스", change: "−0.7%", dir: "down" }] },
+          { name: "현대차그룹주", dir: "up", tag: "오늘의 주인공", headline: "관세 위법 판결 + 보스턴다이나믹스 상장 검토", body: "두 가지 호재가 동시에 터졌어요. 첫째, 트럼프 관세가 법원에서 또 위법 판결 → 미국 관세 부담이 줄어들 수 있어서 현대차 실적 걱정이 줄었어요. 둘째, 현대차가 보유한 로봇회사 보스턴다이나믹스를 나스닥에 상장하는 걸 검토 중이라는 뉴스가 나왔어요.", stocks: [{ name: "현대오토에버", change: "상한가", dir: "up", strong: true }, { name: "현대모비스", change: "+17%", dir: "up" }, { name: "현대글로비스", change: "+17%", dir: "up" }] },
+          { name: "로봇주", dir: "up", headline: "보스턴다이나믹스 상장 기대감", body: "보스턴다이나믹스 상장 기대감에 로봇 관련 종목들도 함께 올랐어요.", stocks: [] },
+          { name: "화장품", dir: "flat", headline: "한국콜마 호실적, 현대차로 자금 이동", body: "한국콜마 실적이 좋게 나와서 장 초반엔 올랐는데, 현대차 쪽으로 돈이 몰리면서 일부 종목은 도로 내려왔어요.", stocks: [] },
+          { name: "중소형 바이오", dir: "up", headline: "수급 빈집 효과로 반등", body: "요즘 관심을 못 받았던 종목들이 \"수급 빈집\" 효과로 조금씩 올라오고 있어요.", stocks: [] },
+        ],
+        news: [
+          { title: "트럼프 관세, 또 위법 판결", body: "트럼프 대통령이 밀어붙이던 관세가 법원에서 두 번 연속으로 \"안 된다\"는 판결을 받았어요. 상호관세(나라별 맞불 관세)도, 보편관세(전 세계 동시 관세)도 모두 위법이에요." },
+          { title: "트럼프 방중 (5/14 예정)", body: "다음 주 중국 방문. 엔비디아·애플·보잉·퀄컴·블랙스톤 CEO들을 데리고 가요. 핵심 의제는 세 가지 — 대만, 무역 분쟁, 이란." },
+          { title: "엔비디아 칩 중국 수출 논란", body: "미국은 다운그레이드 칩(H20)을 중국에 팔아도 된다고 했는데, 중국이 자존심 문제로 거부 중이에요." },
+          { title: "중동 건설 테마 (박시동 의견)", body: "이란·이스라엘 휴전 이후 중동 재건 수요로 건설주 테마가 형성 중. 한국 건설사들이 '팀코리아' 협의체를 만들어 공동 수주하는 방식을 제안." },
+        ],
+        schedule: [
+          { date: "5/12 화", event: "미국 4월 CPI 발표", why: "유가 올랐는데 물가도 올랐는지 확인. 금리 방향에 영향" },
+          { date: "5/14~15", event: "미중 정상회담", why: "관세·반도체 수출 분위기 바뀔 수 있음" },
+          { date: "5/20 화", event: "삼성전자 파업 가처분 판결", why: "주가 영향 논란 중" },
+          { date: "5/21 수", event: "엔비디아 실적 발표", why: "전 세계 AI 투자 분위기 좌우할 빅이벤트", highlight: true },
+          { date: "5/21 수", event: "삼성·하이닉스 레버리지 ETF 상장", why: "반도체 ETF 수급 변화 주의" },
+          { date: "5/21", event: "ASCO 임상종양학회 초록 공개", why: "바이오주 개별 종목 움직일 수 있음" },
+          { date: "5/26 월", event: "대체 휴일 휴장", why: "하루 쉼" },
+          { date: "5/28 목", event: "한국은행 금리 결정", why: "신임 총재 첫 결정" },
+          { date: "6/3 화", event: "전국 지방선거", why: "선거 후 증시 정책 변화 가능성" },
+        ],
+        warningStocks: ["DB하이텍", "한미반도체", "ISC", "리노공업", "이오테크닉스", "솔브레인", "원익IPS", "HPSP", "테크윙", "PSK홀딩스"],
+        classroom: [
+          { host: "박시동", topic: "금리란 뭔가", body: "돈은 시간이 지날수록 점점 흔해져요. 한국은 매년 약 7%씩 통화량이 늘어나거든요. 돈이 너무 많아지면 물가가 오르고, 그걸 막으려고 중앙은행이 금리를 올려요.", quote: "금리는 태풍 같아요. 태풍을 모르면 아무리 잘해도 쓰러질 수 있어요." },
+          { host: "이광수", topic: "주식 투자 자세", body: "살 때는 \"언제\"보다 \"뭘\" 살지가 중요해요. ① 주가가 이미 오르고 있는 종목을 찾아요 ② 왜 오르는지 이유를 파악해요 ③ 그 이유가 계속될지 판단해요.", quote: "손실을 아예 안 내는 건 불가능해요. 목표는 손실을 줄이는 거예요." },
+        ],
+      },
+      { id: "2026-05-08-samproTv", date: "2026.05.08", dateLong: "2026년 5월 8일 (금)", show: "삼프로TV", hosts: ["김동환", "이진우", "정영진"], title: "외국인 매도, 어디로 가고 있나", summary: "외국인이 5월 들어 누적 8조 순매도. 자금은 미국 빅테크가 아니라 일본·인도로 흘러가고 있어요.", indices: [{ name: "코스피", value: "7,415", change: "−0.84%", dir: "down" }, { name: "코스닥", value: "1,200", change: "+0.12%", dir: "up" }], sectors: [], news: [], schedule: [], warningStocks: [], classroom: [] },
+      { id: "2026-05-08-stockNews", date: "2026.05.08", dateLong: "2026년 5월 8일 (금)", show: "주식의 신", hosts: ["박순혁"], title: "현대차 보스턴다이나믹스, 진짜 상장하나", summary: "현대차 로봇 자회사 상장설로 그룹주 일제 상승. 다만 \"기대감\" 단계라 호흡 길게 봐야.", indices: [{ name: "코스피", value: "7,415", change: "−0.84%", dir: "down" }], sectors: [], news: [], schedule: [], warningStocks: [], classroom: [] },
+      { id: "2026-05-07", date: "2026.05.07", dateLong: "2026년 5월 7일 (목)", show: "12시에 만나요", hosts: ["이광수", "권다영"], title: "코스피 7,478p 마감, 외국인 매수 전환", summary: "외국인이 사흘만에 매수로 돌아서며 코스피가 0.6% 상승. 2차전지 강세, 제약·바이오 약세.", indices: [{ name: "코스피", value: "7,478", change: "+0.60%", dir: "up" }, { name: "코스닥", value: "1,206", change: "+0.20%", dir: "up" }, { name: "달러/원", value: "1,460", change: "−0.10%", dir: "down" }], sectors: [], news: [], schedule: [], warningStocks: [], classroom: [] },
+      { id: "2026-05-02", date: "2026.05.02", dateLong: "2026년 5월 2일 (토)", show: "주말 마켓 정리", hosts: ["박시동"], title: "이번 주 정리: AI 반도체 차익실현, 자동차 반등", summary: "주중 반도체 약세에도 자동차·금융이 지수를 떠받치며 코스피 주간 +0.3%. 다음 주 CPI·미중회담 주목.", indices: [{ name: "코스피 (주간)", value: "+0.3%", change: "주간", dir: "up" }, { name: "코스닥 (주간)", value: "−0.5%", change: "주간", dir: "down" }], sectors: [], news: [], schedule: [], warningStocks: [], classroom: [] },
+      { id: "2026-04-30", date: "2026.04.30", dateLong: "2026년 4월 30일 (수)", show: "12시에 만나요", hosts: ["이광수", "권다영", "박시동"], title: "FOMC 다음 날, 금리 동결에 시장은 무덤덤", summary: "예상대로 금리 동결. 파월 발언이 매파적이지 않아 안도 랠리. 다만 거래량은 평이.", indices: [{ name: "코스피", value: "7,432", change: "+0.18%", dir: "up" }, { name: "코스닥", value: "1,212", change: "+0.45%", dir: "up" }], sectors: [], news: [], schedule: [], warningStocks: [], classroom: [] },
+    ];
+
+    window.BROADCASTS = [
+      { id: "all", name: "전체" },
+      { id: "12시에 만나요", name: "12시에 만나요" },
+      { id: "삼프로TV", name: "삼프로TV" },
+      { id: "주식의 신", name: "주식의 신" },
+      { id: "주말 마켓 정리", name: "주말 마켓" },
+    ];
+
+    window.PREMIUM_REPORTS = [
+      {
+        date: "2026.05.08", dateLong: "2026년 5월 8일 (금)",
+        title: "오늘 5개 방송이 공통으로 언급한 종목",
+        summary: "여러 방송이 같이 언급한 종목은 그날의 시장 컨센서스를 보여줍니다.",
+        consensus: [
+          { name: "현대모비스", mentions: 5, sentiment: "긍정", note: "보스턴다이나믹스 + 관세 위법 판결" },
+          { name: "삼성전자", mentions: 4, sentiment: "중립", note: "AI 차익실현 vs 레버리지 ETF 수급" },
+          { name: "현대오토에버", mentions: 4, sentiment: "긍정", note: "그룹 로봇 사업 핵심 SI" },
+          { name: "SK하이닉스", mentions: 3, sentiment: "부정", note: "HBM 단가 하락 우려 재부상" },
+          { name: "한국콜마", mentions: 2, sentiment: "긍정", note: "1Q 호실적, 화장품 위탁 점유 확대" },
+        ],
+        divergence: [
+          { topic: "반도체 향방", a: "삼프로TV: 단기 조정 후 재상승", b: "주식의 신: 추가 하락 가능성" },
+          { topic: "건설주", a: "12시에 만나요: 중동 재건 수혜", b: "삼프로TV: 저가 경쟁 심화로 마진 약화" },
+        ],
+      },
+    ];
+
+    window.STOCK_MENTIONS = {
+      "현대모비스": [
+        { postId: "2026-05-08", show: "12시에 만나요", quote: "관세 위법 + 보스턴다이나믹스 두 호재로 +17%", dir: "up" },
+        { postId: "2026-05-08-stockNews", show: "주식의 신", quote: "보스턴다이나믹스 상장설로 그룹주 일제 상승", dir: "up" },
+        { postId: "2026-05-08-samproTv", show: "삼프로TV", quote: "외국인 매도 와중에 그룹주는 매수 우위", dir: "up" },
+      ],
+      "삼성전자": [
+        { postId: "2026-05-08", show: "12시에 만나요", quote: "AI 하드웨어 차익 실현 흐름에 −2.5%", dir: "down" },
+        { postId: "2026-05-08-samproTv", show: "삼프로TV", quote: "외국인 매도 종목 1위", dir: "down" },
+        { postId: "2026-05-07", show: "12시에 만나요", quote: "외국인 매수 전환에 동참", dir: "up" },
+        { postId: "2026-04-30", show: "12시에 만나요", quote: "FOMC 안도 랠리에 +0.5%", dir: "up" },
+      ],
+      "현대오토에버": [
+        { postId: "2026-05-08", show: "12시에 만나요", quote: "상한가 — 그룹 로봇 사업 SW 핵심", dir: "up" },
+        { postId: "2026-05-08-stockNews", show: "주식의 신", quote: "그룹주 중 가장 강한 흐름", dir: "up" },
+      ],
+      "SK하이닉스": [
+        { postId: "2026-05-08", show: "12시에 만나요", quote: "−0.7% — AI 소프트로 자금 이동", dir: "down" },
+        { postId: "2026-05-08-samproTv", show: "삼프로TV", quote: "HBM 단가 하락 우려", dir: "down" },
+      ],
+      "현대글로비스": [
+        { postId: "2026-05-08", show: "12시에 만나요", quote: "+17% — 그룹 로봇 사업 물류 수혜 기대", dir: "up" },
+      ],
+    };
+
+    window.DONATION = {
+      bank: "토스뱅크",
+      account: "1000-1234-5678",
+      holder: "주식요약",
+      message: "방송을 정리하는 데 한 편당 약 2시간이 걸려요. 계속 정리할 수 있도록 응원해 주시면 큰 힘이 됩니다.",
+    };
+  </script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useMemo } = React;
+
+    const Icon = {
+      search: () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>),
+      heart: () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.5-9.5-9C.8 8.7 2.2 5 5.5 5c1.9 0 3.4 1 4.5 2.4C11.1 6 12.6 5 14.5 5 17.8 5 19.2 8.7 17.5 12 15 16.5 12 21 12 21z"/></svg>),
+      chevronLeft: () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>),
+      share: () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>),
+      copy: () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>),
+    };
+
+    function Header({ go, route, search, setSearch }) {
+      return (
+        <header className="hdr">
+          <div className="hdr-inner">
+            <div className="brand" onClick={() => go({ name: "feed" })}>
+              <div className="brand-mark">주</div>
+              <div className="brand-name">주식요약</div>
+            </div>
+            <div className="hdr-spacer" />
+            {route.name === "feed" && (
+              <div className="hdr-search">
+                <Icon.search />
+                <input placeholder="종목·키워드 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+            )}
+            <button className="btn-donate" onClick={() => go({ name: "donate" })}>
+              <Icon.heart /> 후원
+            </button>
+          </div>
+        </header>
+      );
+    }
+
+    function FeedCard({ post, onClick }) {
+      return (
+        <article className="feed-card" onClick={onClick}>
+          <div className="feed-meta">
+            <span className="show-pill">{post.show}</span>
+            <span>{post.dateLong}</span>
+            {post.hosts && <span>· {post.hosts.join(" · ")}</span>}
+          </div>
+          <h2 className="feed-title">{post.title}</h2>
+          <p className="feed-summary">{post.summary}</p>
+        </article>
+      );
+    }
+
+    function Sidebar({ posts, go }) {
+      const latest = posts[0];
+      const upStocks = useMemo(() => {
+        const all = [];
+        posts.forEach(p => p.sectors?.forEach(s => s.stocks?.forEach(st => {
+          if (st.dir === "up") all.push({ ...st, postId: p.id });
+        })));
+        return all.slice(0, 5);
+      }, [posts]);
+      const downStocks = useMemo(() => {
+        const all = [];
+        posts.forEach(p => p.sectors?.forEach(s => s.stocks?.forEach(st => {
+          if (st.dir === "down") all.push({ ...st, postId: p.id });
+        })));
+        return all.slice(0, 3);
+      }, [posts]);
+
+      return (
+        <aside className="sidebar">
+          <div className="side-card side-donate">
+            <h4>후원하기</h4>
+            <p>방송을 정리하는 데 매일 약 2시간이 걸려요. 응원해 주시면 큰 힘이 됩니다.</p>
+            <button className="btn" onClick={() => go({ name: "donate" })}>후원 계좌 보기</button>
+          </div>
+          <div className="side-card">
+            <h4>오늘의 강세 종목</h4>
+            <div className="tag-list">
+              {upStocks.map((s, i) => (
+                <div key={i} className="tag-row up">
+                  <span className="tag-name">{s.name}</span>
+                  <span className="tag-val">{s.change}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="side-card">
+            <h4>오늘의 약세 종목</h4>
+            <div className="tag-list">
+              {downStocks.map((s, i) => (
+                <div key={i} className="tag-row down">
+                  <span className="tag-name">{s.name}</span>
+                  <span className="tag-val">{s.change}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="side-card">
+            <h4>다가오는 일정</h4>
+            <div className="tag-list">
+              {(latest?.schedule || []).slice(0, 4).map((ev, i) => (
+                <div key={i} className="tag-row">
+                  <span className="tag-name">{ev.event}</span>
+                  <span className="tag-val" style={{ color: "var(--toss-text-3)", fontSize: 13 }}>{ev.date}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+      );
+    }
+
+    function PremiumReportCard({ report, isPatron, setIsPatron, go }) {
+      return (
+        <div className={`premium-card ${isPatron ? "unlocked" : "locked"}`}>
+          <div className="premium-head">
+            <div>
+              <span className="premium-badge">PRO · 분석 리포트</span>
+              <h2 className="premium-title">{report.title}</h2>
+              <p className="premium-sub">{report.dateLong} · {report.summary}</p>
+            </div>
+            {!isPatron && <span className="premium-lock-icon">🔒</span>}
+          </div>
+          <div className="premium-body">
+            <div className="premium-section-title">공통 언급 종목 (방송 수)</div>
+            <div className="consensus-list">
+              {report.consensus.map((c, i) => (
+                <div key={i} className="consensus-row"
+                  onClick={() => isPatron && go({ name: "stock", symbol: c.name })}
+                  style={{ cursor: isPatron ? "pointer" : "default" }}>
+                  <div className="consensus-rank">{i + 1}</div>
+                  <div className="consensus-name">{c.name}</div>
+                  <div className={`consensus-sent ${c.sentiment === "긍정" ? "up" : c.sentiment === "부정" ? "down" : "flat"}`}>{c.sentiment}</div>
+                  <div className="consensus-mentions">{c.mentions}/5 방송</div>
+                  <div className="consensus-note">{c.note}</div>
+                </div>
+              ))}
+            </div>
+            <div className="premium-section-title" style={{ marginTop: 20 }}>방송 간 의견 차이</div>
+            <div className="divergence-list">
+              {report.divergence.map((d, i) => (
+                <div key={i} className="divergence-row">
+                  <div className="divergence-topic">{d.topic}</div>
+                  <div className="divergence-views">
+                    <div className="dv up"><span>↑</span> {d.a}</div>
+                    <div className="dv down"><span>↓</span> {d.b}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {!isPatron && (
+            <div className="premium-overlay">
+              <div className="premium-overlay-inner">
+                <div className="premium-overlay-icon">🔒</div>
+                <h3>후원자 전용 분석</h3>
+                <p>여러 방송이 공통으로 언급한 종목과 의견 차이를 한 번에 볼 수 있어요.</p>
+                <div className="premium-overlay-actions">
+                  <button className="btn-donate" onClick={() => go({ name: "donate" })}>후원하고 잠금 해제</button>
+                  <button className="btn-ghost" onClick={() => setIsPatron(true)}>이미 후원했어요</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function FeedPage({ posts, go, isPatron, setIsPatron, showPremium }) {
+      const [search, setSearch] = useState("");
+      const [broadcast, setBroadcast] = useState("all");
+      const filtered = posts.filter(p => {
+        if (broadcast !== "all" && p.show !== broadcast) return false;
+        if (!search.trim()) return true;
+        const q = search.toLowerCase();
+        const hay = [p.title, p.summary, ...(p.sectors?.map(s => s.name) || []),
+          ...(p.sectors?.flatMap(s => s.stocks?.map(st => st.name) || []) || [])].join(" ").toLowerCase();
+        return hay.includes(q);
+      });
+      const report = window.PREMIUM_REPORTS?.[0];
+
+      return (
+        <>
+          <Header go={go} route={{ name: "feed" }} search={search} setSearch={setSearch} />
+          <main className="page">
+            <div className="feed-col">
+              <h1 className="feed-h1">매일 12시, 장 정리</h1>
+              <p className="feed-sub">방송을 보고 핵심만 추려서 올려요. 최신글이 위에 있어요.</p>
+              {report && showPremium && <PremiumReportCard report={report} isPatron={isPatron} setIsPatron={setIsPatron} go={go} />}
+              <div className="broadcast-tabs">
+                {window.BROADCASTS.map(b => (
+                  <button key={b.id} className={`broadcast-tab ${broadcast === b.id ? "active" : ""}`}
+                    onClick={() => setBroadcast(b.id)}>{b.name}</button>
+                ))}
+              </div>
+              {filtered.length === 0 ? (
+                <div className="feed-card" style={{ textAlign: "center", color: "var(--toss-text-3)" }}>해당하는 글이 없어요.</div>
+              ) : filtered.map(p => (
+                <FeedCard key={p.id} post={p} onClick={() => go({ name: "post", id: p.id })} />
+              ))}
+            </div>
+            <Sidebar posts={posts} go={go} />
+          </main>
+        </>
+      );
+    }
+
+    function DonateInline({ onShare, shared }) {
+      const [copied, setCopied] = useState(false);
+      const copyAccount = () => {
+        navigator.clipboard?.writeText(`${window.DONATION.bank} ${window.DONATION.account} ${window.DONATION.holder}`);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      };
+      return (
+        <div className="donate-inline">
+          <h3>오늘 정리가 도움이 되셨나요?</h3>
+          <p>{window.DONATION.message}</p>
+          <div className="donate-account">
+            <span className="acc-bank">{window.DONATION.bank}</span>
+            <span className="acc-num">{window.DONATION.account}</span>
+            <span className="acc-bank">예금주 {window.DONATION.holder}</span>
+            <button className={`donate-copy-btn ${copied ? "copied" : ""}`} onClick={copyAccount}>
+              {copied ? "복사됨" : "복사"}
+            </button>
+          </div>
+          <div className="share-row" style={{ justifyContent: "center", borderTop: "none", paddingTop: 0 }}>
+            <button className={`share-btn ${shared ? "copied" : ""}`} onClick={onShare}>
+              <Icon.share /> {shared ? "링크 복사됨" : "공유하기"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function PostPage({ post, go }) {
+      const [shared, setShared] = useState(false);
+      const onShare = () => {
+        navigator.clipboard?.writeText(`${window.location.href}#${post.id}`);
+        setShared(true);
+        setTimeout(() => setShared(false), 1800);
+      };
+      const arrow = (d) => d === "up" ? "▲" : d === "down" ? "▼" : "•";
+      const dirCls = (d) => d === "up" ? "up" : d === "down" ? "down" : "flat";
+
+      return (
+        <>
+          <Header go={go} route={{ name: "post" }} search="" setSearch={() => {}} />
+          <main className="page-narrow editor">
+            <button className="detail-back" onClick={() => go({ name: "feed" })}>
+              <Icon.chevronLeft /> 전체 글 보기
+            </button>
+            <div className="ed-meta">
+              <span className="ed-show">{post.show}</span>
+              <span>·</span>
+              <span>{post.dateLong}</span>
+              {post.hosts && <><span>·</span><span>{post.hosts.join(", ")}</span></>}
+            </div>
+            <h1 className="ed-h1">{post.title}</h1>
+            <p className="ed-lede">{post.summary}</p>
+            <hr className="ed-hr" />
+
+            {post.indices && post.indices.length > 0 && (
+              <section className="ed-section">
+                <h2 className="ed-h2"><span className="ed-emo">📊</span> 오늘의 시황</h2>
+                {post.marketBody && <p className="ed-p">{post.marketBody}</p>}
+                <table className="ed-table">
+                  <thead><tr><th>지수</th><th>수치</th><th>흐름</th></tr></thead>
+                  <tbody>
+                    {post.indices.map((idx, i) => (
+                      <tr key={i}>
+                        <td>{idx.name}</td>
+                        <td className="ed-tnum">{idx.value}</td>
+                        <td className={`ed-flow ${dirCls(idx.dir)}`}>
+                          <span className="ed-arrow-inline">{arrow(idx.dir)}</span> {idx.note || idx.change}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {post.sectors && post.sectors.length > 0 && (
+              <section className="ed-section">
+                <h2 className="ed-h2"><span className="ed-emo">📌</span> 섹터별 동향</h2>
+                {post.sectors.map((s, i) => (
+                  <div key={i} className="ed-sector">
+                    <h3 className="ed-h3">
+                      <span className={`ed-arrow ${dirCls(s.dir)}`}>{arrow(s.dir)}</span>
+                      {s.name}
+                      {s.tag && <span className="ed-tag">— {s.tag}</span>}
+                    </h3>
+                    {s.headline && <p className="ed-p ed-headline">{s.headline}</p>}
+                    {s.body && <p className="ed-p">{s.body}</p>}
+                    {s.stocks && s.stocks.length > 0 && (
+                      <ul className="ed-stocks">
+                        {s.stocks.map((st, j) => (
+                          <li key={j} onClick={() => go({ name: "stock", symbol: st.name })}>
+                            <span className="ed-stock-name">{st.name}</span>
+                            <span className={`ed-stock-chg ${dirCls(st.dir)}`}>{st.change}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {post.news && post.news.length > 0 && (
+              <section className="ed-section">
+                <h2 className="ed-h2"><span className="ed-emo">🌍</span> 주요 뉴스 &amp; 이슈</h2>
+                {post.news.map((n, i) => (
+                  <div key={i} className="ed-news">
+                    <h3 className="ed-h3">{n.title}</h3>
+                    <p className="ed-p">{n.body}</p>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {post.schedule && post.schedule.length > 0 && (
+              <section className="ed-section">
+                <h2 className="ed-h2"><span className="ed-emo">📅</span> 앞으로의 일정</h2>
+                <ul className="ed-sched">
+                  {post.schedule.map((ev, i) => (
+                    <li key={i} className={ev.highlight ? "highlight" : ""}>
+                      <span className="ed-sched-date">{ev.date}</span>
+                      <span className="ed-sched-event">{ev.event}</span>
+                      <span className="ed-sched-why">— {ev.why}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {post.warningStocks && post.warningStocks.length > 0 && (
+              <section className="ed-section">
+                <h2 className="ed-h2"><span className="ed-emo">⚠️</span> 레버리지 ETF 주의사항</h2>
+                <p className="ed-p">5/21 삼성전자·SK하이닉스 단일 레버리지 ETF 상장. 이미 반도체를 많이 갖고 있는 분들은 굳이 추가로 살 필요 없어요. 아래 종목들은 ETF에서 자금이 빠져나올 때 같이 흔들릴 수 있으니 주의하세요.</p>
+                <p className="ed-p ed-warning-list">{post.warningStocks.join(" · ")}</p>
+              </section>
+            )}
+
+            {post.classroom && post.classroom.length > 0 && (
+              <section className="ed-section">
+                <h2 className="ed-h2"><span className="ed-emo">📚</span> 방과후 경제교실</h2>
+                {post.classroom.map((c, i) => (
+                  <div key={i} className="ed-classroom">
+                    <h3 className="ed-h3">{c.topic} <span className="ed-host-name">— {c.host}</span></h3>
+                    <p className="ed-p">{c.body}</p>
+                    {c.quote && <blockquote className="ed-quote">"{c.quote}"</blockquote>}
+                  </div>
+                ))}
+              </section>
+            )}
+
+            <DonateInline onShare={onShare} shared={shared} />
+          </main>
+        </>
+      );
+    }
+
+    function DonatePage({ go, setIsPatron }) {
+      const [copied, setCopied] = useState(false);
+      const copyAccount = () => {
+        navigator.clipboard?.writeText(`${window.DONATION.bank} ${window.DONATION.account} ${window.DONATION.holder}`);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      };
+      return (
+        <>
+          <Header go={go} route={{ name: "donate" }} search="" setSearch={() => {}} />
+          <main className="page-narrow">
+            <button className="detail-back" onClick={() => go({ name: "feed" })}>
+              <Icon.chevronLeft /> 전체 글 보기
+            </button>
+            <div className="donate-hero">
+              <h1>응원해 주셔서 고맙습니다 💙</h1>
+              <p>{window.DONATION.message}<br /><br />커피 한 잔이라도 큰 힘이 돼요. 후원해 주신 분들 덕분에 앞으로도 매일 정리해서 올릴 수 있어요.</p>
+            </div>
+            <div className="donate-detail-card">
+              <h2 className="section-title" style={{ marginBottom: 8 }}>후원 계좌</h2>
+              <p className="body-md" style={{ color: "var(--toss-text-2)", margin: "0 0 8px" }}>아래 계좌로 자유롭게 보내주세요.</p>
+              <div className="donate-row"><span className="lbl">은행</span><span className="val">{window.DONATION.bank}</span></div>
+              <div className="donate-row"><span className="lbl">계좌번호</span><span className="val">{window.DONATION.account}</span></div>
+              <div className="donate-row"><span className="lbl">예금주</span><span className="val">{window.DONATION.holder}</span></div>
+              <div style={{ marginTop: 24, display: "flex", gap: 8, flexDirection: "column" }}>
+                <button className={`btn-donate ${copied ? "copied" : ""}`} onClick={copyAccount}
+                  style={{ width: "100%", justifyContent: "center", padding: "14px" }}>
+                  <Icon.copy /> {copied ? "복사 완료!" : "계좌번호 복사"}
+                </button>
+                <button onClick={() => { setIsPatron(true); go({ name: "feed" }); }}
+                  style={{ width: "100%", padding: "14px", borderRadius: 10, background: "var(--toss-bg)", color: "var(--toss-text-2)", fontWeight: 700, fontSize: 14 }}>
+                  후원 완료했어요 → 분석 리포트 보기
+                </button>
+              </div>
+            </div>
+          </main>
+        </>
+      );
+    }
+
+    function StockPage({ symbol, go }) {
+      const mentions = window.STOCK_MENTIONS?.[symbol] || [];
+      const ups = mentions.filter(m => m.dir === "up").length;
+      const downs = mentions.filter(m => m.dir === "down").length;
+      const net = ups - downs;
+      const sentiment = net > 0 ? "긍정 우세" : net < 0 ? "부정 우세" : "혼조";
+      const sentDir = net > 0 ? "up" : net < 0 ? "down" : "flat";
+
+      return (
+        <>
+          <Header go={go} route={{ name: "stock" }} search="" setSearch={() => {}} />
+          <main className="page-narrow">
+            <button className="detail-back" onClick={() => go({ name: "feed" })}>
+              <Icon.chevronLeft /> 전체 글 보기
+            </button>
+            <div className="detail-meta">
+              <span className="show-pill">종목</span>
+              <span>최근 방송 언급</span>
+            </div>
+            <h1 className="detail-h1">{symbol}</h1>
+            <div className="stock-summary-row">
+              <div className={`stock-summary-card ${sentDir}`}>
+                <div className="ssc-label">최근 톤</div>
+                <div className="ssc-val">{sentiment}</div>
+              </div>
+              <div className="stock-summary-card up">
+                <div className="ssc-label">긍정 언급</div>
+                <div className="ssc-val">{ups}건</div>
+              </div>
+              <div className="stock-summary-card down">
+                <div className="ssc-label">부정 언급</div>
+                <div className="ssc-val">{downs}건</div>
+              </div>
+            </div>
+            <section className="section">
+              <h2 className="section-title"><span className="emoji">🎙</span> 방송별 언급</h2>
+              {mentions.length === 0 ? (
+                <div style={{ textAlign: "center", color: "var(--toss-text-3)", padding: "32px 0" }}>아직 정리된 언급이 없어요.</div>
+              ) : mentions.map((m, i) => {
+                const post = window.POSTS.find(p => p.id === m.postId);
+                return (
+                  <div key={i} className={`mention-card ${m.dir}`} onClick={() => post && go({ name: "post", id: m.postId })}>
+                    <div className="mention-meta">
+                      <span className="show-pill">{m.show}</span>
+                      <span>{post?.dateLong || ""}</span>
+                      <span className={`mention-dir ${m.dir}`}>{m.dir === "up" ? "▲ 긍정" : m.dir === "down" ? "▼ 부정" : "• 중립"}</span>
+                    </div>
+                    <div className="mention-quote">"{m.quote}"</div>
+                    {post && <div className="mention-post-title">→ {post.title}</div>}
+                  </div>
+                );
+              })}
+            </section>
+          </main>
+        </>
+      );
+    }
+
+    function Footer() {
+      return (
+        <footer className="site-footer">
+          <div className="site-footer-inner">
+            <div className="footer-brand">
+              <div className="brand-mark">주</div>
+              <span className="brand-name">주식요약</span>
+            </div>
+            <p className="footer-disclaimer">
+              본 사이트는 외부 경제 방송의 내용을 자체적으로 요약·재구성한 정보를 제공합니다.
+              <strong> 모든 콘텐츠는 정보 제공 목적이며, 특정 종목의 매수·매도를 권유하지 않습니다.</strong>
+              최종 투자 판단과 책임은 투자자 본인에게 있으며, 본 사이트는 투자 결과에 대해 어떠한 책임도 지지 않습니다.
+              본 서비스는 「자본시장과 금융투자업에 관한 법률」상 투자자문업·투자일임업에 해당하지 않습니다.
+            </p>
+            <div className="footer-meta">© 2026 주식요약 · 문의 hello@example.com</div>
+          </div>
+        </footer>
+      );
+    }
+
+    function App() {
+      const [route, setRoute] = useState({ name: "feed" });
+      const [isPatron, setIsPatron] = useState(() => localStorage.getItem("isPatron") === "1");
+      useEffect(() => { localStorage.setItem("isPatron", isPatron ? "1" : "0"); }, [isPatron]);
+
+      const go = (r) => { setRoute(r); window.scrollTo({ top: 0, behavior: "instant" }); };
+      const post = route.name === "post" ? window.POSTS.find(p => p.id === route.id) : null;
+
+      return (
+        <div className="app">
+          {route.name === "feed" && <FeedPage posts={window.POSTS} go={go} isPatron={isPatron} setIsPatron={setIsPatron} showPremium={false} />}
+          {route.name === "post" && post && <PostPage post={post} go={go} />}
+          {route.name === "donate" && <DonatePage go={go} setIsPatron={setIsPatron} />}
+          {route.name === "stock" && <StockPage symbol={route.symbol} go={go} />}
+          <Footer />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
