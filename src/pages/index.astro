@@ -18,7 +18,14 @@ const shows = ['전체', ...new Set(posts.map(p => p.data.show))];
       </div>
 
       <div id="post-list">
-        {posts.map(post => {
+        {posts.length === 0 ? (
+          <div class="empty-state">
+            <p class="empty-icon">📭</p>
+            <p class="empty-title">아직 작성된 글이 없어요</p>
+            <p class="empty-desc">글 관리에서 새 글을 작성해보세요.</p>
+            <a href="/editor" class="btn-pill primary" style="margin-top: 16px;">글 작성하러 가기</a>
+          </div>
+        ) : posts.map(post => {
           const { title, date, show, hosts, summary, tags } = post.data;
           return (
             <a href={`/post/${post.id}`} class="post-card" data-show={show}>
@@ -43,22 +50,29 @@ const shows = ['전체', ...new Set(posts.map(p => p.data.show))];
     </section>
 
     <aside class="sidebar">
-      <div class="sidebar-card">
-        <p class="sec-title">최근 업데이트</p>
-        {posts.slice(0, 5).map(p => (
-          <a href={`/post/${p.slug}`} class="recent-item">
-            <span class="recent-show">{p.data.show}</span>
-            <span class="recent-title">{p.data.title}</span>
-          </a>
-        ))}
-      </div>
-      <div class="sidebar-card">
-        <p class="sec-title">태그</p>
-        <div class="card-tags">
-          {[...new Set(posts.flatMap(p => p.data.tags))].map(t => (
-            <span class="tag">{t}</span>
+      {posts.length > 0 && (
+        <div class="sidebar-card">
+          <p class="sec-title">최근 업데이트</p>
+          {posts.slice(0, 5).map(p => (
+            <a href={`/post/${p.id}`} class="recent-item">
+              <span class="recent-show">{p.data.show}</span>
+              <span class="recent-title">{p.data.title}</span>
+            </a>
           ))}
         </div>
+      )}
+      {posts.flatMap(p => p.data.tags).length > 0 && (
+        <div class="sidebar-card">
+          <p class="sec-title">태그</p>
+          <div class="card-tags">
+            {[...new Set(posts.flatMap(p => p.data.tags))].map(t => (
+              <span class="tag">{t}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      <div class="sidebar-card">
+        <a href="/editor" class="btn-pill primary" style="width:100%; justify-content:center;">+ 새 글 작성</a>
       </div>
     </aside>
   </div>
@@ -73,6 +87,13 @@ const shows = ['전체', ...new Set(posts.map(p => p.data.show))];
   }
   .filter-btn.active, .filter-btn:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
   .main-col { min-width: 0; }
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 80px 24px; text-align: center;
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-title { font-size: 18px; font-weight: 700; color: var(--text-1); margin-bottom: 8px; }
+  .empty-desc { font-size: 14px; color: var(--text-3); }
   .recent-item {
     display: flex; flex-direction: column; gap: 2px;
     padding: 10px 0; border-bottom: 1px solid var(--border);
