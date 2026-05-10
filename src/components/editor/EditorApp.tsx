@@ -194,7 +194,6 @@ function EditorApp() {
     setStatus('삭제 중...');
     setDeleteTarget(null);
     try {
-      // Fetch latest SHA just before deleting to avoid stale SHA errors
       const latest = await ghFetch(`/repos/${repo}/contents/${f.path}`, token);
       await ghFetch(`/repos/${repo}/contents/${f.path}`, token, {
         method: 'DELETE',
@@ -203,7 +202,12 @@ function EditorApp() {
       setStatus('삭제 완료');
       loadFiles();
     } catch (e: any) {
-      setStatus(`삭제 오류: ${e.message}`);
+      const msg = e.message || '';
+      if (msg.includes('404')) {
+        setStatus('삭제 실패 (404): 토큰에 쓰기 권한이 없어요. GitHub에서 토큰을 재발급할 때 Contents: Read and write 권한을 선택하세요.');
+      } else {
+        setStatus(`삭제 오류: ${msg}`);
+      }
     }
   }
 
