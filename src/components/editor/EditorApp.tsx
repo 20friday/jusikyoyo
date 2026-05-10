@@ -40,9 +40,7 @@ async function ghFetch(url: string, token: string, opts: RequestInit = {}) {
   });
   if (!r.ok) {
     const body = await r.text();
-    if (r.status === 404) throw new Error('저장소 또는 경로를 찾을 수 없어요. 저장소명과 토큰 권한을 확인하세요. (404)');
-    if (r.status === 401) throw new Error('토큰이 유효하지 않아요. 새 토큰을 발급하고 재설정하세요. (401)');
-    throw new Error(`GitHub API ${r.status}: ${body}`);
+    throw new Error(`GitHub ${r.status}: ${body}`);
   }
   return r.json();
 }
@@ -202,12 +200,7 @@ function EditorApp() {
       setStatus('삭제 완료');
       loadFiles();
     } catch (e: any) {
-      const msg = e.message || '';
-      if (msg.includes('404')) {
-        setStatus('삭제 실패 (404): 토큰에 쓰기 권한이 없어요. GitHub에서 토큰을 재발급할 때 Contents: Read and write 권한을 선택하세요.');
-      } else {
-        setStatus(`삭제 오류: ${msg}`);
-      }
+      setStatus(`삭제 오류: ${e.message}`);
     }
   }
 
