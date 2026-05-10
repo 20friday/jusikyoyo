@@ -114,7 +114,13 @@ function EditorApp() {
     setLoading(true);
     setStatus('불러오는 중...');
     try {
-      const data = await ghFetch(`/repos/${repo}/contents/src/content/posts`, token);
+      let data: any[];
+      try {
+        data = await ghFetch(`/repos/${repo}/contents/src/content/posts`, token);
+      } catch (e: any) {
+        if (e.message.includes('404')) { setFiles([]); setStatus(''); return; }
+        throw e;
+      }
       const entries: FileEntry[] = await Promise.all(
         data
           .filter((f: any) => f.name.endsWith('.md'))
