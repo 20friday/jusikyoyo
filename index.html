@@ -339,6 +339,40 @@
     .footer-disclaimer strong { color: var(--toss-text-2); font-weight: 700; }
     .footer-meta { font-size: 12px; color: var(--toss-text-3); }
 
+    /* ===== 에디터 ===== */
+    .form-section { background: var(--toss-card); border: 1px solid var(--toss-border); border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+    .form-section-title { font-size: 13px; font-weight: 700; color: var(--toss-text-3); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 16px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-label { font-size: 13px; font-weight: 600; color: var(--toss-text-2); margin-bottom: 6px; display: block; }
+    .form-input {
+      width: 100%; padding: 10px 14px; border: 1.5px solid var(--toss-border);
+      border-radius: 10px; font-family: var(--font-sans); font-size: 15px;
+      color: var(--toss-text-1); background: var(--toss-bg); outline: none;
+      transition: border-color 160ms ease;
+    }
+    .form-input:focus { border-color: var(--toss-blue); background: #fff; }
+    .form-textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+    .form-select {
+      width: 100%; padding: 10px 14px; border: 1.5px solid var(--toss-border);
+      border-radius: 10px; font-family: var(--font-sans); font-size: 15px;
+      color: var(--toss-text-1); background: var(--toss-bg); outline: none;
+      cursor: pointer;
+    }
+    .array-item { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; padding: 14px; background: var(--toss-bg); border-radius: 12px; }
+    .array-item-fields { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .btn-remove { width: 30px; height: 30px; border-radius: 8px; background: var(--toss-up-bg); color: var(--toss-up); font-size: 18px; display: grid; place-items: center; flex-shrink: 0; line-height: 1; transition: background 140ms; }
+    .btn-remove:hover { background: #ffd0d4; }
+    .btn-add { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 10px; border: 1.5px dashed var(--toss-divider); color: var(--toss-text-3); font-size: 13px; font-weight: 700; background: none; transition: all 160ms ease; margin-top: 4px; }
+    .btn-add:hover { border-color: var(--toss-blue); color: var(--toss-blue); background: #f0f6ff; }
+    .btn-save { background: var(--toss-blue); color: #fff; padding: 14px 24px; border-radius: 12px; font-weight: 700; font-size: 16px; font-family: var(--font-sans); transition: background 160ms ease; }
+    .btn-save:hover { background: var(--toss-blue-dark); }
+    .btn-save.saved { background: #00b87b; }
+    .sub-list { margin-top: 10px; padding-left: 14px; border-left: 3px solid var(--toss-border); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .grid-auto { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+
     /* ===== 모바일 ===== */
     @media (max-width: 900px) {
       .page { grid-template-columns: 1fr; gap: 24px; }
@@ -936,7 +970,289 @@
       );
     }
 
-    function Footer() {
+    // ===== 에디터 헬퍼 =====
+    const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+    function toDateLong(dateStr) {
+      if (!dateStr || dateStr.length < 8) return dateStr;
+      const parts = dateStr.split('.');
+      if (parts.length < 3) return dateStr;
+      const [y, m, d] = parts.map(Number);
+      if (!y || !m || !d) return dateStr;
+      const date = new Date(y, m - 1, d);
+      return `${y}년 ${m}월 ${d}일 (${WEEKDAYS[date.getDay()]})`;
+    }
+
+    function DirSelect({ value, onChange }) {
+      return (
+        <select className="form-select" value={value || "flat"} onChange={e => onChange(e.target.value)}>
+          <option value="up">▲ 상승</option>
+          <option value="down">▼ 하락</option>
+          <option value="flat">• 보합</option>
+        </select>
+      );
+    }
+
+    // ===== 에디터 목록 페이지 =====
+    function EditorListPage({ posts, go, onDelete, onReset }) {
+      return (
+        <>
+          <Header go={go} route={{ name: "editor" }} search="" setSearch={() => {}} />
+          <main style={{ maxWidth: 800, margin: "0 auto", padding: "32px 24px 80px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+              <div>
+                <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px" }}>글 관리</h1>
+                <p style={{ fontSize: 14, color: "var(--toss-text-3)", margin: 0 }}>총 {posts.length}개의 글</p>
+              </div>
+              <button className="btn-donate" onClick={() => go({ name: "editPost", id: "new" })}>+ 새 글 작성</button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {posts.map(post => (
+                <div key={post.id} style={{ background: "var(--toss-card)", border: "1px solid var(--toss-border)", borderRadius: 16, padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span className="show-pill" style={{ background: "var(--toss-border)", color: "var(--toss-text-2)", padding: "3px 8px", borderRadius: 6, fontWeight: 600, fontSize: 12 }}>{post.show}</span>
+                      <span style={{ fontSize: 13, color: "var(--toss-text-3)" }}>{post.dateLong}</span>
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--toss-text-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.title}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                    <button onClick={() => go({ name: "editPost", id: post.id })}
+                      style={{ padding: "8px 16px", borderRadius: 10, background: "var(--toss-bg)", color: "var(--toss-text-2)", fontWeight: 700, fontSize: 13, border: "1px solid var(--toss-border)" }}>
+                      편집
+                    </button>
+                    <button onClick={() => { if (window.confirm("이 글을 삭제할까요?")) onDelete(post.id); }}
+                      style={{ padding: "8px 16px", borderRadius: 10, background: "var(--toss-up-bg)", color: "var(--toss-up)", fontWeight: 700, fontSize: 13 }}>
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 32, paddingTop: 20, borderTop: "1px solid var(--toss-border)" }}>
+              <button onClick={() => { if (window.confirm("기본 샘플 데이터로 초기화할까요? 작성한 글이 모두 사라져요.")) onReset(); }}
+                style={{ fontSize: 13, color: "var(--toss-text-3)", textDecoration: "underline", background: "none" }}>
+                기본 데이터로 초기화
+              </button>
+            </div>
+          </main>
+        </>
+      );
+    }
+
+    // ===== 글 편집 페이지 =====
+    function PostEditorPage({ post, go, onSave }) {
+      const [form, setForm] = useState(() => post ? { ...post, sectors: (post.sectors || []).map(s => ({...s, stocks: [...(s.stocks || [])]})) } : {
+        id: `post-${Date.now()}`,
+        date: "", dateLong: "", show: "12시에 만나요",
+        hosts: [], title: "", summary: "", marketBody: "",
+        indices: [], sectors: [], news: [], schedule: [], warningStocks: [], classroom: [],
+      });
+      const [saved, setSaved] = useState(false);
+
+      const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+      const addItem = (key, empty) => set(key, [...(form[key] || []), empty]);
+      const removeItem = (key, i) => set(key, (form[key] || []).filter((_, idx) => idx !== i));
+      const updateItem = (key, i, fn) => set(key, (form[key] || []).map((item, idx) => idx === i ? fn(item) : item));
+
+      const handleSave = () => {
+        onSave({ ...form, dateLong: toDateLong(form.date) || form.dateLong });
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      };
+
+      const hostsStr = (form.hosts || []).join(", ");
+      const warningStr = (form.warningStocks || []).join(", ");
+
+      return (
+        <>
+          <Header go={go} route={{ name: "editPost" }} search="" setSearch={() => {}} />
+          <main style={{ maxWidth: 800, margin: "0 auto", padding: "32px 24px 80px" }}>
+            <button className="detail-back" onClick={() => go({ name: "editor" })}>
+              <Icon.chevronLeft /> 글 목록
+            </button>
+            <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 24px" }}>
+              {post ? "글 편집" : "새 글 작성"}
+            </h1>
+
+            {/* 기본 정보 */}
+            <div className="form-section">
+              <div className="form-section-title">기본 정보</div>
+              <div className="grid-2" style={{ marginBottom: 14 }}>
+                <div>
+                  <label className="form-label">날짜</label>
+                  <input className="form-input" value={form.date} onChange={e => set("date", e.target.value)} placeholder="2026.05.08" />
+                </div>
+                <div>
+                  <label className="form-label">방송</label>
+                  <select className="form-select" value={form.show} onChange={e => set("show", e.target.value)}>
+                    {window.BROADCASTS.filter(b => b.id !== "all").map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">출연자 (쉼표로 구분)</label>
+                <input className="form-input" value={hostsStr}
+                  onChange={e => set("hosts", e.target.value.split(",").map(h => h.trim()).filter(Boolean))}
+                  placeholder="이광수, 권다영, 박시동" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">제목</label>
+                <input className="form-input" value={form.title} onChange={e => set("title", e.target.value)} placeholder="오늘의 주요 이슈" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">한 줄 요약</label>
+                <textarea className="form-input form-textarea" value={form.summary} onChange={e => set("summary", e.target.value)} placeholder="오늘 장의 핵심을 한두 문장으로" />
+              </div>
+            </div>
+
+            {/* 시황 */}
+            <div className="form-section">
+              <div className="form-section-title">📊 시황</div>
+              <div className="form-group">
+                <label className="form-label">시황 본문</label>
+                <textarea className="form-input form-textarea" style={{ minHeight: 100 }} value={form.marketBody || ""} onChange={e => set("marketBody", e.target.value)} placeholder="오늘 장 분위기를 서술..." />
+              </div>
+              <label className="form-label">지수</label>
+              {(form.indices || []).map((idx, i) => (
+                <div key={i} className="array-item">
+                  <div className="array-item-fields">
+                    <div className="grid-3">
+                      <input className="form-input" value={idx.name} onChange={e => updateItem("indices", i, v => ({...v, name: e.target.value}))} placeholder="코스피" />
+                      <input className="form-input" value={idx.value} onChange={e => updateItem("indices", i, v => ({...v, value: e.target.value}))} placeholder="7,415" />
+                      <input className="form-input" value={idx.change} onChange={e => updateItem("indices", i, v => ({...v, change: e.target.value}))} placeholder="-0.84%" />
+                    </div>
+                    <div className="grid-2">
+                      <DirSelect value={idx.dir} onChange={v => updateItem("indices", i, x => ({...x, dir: v}))} />
+                      <input className="form-input" value={idx.note || ""} onChange={e => updateItem("indices", i, v => ({...v, note: e.target.value}))} placeholder="부가 설명 (선택)" />
+                    </div>
+                  </div>
+                  <button className="btn-remove" onClick={() => removeItem("indices", i)}>×</button>
+                </div>
+              ))}
+              <button className="btn-add" onClick={() => addItem("indices", { name: "", value: "", change: "", dir: "flat", note: "" })}>+ 지수 추가</button>
+            </div>
+
+            {/* 섹터 */}
+            <div className="form-section">
+              <div className="form-section-title">📌 섹터별 동향</div>
+              {(form.sectors || []).map((sector, i) => (
+                <div key={i} className="array-item" style={{ flexDirection: "column" }}>
+                  <div style={{ display: "flex", gap: 10, width: "100%" }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div className="grid-auto">
+                        <input className="form-input" value={sector.name} onChange={e => updateItem("sectors", i, v => ({...v, name: e.target.value}))} placeholder="반도체" />
+                        <DirSelect value={sector.dir} onChange={v => updateItem("sectors", i, x => ({...x, dir: v}))} />
+                        <input className="form-input" value={sector.tag || ""} onChange={e => updateItem("sectors", i, v => ({...v, tag: e.target.value}))} placeholder="태그 (선택)" />
+                      </div>
+                      <input className="form-input" value={sector.headline || ""} onChange={e => updateItem("sectors", i, v => ({...v, headline: e.target.value}))} placeholder="한 줄 요약" />
+                      <textarea className="form-input form-textarea" value={sector.body || ""} onChange={e => updateItem("sectors", i, v => ({...v, body: e.target.value}))} placeholder="섹터 설명..." />
+                    </div>
+                    <button className="btn-remove" onClick={() => removeItem("sectors", i)}>×</button>
+                  </div>
+                  <div className="sub-list">
+                    <div className="form-label" style={{ margin: "8px 0 6px" }}>종목</div>
+                    {(sector.stocks || []).map((stock, j) => (
+                      <div key={j} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                        <input className="form-input" style={{ flex: 2 }} value={stock.name} onChange={e => updateItem("sectors", i, s => ({...s, stocks: s.stocks.map((st, k) => k === j ? {...st, name: e.target.value} : st)}))} placeholder="삼성전자" />
+                        <input className="form-input" style={{ flex: 1 }} value={stock.change} onChange={e => updateItem("sectors", i, s => ({...s, stocks: s.stocks.map((st, k) => k === j ? {...st, change: e.target.value} : st)}))} placeholder="-2.5%" />
+                        <DirSelect value={stock.dir} onChange={v => updateItem("sectors", i, s => ({...s, stocks: s.stocks.map((st, k) => k === j ? {...st, dir: v} : st)}))} />
+                        <button className="btn-remove" onClick={() => updateItem("sectors", i, s => ({...s, stocks: s.stocks.filter((_, k) => k !== j)}))}>×</button>
+                      </div>
+                    ))}
+                    <button className="btn-add" style={{ fontSize: 12, padding: "6px 12px" }} onClick={() => updateItem("sectors", i, s => ({...s, stocks: [...(s.stocks || []), { name: "", change: "", dir: "flat" }]}))}>+ 종목 추가</button>
+                  </div>
+                </div>
+              ))}
+              <button className="btn-add" onClick={() => addItem("sectors", { name: "", dir: "flat", tag: "", headline: "", body: "", stocks: [] })}>+ 섹터 추가</button>
+            </div>
+
+            {/* 뉴스 */}
+            <div className="form-section">
+              <div className="form-section-title">🌍 주요 뉴스</div>
+              {(form.news || []).map((n, i) => (
+                <div key={i} className="array-item">
+                  <div className="array-item-fields">
+                    <input className="form-input" value={n.title} onChange={e => updateItem("news", i, v => ({...v, title: e.target.value}))} placeholder="뉴스 제목" />
+                    <textarea className="form-input form-textarea" value={n.body} onChange={e => updateItem("news", i, v => ({...v, body: e.target.value}))} placeholder="뉴스 내용..." />
+                  </div>
+                  <button className="btn-remove" onClick={() => removeItem("news", i)}>×</button>
+                </div>
+              ))}
+              <button className="btn-add" onClick={() => addItem("news", { title: "", body: "" })}>+ 뉴스 추가</button>
+            </div>
+
+            {/* 일정 */}
+            <div className="form-section">
+              <div className="form-section-title">📅 앞으로의 일정</div>
+              {(form.schedule || []).map((ev, i) => (
+                <div key={i} className="array-item">
+                  <div className="array-item-fields">
+                    <div className="grid-2">
+                      <input className="form-input" value={ev.date} onChange={e => updateItem("schedule", i, v => ({...v, date: e.target.value}))} placeholder="5/12 화" />
+                      <input className="form-input" value={ev.event} onChange={e => updateItem("schedule", i, v => ({...v, event: e.target.value}))} placeholder="이벤트명" />
+                    </div>
+                    <input className="form-input" value={ev.why || ""} onChange={e => updateItem("schedule", i, v => ({...v, why: e.target.value}))} placeholder="왜 중요한지" />
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "var(--toss-text-2)", cursor: "pointer", userSelect: "none" }}>
+                      <input type="checkbox" checked={!!ev.highlight} onChange={e => updateItem("schedule", i, v => ({...v, highlight: e.target.checked}))} />
+                      중요 일정으로 표시
+                    </label>
+                  </div>
+                  <button className="btn-remove" onClick={() => removeItem("schedule", i)}>×</button>
+                </div>
+              ))}
+              <button className="btn-add" onClick={() => addItem("schedule", { date: "", event: "", why: "", highlight: false })}>+ 일정 추가</button>
+            </div>
+
+            {/* 주의 종목 */}
+            <div className="form-section">
+              <div className="form-section-title">⚠️ 레버리지 ETF 주의 종목</div>
+              <div className="form-group">
+                <label className="form-label">종목명 (쉼표로 구분)</label>
+                <textarea className="form-input form-textarea" value={warningStr}
+                  onChange={e => set("warningStocks", e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+                  placeholder="DB하이텍, 한미반도체, ISC..." />
+              </div>
+            </div>
+
+            {/* 경제교실 */}
+            <div className="form-section">
+              <div className="form-section-title">📚 방과후 경제교실</div>
+              {(form.classroom || []).map((c, i) => (
+                <div key={i} className="array-item">
+                  <div className="array-item-fields">
+                    <div className="grid-2">
+                      <input className="form-input" value={c.host} onChange={e => updateItem("classroom", i, v => ({...v, host: e.target.value}))} placeholder="강사 이름" />
+                      <input className="form-input" value={c.topic} onChange={e => updateItem("classroom", i, v => ({...v, topic: e.target.value}))} placeholder="주제" />
+                    </div>
+                    <textarea className="form-input form-textarea" value={c.body} onChange={e => updateItem("classroom", i, v => ({...v, body: e.target.value}))} placeholder="내용..." />
+                    <input className="form-input" value={c.quote || ""} onChange={e => updateItem("classroom", i, v => ({...v, quote: e.target.value}))} placeholder="인용구 (선택)" />
+                  </div>
+                  <button className="btn-remove" onClick={() => removeItem("classroom", i)}>×</button>
+                </div>
+              ))}
+              <button className="btn-add" onClick={() => addItem("classroom", { host: "", topic: "", body: "", quote: "" })}>+ 경제교실 추가</button>
+            </div>
+
+            {/* 저장 */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className={`btn-save${saved ? " saved" : ""}`} onClick={handleSave} style={{ flex: 1 }}>
+                {saved ? "✓ 저장됐어요!" : "저장"}
+              </button>
+              <button onClick={() => go({ name: "editor" })}
+                style={{ padding: "14px 24px", borderRadius: 12, background: "var(--toss-bg)", color: "var(--toss-text-2)", fontWeight: 700, fontSize: 16, fontFamily: "var(--font-sans)", border: "1px solid var(--toss-border)" }}>
+                취소
+              </button>
+            </div>
+          </main>
+        </>
+      );
+    }
+
+    function Footer({ go }) {
       return (
         <footer className="site-footer">
           <div className="site-footer-inner">
@@ -950,7 +1266,10 @@
               최종 투자 판단과 책임은 투자자 본인에게 있으며, 본 사이트는 투자 결과에 대해 어떠한 책임도 지지 않습니다.
               본 서비스는 「자본시장과 금융투자업에 관한 법률」상 투자자문업·투자일임업에 해당하지 않습니다.
             </p>
-            <div className="footer-meta">© 2026 주식요약 · 문의 hello@example.com</div>
+            <div className="footer-meta">
+              © 2026 주식요약 · 문의 hello@example.com ·{" "}
+              <button onClick={() => go({ name: "editor" })} style={{ fontSize: 12, color: "var(--toss-text-3)", textDecoration: "underline", background: "none" }}>글 관리</button>
+            </div>
           </div>
         </footer>
       );
@@ -959,18 +1278,51 @@
     function App() {
       const [route, setRoute] = useState({ name: "feed" });
       const [isPatron, setIsPatron] = useState(() => localStorage.getItem("isPatron") === "1");
+      const [posts, setPosts] = useState(() => {
+        try {
+          const saved = localStorage.getItem("POSTS_CUSTOM");
+          return saved ? JSON.parse(saved) : window.POSTS;
+        } catch (e) { return window.POSTS; }
+      });
+
       useEffect(() => { localStorage.setItem("isPatron", isPatron ? "1" : "0"); }, [isPatron]);
 
+      const savePosts = (newPosts) => {
+        setPosts(newPosts);
+        localStorage.setItem("POSTS_CUSTOM", JSON.stringify(newPosts));
+      };
+
       const go = (r) => { setRoute(r); window.scrollTo({ top: 0, behavior: "instant" }); };
-      const post = route.name === "post" ? window.POSTS.find(p => p.id === route.id) : null;
+      const post = route.name === "post" ? posts.find(p => p.id === route.id) : null;
 
       return (
         <div className="app">
-          {route.name === "feed" && <FeedPage posts={window.POSTS} go={go} isPatron={isPatron} setIsPatron={setIsPatron} showPremium={false} />}
+          {route.name === "feed" && <FeedPage posts={posts} go={go} isPatron={isPatron} setIsPatron={setIsPatron} showPremium={false} />}
           {route.name === "post" && post && <PostPage post={post} go={go} />}
           {route.name === "donate" && <DonatePage go={go} setIsPatron={setIsPatron} />}
           {route.name === "stock" && <StockPage symbol={route.symbol} go={go} />}
-          <Footer />
+          {route.name === "editor" && (
+            <EditorListPage
+              posts={posts} go={go}
+              onDelete={(id) => savePosts(posts.filter(p => p.id !== id))}
+              onReset={() => { savePosts(window.POSTS); go({ name: "editor" }); }}
+            />
+          )}
+          {route.name === "editPost" && (
+            <PostEditorPage
+              post={route.id === "new" ? null : posts.find(p => p.id === route.id)}
+              go={go}
+              onSave={(updated) => {
+                if (route.id === "new") {
+                  savePosts([updated, ...posts]);
+                } else {
+                  savePosts(posts.map(p => p.id === updated.id ? updated : p));
+                }
+                go({ name: "editor" });
+              }}
+            />
+          )}
+          <Footer go={go} />
         </div>
       );
     }
