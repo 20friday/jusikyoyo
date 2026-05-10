@@ -38,8 +38,19 @@ async function ghFetch(url: string, token: string, opts: RequestInit = {}) {
       ...((opts.headers as Record<string, string>) || {}),
     },
   });
-  if (!r.ok) throw new Error(`GitHub API ${r.status}: ${await r.text()}`);
+  if (!r.ok) {
+    const body = await r.text();
+    if (r.status === 404) throw new Error('저장소 또는 경로를 찾을 수 없어요. 저장소명과 토큰 권한을 확인하세요. (404)');
+    if (r.status === 401) throw new Error('토큰이 유효하지 않아요. 새 토큰을 발급하고 재설정하세요. (401)');
+    throw new Error(`GitHub API ${r.status}: ${body}`);
+  }
   return r.json();
+}
+
+// base64(GitHub) → UTF-8 string (한글 포함)
+function decodeBase64(b64: string): string {
+  const bytes = Uint8Array.from(atob(b64.replace(/\n/g, '')), c => c.charCodeAt(0));
+  return new TextDecoder('utf-8').decode(bytes);
 }
 
 function parseFrontmatter(raw: string): { meta: PostMeta; body: string } {
@@ -111,7 +122,7 @@ function EditorApp() {
           .filter((f: any) => f.name.endsWith('.md'))
           .map(async (f: any) => {
             const fileData = await ghFetch(`/repos/${repo}/contents/${f.path}`, token);
-            const raw = atob(fileData.content.replace(/\n/g, ''));
+            const raw = decodeBase64(fileData.content);
             const { meta, body } = parseFrontmatter(raw);
             return {
               name: f.name,
