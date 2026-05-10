@@ -94,10 +94,10 @@ function EditorApp() {
 
   const isConfigured = token && repo;
 
-  useEffect(() => {
-    if (token) localStorage.setItem(GITHUB_TOKEN_KEY, token);
-    if (repo) localStorage.setItem(GITHUB_REPO_KEY, repo);
-  }, [token, repo]);
+  // Separate local state for the config form (so typing doesn't prematurely trigger transitions)
+  const [formRepo, setFormRepo] = useState(repo);
+  const [formToken, setFormToken] = useState('');
+  const [configError, setConfigError] = useState('');
 
   const loadFiles = useCallback(async () => {
     if (!isConfigured) return;
@@ -135,7 +135,7 @@ function EditorApp() {
 
   useEffect(() => {
     if (isConfigured && view === 'list') loadFiles();
-  }, [isConfigured, view]);
+  }, [isConfigured, view, token, repo]); // re-run when credentials change
 
   function openNew() {
     setCurrent(null);
@@ -196,6 +196,17 @@ function EditorApp() {
 
   // ===== CONFIG SCREEN =====
   if (!isConfigured) {
+    function connect() {
+      if (!formRepo.trim() || !formToken.trim()) {
+        setConfigError('저장소와 토큰을 모두 입력해주세요.');
+        return;
+      }
+      setConfigError('');
+      setRepo(formRepo.trim());
+      setToken(formToken.trim());
+      localStorage.setItem(GITHUB_REPO_KEY, formRepo.trim());
+      localStorage.setItem(GITHUB_TOKEN_KEY, formToken.trim());
+    }
     return (
       <div style={{ maxWidth: 480, margin: '80px auto', padding: '0 24px' }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 24 }}>GitHub 연결</h2>
@@ -208,32 +219,35 @@ function EditorApp() {
           <input
             className="meta-input" style={{ width: '100%' }}
             placeholder="20friday/jusikyoyo"
-            value={repo}
-            onChange={e => setRepo(e.target.value)}
+            value={formRepo}
+            onChange={e => setFormRepo(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && connect()}
           />
         </label>
-        <label style={{ display: 'block', marginBottom: 24 }}>
+        <label style={{ display: 'block', marginBottom: 16 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>GitHub Personal Access Token</span>
           <input
             className="meta-input" style={{ width: '100%' }} type="password"
             placeholder="ghp_..."
-            value={token}
-            onChange={e => setToken(e.target.value)}
+            value={formToken}
+            onChange={e => setFormToken(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && connect()}
           />
         </label>
+        {configError && (
+          <p style={{ fontSize: 13, color: 'var(--up)', marginBottom: 12, fontWeight: 600 }}>{configError}</p>
+        )}
         <button
           className="btn-pill primary"
           style={{ width: '100%', justifyContent: 'center' }}
-          onClick={() => {
-            if (token && repo) {
-              localStorage.setItem(GITHUB_TOKEN_KEY, token);
-              localStorage.setItem(GITHUB_REPO_KEY, repo);
-              loadFiles();
-            }
-          }}
+          onClick={connect}
         >
           연결하기
         </button>
+        <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 12, lineHeight: 1.6 }}>
+          토큰은 브라우저에만 저장되고 서버에 전송되지 않아요.<br />
+          GitHub → Settings → Developer Settings → Personal Access Tokens에서 발급하세요.
+        </p>
       </div>
     );
   }
