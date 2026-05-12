@@ -13,86 +13,73 @@ function formatDate(dateStr: string) {
 }
 ---
 <Base title="피드">
-  <div class="page">
-    <section class="main-col">
-      <div class="feed-filters">
-        {shows.map(s => (
-          <button class={`filter-btn ${s === '전체' ? 'active' : ''}`} data-show={s}>
-            {s}
-          </button>
-        ))}
-      </div>
+  <div class="feed-wrap">
+    <div class="feed-filters">
+      {shows.map(s => (
+        <button class={`filter-btn ${s === '전체' ? 'active' : ''}`} data-show={s}>
+          {s}
+        </button>
+      ))}
+    </div>
 
-      <div id="post-list">
-        {posts.length === 0 ? (
-          <div class="empty-state">
-            <p class="empty-icon">📭</p>
-            <p class="empty-title">아직 작성된 글이 없어요</p>
-            <p class="empty-desc">글 관리에서 새 글을 작성해보세요.</p>
-            <a href="/editor" class="btn-pill primary" style="margin-top: 16px;">글 작성하러 가기</a>
-          </div>
-        ) : posts.map(post => {
-          const { title, date, show, hosts, summary, tags } = post.data;
-          return (
-            <a href={`/post/${post.id}`} class="post-card" data-show={show}>
-              <div class="card-meta">
-                <span class="card-show">{show}</span>
-                <span class="card-dot"></span>
-                <span class="card-date">{formatDate(date)}</span>
-                <span class="card-dot"></span>
-                <span class="card-hosts">{hosts.join(' · ')}</span>
+    <div id="post-list">
+      {posts.length === 0 ? (
+        <div class="empty-state">
+          <p class="empty-icon">📭</p>
+          <p class="empty-title">아직 작성된 글이 없어요</p>
+          <p class="empty-desc">글 관리에서 새 글을 작성해보세요.</p>
+          <a href="/editor" class="btn-pill primary" style="margin-top: 16px;">글 작성하러 가기</a>
+        </div>
+      ) : posts.map(post => {
+        const { title, date, show, hosts, summary, tags } = post.data;
+        return (
+          <a href={`/post/${post.id}`} class="post-card" data-show={show}>
+            <div class="card-meta">
+              <span class="card-show">{show}</span>
+              <span class="card-dot"></span>
+              <span class="card-date">{formatDate(date)}</span>
+              <span class="card-dot"></span>
+              <span class="card-hosts">{hosts.join(' · ')}</span>
+            </div>
+            <h2 class="card-title">{title}</h2>
+            <p class="card-summary">{summary}</p>
+            {tags.length > 0 && (
+              <div class="card-tags">
+                {tags.map(t => <span class="tag">{t}</span>)}
               </div>
-              <h2 class="card-title">{title}</h2>
-              <p class="card-summary">{summary}</p>
-              {tags.length > 0 && (
-                <div class="card-tags">
-                  {tags.map(t => <span class="tag">{t}</span>)}
-                </div>
-              )}
-            </a>
-          );
-        })}
-      </div>
-    </section>
-
-    <aside class="sidebar">
-      {posts.length > 0 && (
-        <div class="sidebar-card">
-          <p class="sec-title">최근 업데이트</p>
-          {posts.slice(0, 5).map(p => (
-            <a href={`/post/${p.id}`} class="recent-item">
-              <span class="recent-show">{p.data.show}</span>
-              <span class="recent-title">{p.data.title}</span>
-            </a>
-          ))}
-        </div>
-      )}
-      {posts.flatMap(p => p.data.tags).length > 0 && (
-        <div class="sidebar-card">
-          <p class="sec-title">태그</p>
-          <div class="card-tags">
-            {[...new Set(posts.flatMap(p => p.data.tags))].map(t => (
-              <span class="tag">{t}</span>
-            ))}
-          </div>
-        </div>
-      )}
-      <div class="sidebar-card">
-        <a href="/editor" class="btn-pill primary" style="width:100%; justify-content:center;">+ 새 글 작성</a>
-      </div>
-    </aside>
+            )}
+          </a>
+        );
+      })}
+    </div>
   </div>
 </Base>
 
 <style>
-  .feed-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+  .feed-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+
+  .feed-filters {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    margin-bottom: 20px;
+  }
+  .feed-filters::-webkit-scrollbar { display: none; }
+
   .filter-btn {
-    padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600;
     color: var(--text-2); background: var(--card); border: 1px solid var(--border);
-    transition: all 140ms ease; cursor: pointer;
+    transition: all 140ms ease; cursor: pointer; white-space: nowrap; flex-shrink: 0;
   }
   .filter-btn.active, .filter-btn:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
-  .main-col { min-width: 0; }
+
   .empty-state {
     display: flex; flex-direction: column; align-items: center;
     padding: 80px 24px; text-align: center;
@@ -100,15 +87,6 @@ function formatDate(dateStr: string) {
   .empty-icon { font-size: 48px; margin-bottom: 16px; }
   .empty-title { font-size: 18px; font-weight: 700; color: var(--text-1); margin-bottom: 8px; }
   .empty-desc { font-size: 14px; color: var(--text-3); }
-  .recent-item {
-    display: flex; flex-direction: column; gap: 2px;
-    padding: 10px 0; border-bottom: 1px solid var(--border);
-    text-decoration: none;
-  }
-  .recent-item:last-child { border-bottom: none; }
-  .recent-show { font-size: 11px; font-weight: 700; color: var(--blue); }
-  .recent-title { font-size: 13px; font-weight: 600; color: var(--text-1); line-height: 1.4; }
-  .recent-item:hover .recent-title { color: var(--blue); }
 </style>
 
 <script>
