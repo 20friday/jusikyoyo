@@ -14,6 +14,10 @@ function formatDate(dateStr: string) {
 ---
 <Base title="피드">
   <div class="feed-wrap">
+    <div class="feed-header">
+      <h1 class="feed-heading">오늘의 방송 정리 📺</h1>
+      <p class="feed-sub">4대 주식 방송 핵심만 추려서 올려요. 최신글이 위에 있어요.</p>
+    </div>
     <div class="feed-filters">
       {shows.map(s => (
         <button class={`filter-btn ${s === '전체' ? 'active' : ''}`} data-show={s}>
@@ -60,6 +64,17 @@ function formatDate(dateStr: string) {
     max-width: 680px;
     margin: 0 auto;
     padding: 20px 16px 80px;
+  }
+
+  .feed-header {
+    padding: 16px 0 24px;
+  }
+  .feed-heading {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+    color: var(--text-1); margin-bottom: 6px;
+  }
+  .feed-sub {
+    font-size: 14px; color: var(--text-3); line-height: 1.5;
   }
 
   .feed-filters {
