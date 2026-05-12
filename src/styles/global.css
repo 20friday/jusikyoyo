@@ -145,6 +145,31 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .prose ul, .prose ol { margin: 0 0 16px; padding-left: 1.5em; }
 .prose li { margin-bottom: 6px; }
 .prose strong { font-weight: 700; }
+.prose table {
+  width: 100%; border-collapse: collapse;
+  margin: 20px 0 28px; font-size: 15px;
+}
+.prose thead tr {
+  border-bottom: 2px solid var(--border);
+}
+.prose th {
+  padding: 10px 16px; text-align: left;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-3); letter-spacing: 0.02em;
+}
+.prose td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--divider);
+  vertical-align: top;
+  line-height: 1.6;
+}
+.prose td:first-child {
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text-2);
+  min-width: 120px;
+}
+.prose tbody tr:last-child td { border-bottom: none; }
 .prose blockquote {
   margin: 20px 0; padding: 16px 20px;
   background: var(--bg); border-left: 3px solid var(--text-3);
