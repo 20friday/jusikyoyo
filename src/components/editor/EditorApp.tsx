@@ -231,7 +231,7 @@ function EditorApp() {
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>GitHub 저장소 (owner/repo)</span>
           <input
             className="meta-input" style={{ width: '100%' }}
-            placeholder="20friday/jusikyoyo"
+            placeholder="20friday/tedpick"
             value={formRepo}
             onChange={e => setFormRepo(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && connect()}
