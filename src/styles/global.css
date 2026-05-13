@@ -99,8 +99,8 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .card-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-3); }
 .card-date { font-size: 13px; color: var(--text-3); }
 .card-hosts { font-size: 13px; color: var(--text-3); }
-.card-title { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.35; margin-bottom: 10px; }
-.card-summary { font-size: 15px; color: var(--text-2); line-height: 1.65; margin-bottom: 16px; }
+.card-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.35; margin-bottom: 10px; }
+.card-summary { font-size: 16px; color: var(--text-2); line-height: 1.65; margin-bottom: 16px; }
 .card-indices { display: flex; gap: 8px; flex-wrap: wrap; }
 .idx-pill {
   display: inline-flex; align-items: center; gap: 5px;
