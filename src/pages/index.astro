@@ -3,7 +3,11 @@ import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 
 const allPosts = await getCollection('posts', ({ data }) => data.published !== false);
-const posts = allPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
+const posts = allPosts.sort((a, b) => {
+  const dateComp = b.data.date.localeCompare(a.data.date);
+  if (dateComp !== 0) return dateComp;
+  return b.id.localeCompare(a.id); // 같은 날짜면 파일명 역순 (나중 등록이 위)
+});
 const shows = ['전체', ...new Set(posts.map(p => p.data.show))];
 
 const days = ['일', '월', '화', '수', '목', '금', '토'];
