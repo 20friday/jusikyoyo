@@ -53,10 +53,10 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 /* ===== 헤더 ===== */
 .hdr {
   position: sticky; top: 0; z-index: 50;
-  background: rgba(255,255,255,0.9);
-  backdrop-filter: saturate(180%) blur(12px);
-  -webkit-backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: saturate(200%) blur(24px);
+  -webkit-backdrop-filter: saturate(200%) blur(24px);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 .hdr-inner {
   max-width: 680px; margin: 0 auto;
@@ -71,11 +71,11 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 /* 포스트 상세 스크롤 시 헤더 변환 */
 .hdr-ctx-label {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 15px;
-  font-weight: 700;
+  left: 16px;
+  font-size: 17px;
+  font-weight: 800;
   color: var(--text-1);
+  letter-spacing: -0.02em;
   white-space: nowrap;
   opacity: 0;
   transition: opacity 180ms ease;
