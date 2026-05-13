@@ -56,3 +56,27 @@ const dateKo = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (
     border-top: 1px solid var(--border);
   }
 </style>
+
+
+<script>
+  const meta = document.querySelector('.detail-meta') as HTMLElement;
+  const hdrInner = document.querySelector('.hdr-inner') as HTMLElement;
+  const showEl = document.querySelector('.detail-show') as HTMLElement;
+
+  if (meta && hdrInner && showEl) {
+    // 방송명 라벨 삽입
+    const label = document.createElement('span');
+    label.className = 'hdr-ctx-label';
+    label.textContent = showEl.textContent;
+    hdrInner.appendChild(label);
+
+    // detail-meta가 헤더 뒤로 사라지면 전환
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        hdrInner.classList.toggle('is-scrolled', !entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: '-56px 0px 0px 0px' }
+    );
+    observer.observe(meta);
+  }
+</script>

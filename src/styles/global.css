@@ -62,10 +62,38 @@ ul, ol { margin: 0; padding-left: 1.4em; }
   max-width: 680px; margin: 0 auto;
   padding: 12px 16px;
   display: flex; align-items: center; gap: 12px;
+  position: relative;
 }
-.brand { display: flex; align-items: center; cursor: pointer; text-decoration: none; }
+.brand { display: flex; align-items: center; cursor: pointer; text-decoration: none; transition: opacity 180ms ease; }
 .brand-logo { height: 18px; width: auto; display: block; }
-.hdr-spacer { flex: 1; }
+.hdr-spacer { flex: 1; transition: opacity 180ms ease; }
+
+/* 포스트 상세 스크롤 시 헤더 변환 */
+.hdr-ctx-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+.hdr-inner.is-scrolled .brand,
+.hdr-inner.is-scrolled .hdr-spacer {
+  opacity: 0;
+  pointer-events: none;
+}
+.hdr-inner.is-scrolled .btn-pill {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+.hdr-inner.is-scrolled .hdr-ctx-label {
+  opacity: 1;
+}
 .btn-pill {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: 10px;
