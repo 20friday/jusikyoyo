@@ -59,11 +59,7 @@ const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a))
                 </div>
                 <h2 class="card-title">{title}</h2>
                 <p class="card-summary">{summary}</p>
-                {tags.length > 0 && (
-                  <div class="card-tags">
-                    {tags.map(t => <span class="tag">{t}</span>)}
-                  </div>
-                )}
+                <div class="card-cta">3분 요약 보기 →</div>
               </a>
             );
           })}
@@ -136,6 +132,31 @@ const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a))
     color: var(--text-3);
     white-space: nowrap;
   }
+  .card-cta {
+    text-align: right;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--blue);
+    margin-top: 12px;
+  }
+
+  .date-divider--today {
+    margin-top: 4px;
+    justify-content: center;
+  }
+  .date-divider--today::before,
+  .date-divider--today::after {
+    display: none;
+  }
+  .date-divider--today .date-divider-label {
+    font-size: 13px;
+    font-weight: 800;
+    color: #ed781f;
+    background: color-mix(in srgb, #ed781f 12%, transparent);
+    padding: 5px 14px;
+    border-radius: 20px;
+    letter-spacing: -0.01em;
+  }
 </style>
 
 <script>
@@ -159,8 +180,9 @@ const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a))
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
     if (date === todayStr) {
+      el.classList.add('date-divider--today');
       const label = el.querySelector('.date-divider-label');
-      if (label) label.textContent = '오늘';
+      if (label) label.textContent = '오늘의 PICK';
     }
   });
 
