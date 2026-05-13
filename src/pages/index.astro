@@ -11,6 +11,15 @@ function formatDate(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
 }
+
+// 날짜별로 그룹핑
+const groupedPosts: Record<string, typeof posts> = {};
+for (const post of posts) {
+  const d = post.data.date;
+  if (!groupedPosts[d]) groupedPosts[d] = [];
+  groupedPosts[d].push(post);
+}
+const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a));
 ---
 <Base title="피드">
   <div class="feed-wrap">
@@ -34,27 +43,32 @@ function formatDate(dateStr: string) {
           <p class="empty-desc">글 관리에서 새 글을 작성해보세요.</p>
           <a href="/editor" class="btn-pill primary" style="margin-top: 16px;">글 작성하러 가기</a>
         </div>
-      ) : posts.map(post => {
-        const { title, date, show, hosts, summary, tags } = post.data;
-        return (
-          <a href={`/post/${post.id}`} class="post-card" data-show={show}>
-            <div class="card-meta">
-              <span class="card-show">{show}</span>
-              <span class="card-dot"></span>
-              <span class="card-date">{formatDate(date)}</span>
-              <span class="card-dot"></span>
-              <span class="card-hosts">{hosts.join(' · ')}</span>
-            </div>
-            <h2 class="card-title">{title}</h2>
-            <p class="card-summary">{summary}</p>
-            {tags.length > 0 && (
-              <div class="card-tags">
-                {tags.map(t => <span class="tag">{t}</span>)}
-              </div>
-            )}
-          </a>
-        );
-      })}
+      ) : sortedDates.map(date => (
+        <>
+          <div class="date-divider" data-date={date}>
+            <span class="date-divider-label">{formatDate(date)}</span>
+          </div>
+          {groupedPosts[date].map(post => {
+            const { title, show, summary, tags } = post.data;
+            return (
+              <a href={`/post/${post.id}`} class="post-card" data-show={show} data-date={date}>
+                <div class="card-meta">
+                  <span class="card-show">{show}</span>
+                  <span class="card-dot"></span>
+                  <span class="card-date" data-date={date}>날짜</span>
+                </div>
+                <h2 class="card-title">{title}</h2>
+                <p class="card-summary">{summary}</p>
+                {tags.length > 0 && (
+                  <div class="card-tags">
+                    {tags.map(t => <span class="tag">{t}</span>)}
+                  </div>
+                )}
+              </a>
+            );
+          })}
+        </>
+      ))}
     </div>
   </div>
 </Base>
@@ -102,18 +116,73 @@ function formatDate(dateStr: string) {
   .empty-icon { font-size: 48px; margin-bottom: 16px; }
   .empty-title { font-size: 18px; font-weight: 700; color: var(--text-1); margin-bottom: 8px; }
   .empty-desc { font-size: 14px; color: var(--text-3); }
+
+  .date-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 24px 0 12px;
+  }
+  .date-divider::before,
+  .date-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .date-divider-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-3);
+    white-space: nowrap;
+  }
 </style>
 
 <script>
+  // ── 날짜 표시 ──────────────────────────────────────────
+  function formatRelativeDate(dateStr: string): string {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    if (dateStr === todayStr) return '오늘';
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  }
+
+  document.querySelectorAll<HTMLElement>('.card-date[data-date]').forEach(el => {
+    const date = el.dataset.date!;
+    el.textContent = formatRelativeDate(date);
+  });
+
+  // 날짜 구분선도 오늘이면 숨기고 카드에 오늘 표시로 처리
+  document.querySelectorAll<HTMLElement>('.date-divider[data-date]').forEach(el => {
+    const date = el.dataset.date!;
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    if (date === todayStr) {
+      const label = el.querySelector('.date-divider-label');
+      if (label) label.textContent = '오늘';
+    }
+  });
+
+  // ── 필터 ──────────────────────────────────────────────
   const filters = document.querySelectorAll<HTMLButtonElement>('.filter-btn');
   const cards = document.querySelectorAll<HTMLElement>('.post-card');
+
   filters.forEach(btn => {
     btn.addEventListener('click', () => {
       filters.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const show = btn.dataset.show;
+
       cards.forEach(card => {
-        (card as HTMLElement).style.display = (show === '전체' || card.dataset.show === show) ? '' : 'none';
+        card.style.display = (show === '전체' || card.dataset.show === show) ? '' : 'none';
+      });
+
+      // 날짜 구분선: 해당 날짜 아래 보이는 카드가 없으면 구분선도 숨김
+      document.querySelectorAll<HTMLElement>('.date-divider').forEach(divider => {
+        const date = divider.dataset.date;
+        const hasVisible = [...cards].some(c => c.dataset.date === date && c.style.display !== 'none');
+        divider.style.display = hasVisible ? '' : 'none';
       });
     });
   });
