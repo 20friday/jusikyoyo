@@ -464,13 +464,13 @@ ul, ol { margin: 0; padding-left: 1.4em; }
   gap: 10px;
 }
 .stock-rank {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--blue);
-  width: 20px;
+  width: 22px;
 }
-.stock-name { font-size: 16px; font-weight: 700; }
-.stock-shows { font-size: 13px; color: var(--text-3); }
+.stock-name { font-size: 17px; font-weight: 700; }
+.stock-shows { font-size: 14px; color: var(--text-3); }
 
 .report-blur-wrap { position: relative; overflow: hidden; }
 .report-blur-content {
@@ -485,16 +485,16 @@ ul, ol { margin: 0; padding-left: 1.4em; }
   background: linear-gradient(to bottom, transparent 10%, var(--card) 72%);
 }
 
-.comparison-stock-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+.comparison-stock-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
 .comparison-point {
-  font-size: 16px;
+  font-size: 17px;
   color: var(--text-2);
   margin-bottom: 8px;
   line-height: 1.75;
 }
 .comparison-point-show { font-weight: 700; color: var(--text-1); }
 .comparison-pick {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--blue);
   margin-top: 10px;
@@ -503,10 +503,10 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 
 .sector-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
 .sector-row:last-of-type { border-bottom: none; }
-.sector-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-.sector-flow { font-size: 15px; color: var(--text-2); line-height: 1.7; }
+.sector-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.sector-flow { font-size: 17px; color: var(--text-2); line-height: 1.75; }
 
-.report-insight { font-size: 16px; color: var(--text-2); line-height: 1.8; }
+.report-insight { font-size: 17px; color: var(--text-2); line-height: 1.8; }
 
 .report-lock-cta { text-align: center; margin-top: 12px; }
 .report-lock-btn {
