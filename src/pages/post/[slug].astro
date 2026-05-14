@@ -27,11 +27,6 @@ const dateKo = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (
       </div>
       <h1 class="detail-title">{title}</h1>
       <p class="detail-summary">{summary}</p>
-      {tags.length > 0 && (
-        <div class="detail-tags">
-          {tags.map(t => <span class="tag">{t}</span>)}
-        </div>
-      )}
       <hr class="detail-divider" />
       <div class="prose">
         <Content />
