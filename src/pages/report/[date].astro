@@ -16,6 +16,8 @@ function formatDate(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
 }
+
+const comparisonsJson = report ? JSON.stringify(report.data.comparisons) : '[]';
 ---
 <Base title="PICK 리포트" description="오늘 방송 교차분석 리포트">
   {!report ? (
@@ -34,15 +36,18 @@ function formatDate(dateStr: string) {
 
       <!-- 공통 언급 종목 -->
       <div class="report-section">
-        <div class="report-section-label">공통 언급 종목</div>
+        <div class="report-section-label">공통 언급 종목 <span class="section-hint">탭하면 방송 의견을 볼 수 있어요</span></div>
         {report.data.stocks.map((stock, i) => (
-          <div class="stock-row">
+          <button class="stock-row stock-row--clickable" data-stock={stock.name}>
             <div class="stock-row-left">
               <span class="stock-rank">#{i + 1}</span>
               <span class="stock-name">{stock.name}</span>
             </div>
-            <span class="stock-shows">{stock.shows.join(' · ')}</span>
-          </div>
+            <div class="stock-row-right">
+              <span class="stock-shows">{stock.shows.join(' · ')}</span>
+              <span class="stock-row-chevron">›</span>
+            </div>
+          </button>
         ))}
       </div>
 
@@ -81,7 +86,139 @@ function formatDate(dateStr: string) {
 
     </div>
   )}
+
+  <!-- 말풍선 바텀시트 -->
+  <div id="stock-sheet-backdrop" class="stock-sheet-backdrop"></div>
+  <div id="stock-sheet" class="stock-sheet" aria-hidden="true">
+    <div class="stock-sheet-handle"></div>
+    <div id="stock-sheet-content" class="stock-sheet-content"></div>
+  </div>
 </Base>
+
+<style>
+  .section-hint {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-3);
+    margin-left: 6px;
+    letter-spacing: 0;
+  }
+
+  .stock-row--clickable {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .stock-row--clickable:active {
+    opacity: 0.7;
+  }
+
+  .stock-row-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stock-row-chevron {
+    font-size: 20px;
+    color: var(--text-3);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  /* 바텀시트 */
+  .stock-sheet-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+  }
+  .stock-sheet-backdrop.open { display: block; }
+
+  .stock-sheet {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--card);
+    border-radius: 20px 20px 0 0;
+    z-index: 101;
+    transform: translateY(100%);
+    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    max-height: 80vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .stock-sheet.open { transform: translateY(0); }
+
+  .stock-sheet-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 14px auto 0;
+  }
+
+  .stock-sheet-content {
+    padding: 20px 20px 48px;
+  }
+
+</style>
+
+<script define:vars={{ comparisonsJson }}>
+  const comparisons = JSON.parse(comparisonsJson);
+  const backdrop = document.getElementById('stock-sheet-backdrop');
+  const sheet = document.getElementById('stock-sheet');
+  const content = document.getElementById('stock-sheet-content');
+
+  function openSheet(stockName, shows) {
+    // 관련 comparison 찾기 (종목명이 comparison.stock에 포함되는 경우)
+    const related = comparisons.filter(c =>
+      c.stock.includes(stockName) || stockName.includes(c.stock.split(' ')[0])
+    );
+
+    let html = `<div class="sheet-stock-name">${stockName}</div>`;
+    html += `<div class="sheet-stock-shows">${shows} 언급</div>`;
+
+    if (related.length > 0) {
+      related.forEach(comp => {
+        html += `<div class="sheet-comp-title">${comp.stock}</div>`;
+        comp.points.forEach(pt => {
+          html += `<div class="sheet-point"><span class="sheet-point-show">${pt.show}</span>${pt.view}</div>`;
+        });
+        html += `<div class="sheet-pick"><div class="sheet-pick-label">PICK</div>${comp.pick}</div>`;
+      });
+    } else {
+      html += `<div class="sheet-no-comp">이 종목은 여러 방송에서 언급됐지만, 별도 의견 비교는 없었어요.</div>`;
+    }
+
+    content.innerHTML = html;
+    backdrop.classList.add('open');
+    sheet.classList.add('open');
+    sheet.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeSheet() {
+    backdrop.classList.remove('open');
+    sheet.classList.remove('open');
+    sheet.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.stock-row--clickable').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const stockName = btn.dataset.stock;
+      const shows = btn.querySelector('.stock-shows')?.textContent ?? '';
+      openSheet(stockName, shows);
+    });
+  });
+
+  backdrop.addEventListener('click', closeSheet);
+  sheet.addEventListener('click', e => e.stopPropagation());
+</script>
 
 <script>
   const hero = document.querySelector('.report-hero') as HTMLElement;
