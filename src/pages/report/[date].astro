@@ -88,11 +88,13 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
     </div>
   )}
 
-  <!-- 말풍선 바텀시트 -->
-  <div id="stock-sheet-backdrop" class="stock-sheet-backdrop"></div>
-  <div id="stock-sheet" class="stock-sheet" aria-hidden="true">
-    <div class="stock-sheet-handle"></div>
-    <div id="stock-sheet-content" class="stock-sheet-content"></div>
+  <!-- 종목 모달 -->
+  <div id="stock-modal-backdrop" class="stock-modal-backdrop"></div>
+  <div id="stock-modal" class="stock-modal" aria-hidden="true" role="dialog">
+    <div class="stock-modal-inner">
+      <button id="stock-modal-close" class="stock-modal-close" aria-label="닫기">✕</button>
+      <div id="stock-modal-content" class="stock-modal-content"></div>
+    </div>
   </div>
 </Base>
 
@@ -131,39 +133,69 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
     flex-shrink: 0;
   }
 
-  /* 바텀시트 */
-  .stock-sheet-backdrop {
+  /* 모달 */
+  .stock-modal-backdrop {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.4);
+    background: rgba(0,0,0,0.5);
     z-index: 100;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
   }
-  .stock-sheet-backdrop.open { display: block; }
+  .stock-modal-backdrop.open { display: block; }
 
-  .stock-sheet {
+  .stock-modal {
+    display: none;
     position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: var(--card);
-    border-radius: 20px 20px 0 0;
+    inset: 0;
     z-index: 101;
-    transform: translateY(100%);
-    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .stock-modal.open { display: flex; }
+
+  .stock-modal-inner {
+    background: var(--card);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
     max-height: 80vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    position: relative;
+    animation: modal-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .stock-sheet.open { transform: translateY(0); }
 
-  .stock-sheet-handle {
-    width: 36px; height: 4px;
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .stock-modal-close {
+    position: sticky;
+    top: 0;
+    float: right;
+    margin: 16px 16px 0 0;
+    width: 32px; height: 32px;
+    border-radius: 50%;
     background: var(--border);
-    border-radius: 2px;
-    margin: 14px auto 0;
+    border: none;
+    font-size: 15px;
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    z-index: 1;
   }
+  .stock-modal-close:hover { background: var(--divider); }
 
-  .stock-sheet-content {
-    padding: 20px 20px 48px;
+  .stock-modal-content {
+    padding: 0 20px 28px;
+    clear: both;
   }
 
 </style>
@@ -171,9 +203,9 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
 <script define:vars={{ comparisonsJson, stocksJson }}>
   const comparisons = JSON.parse(comparisonsJson);
   const stocks = JSON.parse(stocksJson);
-  const backdrop = document.getElementById('stock-sheet-backdrop');
-  const sheet = document.getElementById('stock-sheet');
-  const content = document.getElementById('stock-sheet-content');
+  const backdrop = document.getElementById('stock-modal-backdrop');
+  const sheet = document.getElementById('stock-modal');
+  const content = document.getElementById('stock-modal-content');
 
   function openSheet(stockName, shows) {
     const stockData = stocks.find(s => s.name === stockName);
@@ -216,7 +248,7 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
     document.body.style.overflow = 'hidden';
   }
 
-  function closeSheet() {
+  function closeModal() {
     backdrop.classList.remove('open');
     sheet.classList.remove('open');
     sheet.setAttribute('aria-hidden', 'true');
@@ -231,8 +263,9 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
     });
   });
 
-  backdrop.addEventListener('click', closeSheet);
-  sheet.addEventListener('click', e => e.stopPropagation());
+  backdrop.addEventListener('click', closeModal);
+  document.getElementById('stock-modal-close').addEventListener('click', closeModal);
+  document.querySelector('.stock-modal-inner').addEventListener('click', e => e.stopPropagation());
 </script>
 
 <script>
