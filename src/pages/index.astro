@@ -63,11 +63,8 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
           </div>
           {reportsByDate[date] && (
             <a href="/report" class="report-card" data-date={date}>
-              <div class="report-card-label">📊 PICK 리포트</div>
+              <div class="report-card-label">PICK 리포트</div>
               <div class="report-card-headline">{reportsByDate[date].data.headline}</div>
-              <div class="report-card-meta">
-                {reportsByDate[date].data.shows.join(' · ')} · 공통 종목 {reportsByDate[date].data.stocks.length}개
-              </div>
             </a>
           )}
           {(groupedPosts[date] ?? []).map(post => {
@@ -160,7 +157,7 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
     display: block;
     background: linear-gradient(135deg, #191f28 0%, #2d3748 100%);
     border-radius: 16px;
-    padding: 18px 20px;
+    padding: 14px 20px;
     margin-bottom: 10px;
     text-decoration: none;
     color: #fff;
@@ -168,10 +165,10 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
   }
   .report-card:hover { opacity: 0.9; }
   .report-card-label {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--blue);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     letter-spacing: 0.01em;
   }
   .report-card-headline {
@@ -179,7 +176,6 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
     font-weight: 800;
     line-height: 1.4;
     letter-spacing: -0.02em;
-    margin-bottom: 10px;
   }
   .report-card-meta {
     font-size: 12px;
