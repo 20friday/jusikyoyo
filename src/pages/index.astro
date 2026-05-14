@@ -6,7 +6,9 @@ const allPosts = await getCollection('posts', ({ data }) => data.published !== f
 const posts = allPosts.sort((a, b) => {
   const dateComp = b.data.date.localeCompare(a.data.date);
   if (dateComp !== 0) return dateComp;
-  return b.id.localeCompare(a.id); // 같은 날짜면 파일명 역순 (나중 등록이 위)
+  const aOrder = a.data.order ?? 999;
+  const bOrder = b.data.order ?? 999;
+  return bOrder - aOrder;
 });
 const shows = ['전체', ...new Set(posts.map(p => p.data.show))];
 
