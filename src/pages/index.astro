@@ -31,6 +31,14 @@ const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a))
       <h1 class="feed-heading">오늘의 주식 방송 PICK</h1>
       <p class="feed-sub">방송마다 흩어진 종목·섹터·시장 이슈를 쉽게 정리해드려요.</p>
     </div>
+    <a href="/report" class="report-entry-banner">
+      <div class="report-entry-left">
+        <span class="report-entry-badge">PICK 리포트</span>
+        <span class="report-entry-desc">오늘 방송 교차분석 · 공통 종목 · 투자 인사이트</span>
+      </div>
+      <span class="report-entry-arrow">→</span>
+    </a>
+
     <div class="feed-filters">
       {shows.map(s => (
         <button class={`filter-btn ${s === '전체' ? 'active' : ''}`} data-show={s}>
@@ -90,6 +98,29 @@ const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a))
   .feed-sub {
     font-size: 14px; color: var(--text-3); line-height: 1.5;
   }
+
+  .report-entry-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #191f28 0%, #2d3748 100%);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    text-decoration: none;
+    color: #fff;
+    transition: opacity 160ms ease;
+  }
+  .report-entry-banner:hover { opacity: 0.9; }
+  .report-entry-left { display: flex; flex-direction: column; gap: 4px; }
+  .report-entry-badge {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--blue);
+    letter-spacing: -0.01em;
+  }
+  .report-entry-desc { font-size: 12px; opacity: 0.7; }
+  .report-entry-arrow { font-size: 18px; opacity: 0.6; }
 
   .feed-filters {
     display: flex;
