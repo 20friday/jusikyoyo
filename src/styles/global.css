@@ -452,9 +452,9 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 
 .stock-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 9px 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
 .stock-row:last-of-type { border-bottom: none; }
