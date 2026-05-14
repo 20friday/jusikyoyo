@@ -161,7 +161,7 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .detail-divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
 
 /* ===== 글 본문 마크다운 ===== */
-.prose { font-size: 16px; line-height: 1.8; color: var(--text-1); }
+.prose { font-size: 17px; line-height: 1.8; color: var(--text-1); }
 .prose h2 {
   font-size: 24px; font-weight: 800; letter-spacing: -0.02em;
   margin: 52px 0 12px; color: var(--text-1);
