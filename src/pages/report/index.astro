@@ -1,0 +1,135 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+const allReports = await getCollection('reports');
+const report = allReports.sort((a, b) => b.data.date.localeCompare(a.data.date))[0];
+
+const days = ['일', '월', '화', '수', '목', '금', '토'];
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
+}
+---
+<Base title="PICK 리포트" description="오늘 방송 교차분석 리포트">
+  {!report ? (
+    <div style="text-align:center;padding:80px 24px;color:var(--text-3);">
+      <p style="font-size:32px;margin-bottom:12px;">📭</p>
+      <p style="font-size:16px;font-weight:700;">아직 리포트가 없어요</p>
+    </div>
+  ) : (
+    <div class="report-wrap">
+
+      <!-- 히어로 -->
+      <div class="report-hero">
+        <div class="report-hero-label">{formatDate(report.data.date)} · PICK 리포트</div>
+        <div class="report-hero-headline">{report.data.headline}</div>
+        <div class="report-hero-badges">
+          <span class="report-hero-badge">비교한 방송 {report.data.shows.length}개</span>
+          <span class="report-hero-badge">공통 종목 {report.data.stocks.length}개</span>
+        </div>
+      </div>
+
+      <!-- 공통 언급 종목 -->
+      <div class="report-section">
+        <div class="report-section-label">공통 언급 종목</div>
+        {report.data.stocks.slice(0, 2).map((stock, i) => (
+          <div class="stock-row">
+            <div class="stock-row-left">
+              <span class="stock-rank">#{i + 1}</span>
+              <span class="stock-name">{stock.name}</span>
+            </div>
+            <span class="stock-shows">{stock.shows.join(' · ')}</span>
+          </div>
+        ))}
+        {report.data.stocks.length > 2 && (
+          <div class="report-blur-wrap">
+            <div class="report-blur-content">
+              {report.data.stocks.slice(2).map((stock, i) => (
+                <div class="stock-row">
+                  <div class="stock-row-left">
+                    <span class="stock-rank">#{i + 3}</span>
+                    <span class="stock-name">{stock.name}</span>
+                  </div>
+                  <span class="stock-shows">{stock.shows.join(' · ')}</span>
+                </div>
+              ))}
+            </div>
+            <div class="report-blur-fade"></div>
+          </div>
+        )}
+        <div class="report-lock-cta">
+          <span class="report-lock-btn">🔒 전체 종목 + 해석 보기</span>
+        </div>
+      </div>
+
+      <!-- 방송 간 의견 차이 + 섹터 흐름 -->
+      <div class="report-section">
+        <div class="report-section-label">방송 간 의견 차이</div>
+        {report.data.comparisons.slice(0, 1).map(comp => (
+          <div>
+            <div class="comparison-stock-title">{comp.stock}</div>
+            <div class="comparison-point">
+              <span class="comparison-point-show">{comp.points[0].show}:</span>{' '}
+              {comp.points[0].view}
+            </div>
+            <div class="report-blur-wrap">
+              <div class="report-blur-content">
+                {comp.points.slice(1).map(pt => (
+                  <div class="comparison-point">
+                    <span class="comparison-point-show">{pt.show}:</span>{' '}{pt.view}
+                  </div>
+                ))}
+                <div class="comparison-pick">PICK: {comp.pick}</div>
+                {report.data.comparisons.slice(1).map(c2 => (
+                  <div style="margin-top:16px;">
+                    <div class="comparison-stock-title">{c2.stock}</div>
+                    {c2.points.map(pt => (
+                      <div class="comparison-point">
+                        <span class="comparison-point-show">{pt.show}:</span>{' '}{pt.view}
+                      </div>
+                    ))}
+                    <div class="comparison-pick">PICK: {c2.pick}</div>
+                  </div>
+                ))}
+                <div style="margin-top:20px;">
+                  <div class="report-section-label">섹터 공통 흐름</div>
+                  {report.data.sectors.map(sector => (
+                    <div class="sector-row">
+                      <div class="sector-name">{sector.name}</div>
+                      <div class="sector-flow">{sector.flow}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div class="report-blur-fade"></div>
+            </div>
+          </div>
+        ))}
+        <div class="report-lock-cta">
+          <span class="report-lock-btn">🔒 구독하고 전체 보기</span>
+        </div>
+      </div>
+
+      <!-- 오늘의 투자 인사이트 -->
+      <div class="report-section">
+        <div class="report-section-label">오늘의 투자 인사이트</div>
+        <div class="report-blur-wrap">
+          <div class="report-blur-content report-insight">{report.data.insight}</div>
+          <div class="report-blur-fade"></div>
+        </div>
+        <div class="report-lock-cta">
+          <span class="report-lock-btn">🔒 내일 봐야 할 포인트 보기</span>
+        </div>
+      </div>
+
+      <!-- 구독 CTA -->
+      <div class="report-subscribe-cta">
+        <div class="report-subscribe-title">PICK 리포트 구독</div>
+        <div class="report-subscribe-desc">방송 비교 · 섹터 흐름 · 투자 인사이트</div>
+        <a href="#" class="report-subscribe-btn">월 9,900원으로 시작하기</a>
+      </div>
+
+    </div>
+  )}
+</Base>
