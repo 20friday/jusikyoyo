@@ -92,8 +92,8 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
   <div id="stock-modal-backdrop" class="stock-modal-backdrop"></div>
   <div id="stock-modal" class="stock-modal" aria-hidden="true" role="dialog">
     <div class="stock-modal-inner">
-      <button id="stock-modal-close" class="stock-modal-close" aria-label="닫기">✕</button>
       <div id="stock-modal-content" class="stock-modal-content"></div>
+      <button id="stock-modal-close" class="stock-modal-close" aria-label="닫기">닫기</button>
     </div>
   </div>
 </Base>
@@ -174,28 +174,23 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
   }
 
   .stock-modal-close {
-    position: sticky;
-    top: 0;
-    float: right;
-    margin: 16px 16px 0 0;
-    width: 32px; height: 32px;
-    border-radius: 50%;
+    display: block;
+    width: calc(100% - 40px);
+    margin: 8px 20px 20px;
+    padding: 16px;
+    border-radius: 14px;
     background: var(--border);
     border: none;
-    font-size: 15px;
+    font-size: 16px;
+    font-weight: 700;
     color: var(--text-2);
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    z-index: 1;
+    font-family: var(--font);
   }
-  .stock-modal-close:hover { background: var(--divider); }
+  .stock-modal-close:active { background: var(--divider); }
 
   .stock-modal-content {
-    padding: 0 20px 28px;
-    clear: both;
+    padding: 20px 20px 8px;
   }
 
 </style>
