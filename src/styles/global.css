@@ -156,7 +156,7 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .detail-summary {
   font-size: 16px; color: var(--text-2); line-height: 1.7;
   padding: 16px 20px; background: var(--bg); border-radius: 12px;
-  margin-bottom: 32px; border-left: 3px solid var(--blue);
+  margin-bottom: 32px;
 }
 .detail-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 32px; }
 .detail-divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
