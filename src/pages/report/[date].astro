@@ -258,7 +258,7 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
     });
   });
 
-  backdrop.addEventListener('click', closeModal);
+  sheet.addEventListener('click', closeModal);
   document.getElementById('stock-modal-close').addEventListener('click', closeModal);
   document.querySelector('.stock-modal-inner').addEventListener('click', e => e.stopPropagation());
 </script>
