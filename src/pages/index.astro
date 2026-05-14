@@ -10,7 +10,9 @@ const posts = allPosts.sort((a, b) => {
   const bOrder = b.data.order ?? 999;
   return bOrder - aOrder;
 });
-const shows = ['전체', ...new Set(posts.map(p => p.data.show))];
+const showOrder = ['12시에 만나요', '삼프로TV', '한국경제TV', '연합뉴스경제TV'];
+const existingShows = new Set(posts.map(p => p.data.show));
+const shows = ['전체', ...showOrder.filter(s => existingShows.has(s))];
 
 // 날짜별 리포트 맵
 const allReports = await getCollection('reports');
