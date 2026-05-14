@@ -14,4 +14,30 @@ const posts = defineCollection({
   }),
 });
 
-export const collections = { posts };
+const reports = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/reports' }),
+  schema: z.object({
+    date: z.string(),
+    headline: z.string(),
+    shows: z.array(z.string()),
+    stocks: z.array(z.object({
+      name: z.string(),
+      shows: z.array(z.string()),
+    })),
+    comparisons: z.array(z.object({
+      stock: z.string(),
+      points: z.array(z.object({
+        show: z.string(),
+        view: z.string(),
+      })),
+      pick: z.string(),
+    })),
+    sectors: z.array(z.object({
+      name: z.string(),
+      flow: z.string(),
+    })),
+    insight: z.string(),
+  }),
+});
+
+export const collections = { posts, reports };
