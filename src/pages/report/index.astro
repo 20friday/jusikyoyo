@@ -22,12 +22,8 @@ function formatDate(dateStr: string) {
 
       <!-- 히어로 -->
       <div class="report-hero">
-        <div class="report-hero-label">{formatDate(report.data.date)} · PICK 리포트</div>
+        <div class="report-hero-label"><span class="report-hero-label-pick">PICK 리포트</span> · {formatDate(report.data.date)}</div>
         <div class="report-hero-headline">{report.data.headline}</div>
-        <div class="report-hero-badges">
-          <span class="report-hero-badge">비교한 방송 {report.data.shows.length}개</span>
-          <span class="report-hero-badge">공통 종목 {report.data.stocks.length}개</span>
-        </div>
       </div>
 
       <!-- 공통 언급 종목 -->
