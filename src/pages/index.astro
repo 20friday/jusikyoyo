@@ -10,6 +10,13 @@ const posts = allPosts.sort((a, b) => {
 });
 const shows = ['전체', ...new Set(posts.map(p => p.data.show))];
 
+// 날짜별 리포트 맵
+const allReports = await getCollection('reports');
+const reportsByDate: Record<string, typeof allReports[0]> = {};
+for (const r of allReports) {
+  reportsByDate[r.data.date] = r;
+}
+
 const days = ['일', '월', '화', '수', '목', '금', '토'];
 function formatDate(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -23,7 +30,9 @@ for (const post of posts) {
   if (!groupedPosts[d]) groupedPosts[d] = [];
   groupedPosts[d].push(post);
 }
-const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a));
+// 포스트 날짜 + 리포트 날짜를 합쳐서 정렬
+const allDates = [...new Set([...Object.keys(groupedPosts), ...Object.keys(reportsByDate)])];
+const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
 ---
 <Base title="피드">
   <div class="feed-wrap">
@@ -31,14 +40,6 @@ const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a))
       <h1 class="feed-heading">오늘의 주식 방송 PICK</h1>
       <p class="feed-sub">방송마다 흩어진 종목·섹터·시장 이슈를 쉽게 정리해드려요.</p>
     </div>
-    <a href="/report" class="report-entry-banner">
-      <div class="report-entry-left">
-        <span class="report-entry-badge">PICK 리포트</span>
-        <span class="report-entry-desc">오늘 방송 교차분석 · 공통 종목 · 투자 인사이트</span>
-      </div>
-      <span class="report-entry-arrow">→</span>
-    </a>
-
     <div class="feed-filters">
       {shows.map(s => (
         <button class={`filter-btn ${s === '전체' ? 'active' : ''}`} data-show={s}>
@@ -60,8 +61,17 @@ const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a))
           <div class="date-divider" data-date={date}>
             <span class="date-divider-label">{formatDate(date)}</span>
           </div>
-          {groupedPosts[date].map(post => {
-            const { title, show, summary, tags } = post.data;
+          {reportsByDate[date] && (
+            <a href="/report" class="report-card" data-date={date}>
+              <div class="report-card-label">📊 PICK 리포트</div>
+              <div class="report-card-headline">{reportsByDate[date].data.headline}</div>
+              <div class="report-card-meta">
+                {reportsByDate[date].data.shows.join(' · ')} · 공통 종목 {reportsByDate[date].data.stocks.length}개
+              </div>
+            </a>
+          )}
+          {(groupedPosts[date] ?? []).map(post => {
+            const { title, show, summary } = post.data;
             return (
               <a href={`/post/${post.id}`} class="post-card" data-show={show} data-date={date}>
                 <div class="card-meta">
@@ -98,29 +108,6 @@ const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a))
   .feed-sub {
     font-size: 14px; color: var(--text-3); line-height: 1.5;
   }
-
-  .report-entry-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(135deg, #191f28 0%, #2d3748 100%);
-    border-radius: 14px;
-    padding: 14px 18px;
-    margin-bottom: 16px;
-    text-decoration: none;
-    color: #fff;
-    transition: opacity 160ms ease;
-  }
-  .report-entry-banner:hover { opacity: 0.9; }
-  .report-entry-left { display: flex; flex-direction: column; gap: 4px; }
-  .report-entry-badge {
-    font-size: 12px;
-    font-weight: 800;
-    color: var(--blue);
-    letter-spacing: -0.01em;
-  }
-  .report-entry-desc { font-size: 12px; opacity: 0.7; }
-  .report-entry-arrow { font-size: 18px; opacity: 0.6; }
 
   .feed-filters {
     display: flex;
@@ -167,6 +154,38 @@ const sortedDates = Object.keys(groupedPosts).sort((a, b) => b.localeCompare(a))
     color: var(--text-3);
     white-space: nowrap;
   }
+
+  /* 리포트 카드 */
+  .report-card {
+    display: block;
+    background: linear-gradient(135deg, #191f28 0%, #2d3748 100%);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    text-decoration: none;
+    color: #fff;
+    transition: opacity 160ms ease;
+  }
+  .report-card:hover { opacity: 0.9; }
+  .report-card-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--blue);
+    margin-bottom: 8px;
+    letter-spacing: 0.01em;
+  }
+  .report-card-headline {
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+  }
+  .report-card-meta {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+  }
+
   .card-cta {
     text-align: right;
     font-size: 13px;
