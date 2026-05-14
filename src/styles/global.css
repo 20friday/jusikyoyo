@@ -442,7 +442,7 @@ ul, ol { margin: 0; padding-left: 1.4em; }
   border: 1px solid var(--border);
 }
 .report-section-label {
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-3);
   letter-spacing: 0.06em;
