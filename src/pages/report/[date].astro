@@ -1,0 +1,104 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+export async function getStaticPaths() {
+  const allReports = await getCollection('reports');
+  return allReports.map(r => ({ params: { date: r.data.date } }));
+}
+
+const { date } = Astro.params;
+const allReports = await getCollection('reports');
+const report = allReports.find(r => r.data.date === date);
+
+const days = ['일', '월', '화', '수', '목', '금', '토'];
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
+}
+---
+<Base title="PICK 리포트" description="오늘 방송 교차분석 리포트">
+  {!report ? (
+    <div style="text-align:center;padding:80px 24px;color:var(--text-3);">
+      <p style="font-size:32px;margin-bottom:12px;">📭</p>
+      <p style="font-size:16px;font-weight:700;">리포트를 찾을 수 없어요</p>
+    </div>
+  ) : (
+    <div class="report-wrap">
+
+      <!-- 히어로 -->
+      <div class="report-hero">
+        <div class="report-hero-label"><span class="report-hero-label-pick">PICK 리포트</span> · {formatDate(report.data.date)}</div>
+        <div class="report-hero-headline">{report.data.headline}</div>
+      </div>
+
+      <!-- 공통 언급 종목 -->
+      <div class="report-section">
+        <div class="report-section-label">공통 언급 종목</div>
+        {report.data.stocks.map((stock, i) => (
+          <div class="stock-row">
+            <div class="stock-row-left">
+              <span class="stock-rank">#{i + 1}</span>
+              <span class="stock-name">{stock.name}</span>
+            </div>
+            <span class="stock-shows">{stock.shows.join(' · ')}</span>
+          </div>
+        ))}
+      </div>
+
+      <!-- 방송 간 의견 차이 -->
+      <div class="report-section">
+        <div class="report-section-label">방송 간 의견 차이</div>
+        {report.data.comparisons.map(comp => (
+          <div style="margin-bottom:32px;">
+            <div class="comparison-stock-title">{comp.stock}</div>
+            {comp.points.map(pt => (
+              <div class="comparison-point">
+                <span class="comparison-point-show">{pt.show}:</span>{' '}{pt.view}
+              </div>
+            ))}
+            <div class="comparison-pick">PICK: {comp.pick}</div>
+          </div>
+        ))}
+      </div>
+
+      <!-- 섹터 공통 흐름 -->
+      <div class="report-section">
+        <div class="report-section-label">섹터 공통 흐름</div>
+        {report.data.sectors.map(sector => (
+          <div class="sector-row">
+            <div class="sector-name">{sector.name}</div>
+            <div class="sector-flow">{sector.flow}</div>
+          </div>
+        ))}
+      </div>
+
+      <!-- 오늘의 투자 인사이트 -->
+      <div class="report-section">
+        <div class="report-section-label">오늘의 투자 인사이트</div>
+        <div class="report-insight">{report.data.insight}</div>
+      </div>
+
+    </div>
+  )}
+</Base>
+
+<script>
+  const hero = document.querySelector('.report-hero') as HTMLElement;
+  const hdrInner = document.querySelector('.hdr-inner') as HTMLElement;
+
+  if (hero && hdrInner) {
+    const label = document.createElement('span');
+    label.className = 'hdr-ctx-label';
+    label.textContent = 'PICK 리포트';
+    hdrInner.appendChild(label);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        hdrInner.classList.toggle('is-scrolled', !entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: '-56px 0px 0px 0px' }
+    );
+    observer.observe(hero);
+  }
+</script>
