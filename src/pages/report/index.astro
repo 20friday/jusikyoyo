@@ -76,3 +76,23 @@ function formatDate(dateStr: string) {
     </div>
   )}
 </Base>
+
+<script>
+  const hero = document.querySelector('.report-hero') as HTMLElement;
+  const hdrInner = document.querySelector('.hdr-inner') as HTMLElement;
+
+  if (hero && hdrInner) {
+    const label = document.createElement('span');
+    label.className = 'hdr-ctx-label';
+    label.textContent = 'PICK 리포트';
+    hdrInner.appendChild(label);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        hdrInner.classList.toggle('is-scrolled', !entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: '-56px 0px 0px 0px' }
+    );
+    observer.observe(hero);
+  }
+</script>
