@@ -9,8 +9,8 @@
 
 /* ===== 디자인 토큰 ===== */
 :root {
-  --blue:        #3182f6;
-  --blue-dark:   #1b64da;
+  --blue:        #ed781f;
+  --blue-dark:   #c45e0a;
   --bg:          #FAF9F6;
   --card:        #ffffff;
   --border:      #f2f4f6;
@@ -122,7 +122,7 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .card-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .card-show {
   font-size: 12px; font-weight: 700; color: var(--blue);
-  background: #e8f1fe; padding: 3px 9px; border-radius: 6px;
+  background: #fdf0e6; padding: 3px 9px; border-radius: 6px;
 }
 .card-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-3); }
 .card-date { font-size: 13px; color: var(--text-3); }
@@ -148,7 +148,7 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .detail-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .detail-show {
   font-size: 13px; font-weight: 700; color: var(--blue);
-  background: #e8f1fe; padding: 3px 10px; border-radius: 6px;
+  background: #fdf0e6; padding: 3px 10px; border-radius: 6px;
 }
 .detail-date { font-size: 14px; color: var(--text-3); }
 .detail-hosts { font-size: 14px; color: var(--text-3); }
@@ -229,7 +229,7 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 }
 .block-callout.up { background: var(--up-bg); border-left: 3px solid var(--up); color: var(--up); font-weight: 600; }
 .block-callout.down { background: var(--down-bg); border-left: 3px solid var(--down); color: var(--down); font-weight: 600; }
-.block-callout.info { background: #e8f4fd; border-left: 3px solid var(--blue); color: var(--blue); font-weight: 600; }
+.block-callout.info { background: #fdf0e6; border-left: 3px solid var(--blue); color: var(--blue); font-weight: 600; }
 .block-callout.note { background: var(--bg); border-left: 3px solid var(--text-3); color: var(--text-2); }
 
 /* ===== Notion 에디터 셸 ===== */
@@ -336,7 +336,7 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 }
 .notion-block-callout.up { background: var(--up-bg); border-left: 3px solid var(--up); color: var(--up); }
 .notion-block-callout.down { background: var(--down-bg); border-left: 3px solid var(--down); color: var(--down); }
-.notion-block-callout.info { background: #e8f4fd; border-left: 3px solid var(--blue); color: var(--blue); }
+.notion-block-callout.info { background: #fdf0e6; border-left: 3px solid var(--blue); color: var(--blue); }
 
 /* Bubble menu */
 .bubble-menu {
