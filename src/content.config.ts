@@ -24,6 +24,10 @@ const reports = defineCollection({
     stocks: z.array(z.object({
       name: z.string(),
       shows: z.array(z.string()),
+      notes: z.array(z.object({
+        show: z.string(),
+        view: z.string(),
+      })).optional(),
     })),
     comparisons: z.array(z.object({
       stock: z.string(),

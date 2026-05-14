@@ -18,6 +18,7 @@ function formatDate(dateStr: string) {
 }
 
 const comparisonsJson = report ? JSON.stringify(report.data.comparisons) : '[]';
+const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
 ---
 <Base title="PICK 리포트" description="오늘 방송 교차분석 리포트">
   {!report ? (
@@ -167,14 +168,18 @@ const comparisonsJson = report ? JSON.stringify(report.data.comparisons) : '[]';
 
 </style>
 
-<script define:vars={{ comparisonsJson }}>
+<script define:vars={{ comparisonsJson, stocksJson }}>
   const comparisons = JSON.parse(comparisonsJson);
+  const stocks = JSON.parse(stocksJson);
   const backdrop = document.getElementById('stock-sheet-backdrop');
   const sheet = document.getElementById('stock-sheet');
   const content = document.getElementById('stock-sheet-content');
 
   function openSheet(stockName, shows) {
-    // 관련 comparison 찾기 (종목명이 comparison.stock에 포함되는 경우)
+    const stockData = stocks.find(s => s.name === stockName);
+    const notes = stockData?.notes ?? [];
+
+    // 관련 comparison 찾기
     const related = comparisons.filter(c =>
       c.stock.includes(stockName) || stockName.includes(c.stock.split(' ')[0])
     );
@@ -182,7 +187,17 @@ const comparisonsJson = report ? JSON.stringify(report.data.comparisons) : '[]';
     let html = `<div class="sheet-stock-name">${stockName}</div>`;
     html += `<div class="sheet-stock-shows">${shows} 언급</div>`;
 
-    if (related.length > 0) {
+    if (notes.length > 0) {
+      // notes 우선 표시
+      notes.forEach(pt => {
+        html += `<div class="sheet-point"><span class="sheet-point-show">${pt.show}</span>${pt.view}</div>`;
+      });
+      // 관련 comparison의 PICK이 있으면 추가
+      related.forEach(comp => {
+        html += `<div class="sheet-pick"><div class="sheet-pick-label">PICK</div>${comp.pick}</div>`;
+      });
+    } else if (related.length > 0) {
+      // notes 없으면 comparisons fallback
       related.forEach(comp => {
         html += `<div class="sheet-comp-title">${comp.stock}</div>`;
         comp.points.forEach(pt => {
@@ -191,7 +206,7 @@ const comparisonsJson = report ? JSON.stringify(report.data.comparisons) : '[]';
         html += `<div class="sheet-pick"><div class="sheet-pick-label">PICK</div>${comp.pick}</div>`;
       });
     } else {
-      html += `<div class="sheet-no-comp">이 종목은 여러 방송에서 언급됐지만, 별도 의견 비교는 없었어요.</div>`;
+      html += `<div class="sheet-no-comp">이 종목은 여러 방송에서 언급됐지만, 별도 내용 정리가 없어요.</div>`;
     }
 
     content.innerHTML = html;
