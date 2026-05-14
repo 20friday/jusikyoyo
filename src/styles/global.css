@@ -485,7 +485,13 @@ ul, ol { margin: 0; padding-left: 1.4em; }
   background: linear-gradient(to bottom, transparent 10%, var(--card) 72%);
 }
 
-.comparison-stock-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+.comparison-stock-title {
+  font-size: 18px;
+  font-weight: 800;
+  border-left: 3px solid #ed781f;
+  padding-left: 10px;
+  margin-bottom: 12px;
+}
 .comparison-point {
   font-size: 17px;
   color: var(--text-2);
