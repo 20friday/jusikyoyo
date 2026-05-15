@@ -231,7 +231,7 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
     if (notes.length > 0) {
       // notes 우선 표시
       notes.forEach(pt => {
-        html += `<div class="sheet-point"><span class="sheet-point-show">${pt.show}</span>${pt.view}</div>`;
+        html += `<div class="sheet-point"><span class="sheet-point-show">${pt.show}</span><span class="sheet-point-body">${pt.view}</span></div>`;
       });
       // 관련 comparison의 PICK이 있으면 추가
       related.forEach(comp => {
@@ -242,7 +242,7 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
       related.forEach(comp => {
         html += `<div class="sheet-comp-title">${comp.stock}</div>`;
         comp.points.forEach(pt => {
-          html += `<div class="sheet-point"><span class="sheet-point-show">${pt.show}</span>${pt.view}</div>`;
+          html += `<div class="sheet-point"><span class="sheet-point-show">${pt.show}</span><span class="sheet-point-body">${pt.view}</span></div>`;
         });
         html += `<div class="sheet-pick"><div class="sheet-pick-label">PICK</div>${comp.pick}</div>`;
       });
