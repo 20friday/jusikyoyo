@@ -1,0 +1,185 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+export async function getStaticPaths() {
+  const allReports = await getCollection('weeklyReports');
+  return allReports.map(r => ({ params: { date: r.data.date } }));
+}
+
+const { date } = Astro.params;
+const allReports = await getCollection('weeklyReports');
+const report = allReports.find(r => r.data.date === date);
+---
+<Base title="주간 PICK 리포트" description="이번 주 방송 종합 리포트">
+  {!report ? (
+    <div style="text-align:center;padding:80px 24px;color:var(--text-3);">
+      <p style="font-size:32px;margin-bottom:12px;">📭</p>
+      <p style="font-size:16px;font-weight:700;">리포트를 찾을 수 없어요</p>
+    </div>
+  ) : (
+    <div class="report-wrap">
+
+      <!-- 1. 주간 한 줄 요약 (히어로) -->
+      <div class="report-hero">
+        <div class="report-hero-label">
+          <span class="report-hero-label-pick">주간 PICK 리포트</span> · {report.data.period}
+        </div>
+        <div class="report-hero-headline">{report.data.headline}</div>
+      </div>
+
+      <!-- 2. 주간 인사이트 -->
+      <div class="report-section">
+        <div class="report-section-label">주간 인사이트</div>
+        <div class="weekly-insight">
+          {report.data.insight.map(para => (
+            <p class="weekly-insight-para">{para}</p>
+          ))}
+        </div>
+      </div>
+
+      <!-- 3. 이번 주 반복 언급 섹터 -->
+      <div class="report-section">
+        <div class="report-section-label">이번 주 반복 언급 섹터</div>
+        {report.data.sectors.map(sector => (
+          <div class="sector-row">
+            <div class="sector-name">{sector.name}</div>
+            <div class="sector-flow">{sector.flow}</div>
+          </div>
+        ))}
+      </div>
+
+      <!-- 4. 이번 주 공통 언급 종목 -->
+      <div class="report-section">
+        <div class="report-section-label">이번 주 공통 언급 종목</div>
+        {report.data.stocks.map((stock, i) => (
+          <div class="stock-row">
+            <div class="stock-row-left">
+              <span class="stock-rank">#{i + 1}</span>
+              <span class="stock-name">{stock.name}</span>
+            </div>
+            <span class="stock-shows">{stock.days === 5 ? '5일 내내' : `${stock.days}일`}</span>
+          </div>
+        ))}
+      </div>
+
+      <!-- 5. 여러 방송에서 관점이 갈린 종목 -->
+      <div class="report-section">
+        <div class="report-section-label">여러 방송에서 관점이 갈린 종목</div>
+        {report.data.splits.map(split => (
+          <div class="sector-row">
+            <div class="sector-name">{split.name}</div>
+            <div class="sector-flow">{split.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      <!-- 6. 이번 주 전문가들이 갈린 지점 -->
+      <div class="report-section">
+        <div class="report-section-label">이번 주 전문가들이 갈린 지점</div>
+        {report.data.gaps.map(gap => (
+          <div class="weekly-gap" set:html={gap} />
+        ))}
+      </div>
+
+      <!-- 7. 다음 주까지 이어서 봐야 할 종목 -->
+      <div class="report-section">
+        <div class="report-section-label">다음 주까지 이어서 봐야 할 종목</div>
+        <div class="weekly-chips">
+          {report.data.watchlist.map(item => (
+            <span class="weekly-chip">{item.name}</span>
+          ))}
+        </div>
+      </div>
+
+      <!-- 8. 다음 주 체크 포인트 -->
+      <div class="report-section">
+        <div class="report-section-label">다음 주 체크 포인트</div>
+        {report.data.checkpoints.map(point => (
+          <div class="weekly-checkpoint">
+            <span class="weekly-checkpoint-dot">·</span>
+            <span class="weekly-checkpoint-text">{point}</span>
+          </div>
+        ))}
+      </div>
+
+    </div>
+  )}
+</Base>
+
+<style>
+  /* 기존 report-* 클래스 재사용. 아래는 weekly 전용 최소 추가분 */
+
+  .weekly-insight-para {
+    font-size: 17px;
+    color: var(--text-2);
+    line-height: 1.8;
+    margin-bottom: 8px;
+  }
+  .weekly-insight-para:last-child { margin-bottom: 0; }
+
+  .weekly-gap {
+    font-size: 17px;
+    color: var(--text-2);
+    line-height: 1.75;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .weekly-gap:last-child { border-bottom: none; padding-bottom: 0; }
+  .weekly-gap strong { color: var(--text-1); font-weight: 700; }
+
+  .weekly-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .weekly-chip {
+    background: #fff3ea;
+    border: 1.5px solid var(--blue);
+    border-radius: 20px;
+    padding: 7px 16px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--blue);
+  }
+
+  .weekly-checkpoint {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .weekly-checkpoint:last-child { border-bottom: none; padding-bottom: 0; }
+  .weekly-checkpoint-dot {
+    color: var(--blue);
+    font-weight: 700;
+    flex-shrink: 0;
+    line-height: 1.75;
+  }
+  .weekly-checkpoint-text {
+    font-size: 17px;
+    color: var(--text-2);
+    line-height: 1.75;
+  }
+</style>
+
+<script>
+  const hero = document.querySelector('.report-hero') as HTMLElement;
+  const hdrInner = document.querySelector('.hdr-inner') as HTMLElement;
+
+  if (hero && hdrInner) {
+    const label = document.createElement('span');
+    label.className = 'hdr-ctx-label';
+    label.textContent = '주간 PICK 리포트';
+    hdrInner.appendChild(label);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        hdrInner.classList.toggle('is-scrolled', !entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: '-56px 0px 0px 0px' }
+    );
+    observer.observe(hero);
+  }
+</script>
