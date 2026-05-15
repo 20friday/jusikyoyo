@@ -45,4 +45,33 @@ const reports = defineCollection({
   }),
 });
 
-export const collections = { posts, reports };
+const weeklyReports = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/weekly_reports' }),
+  schema: z.object({
+    date: z.string(),
+    period: z.string(),
+    headline: z.string(),
+    insight: z.array(z.string()),
+    sectors: z.array(z.object({
+      name: z.string(),
+      flow: z.string(),
+    })),
+    stocks: z.array(z.object({
+      name: z.string(),
+      days: z.number(),
+      reason: z.string().optional(),
+    })),
+    splits: z.array(z.object({
+      name: z.string(),
+      desc: z.string(),
+    })),
+    gaps: z.array(z.string()),
+    watchlist: z.array(z.object({
+      name: z.string(),
+      reason: z.string().optional(),
+    })),
+    checkpoints: z.array(z.string()),
+  }),
+});
+
+export const collections = { posts, reports, weeklyReports };
