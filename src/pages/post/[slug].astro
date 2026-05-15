@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import { stockInfo } from '../../lib/stockInfo';
 
 export async function getStaticPaths() {
   const posts = await getCollection('posts');
@@ -14,6 +15,8 @@ const { Content } = await render(post);
 const days = ['일', '월', '화', '수', '목', '금', '토'];
 const d = new Date(date + 'T00:00:00');
 const dateKo = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+
+const stockInfoJson = JSON.stringify(stockInfo);
 ---
 <Base title={title} description={summary}>
   <div class="post-wrap">
@@ -35,6 +38,15 @@ const dateKo = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (
       <a href="/" class="btn-pill ghost">← 피드로</a>
     </div>
   </div>
+
+  <!-- 종목 모달 -->
+  <div id="stock-modal-backdrop" class="stock-modal-backdrop"></div>
+  <div id="stock-modal" class="stock-modal" aria-hidden="true" role="dialog">
+    <div class="stock-modal-inner">
+      <div id="stock-modal-content" class="stock-modal-content"></div>
+      <button id="stock-modal-close" class="stock-modal-close" aria-label="닫기">닫기</button>
+    </div>
+  </div>
 </Base>
 
 <style>
@@ -48,8 +60,108 @@ const dateKo = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (
     padding-top: 24px;
     border-top: 1px solid var(--border);
   }
-</style>
 
+  /* 종목 클릭 커서 */
+  :global(.block-stock) {
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  :global(.block-stock:active) {
+    opacity: 0.65;
+  }
+
+  /* 모달 */
+  .stock-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  .stock-modal-backdrop.open { display: block; }
+
+  .stock-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 101;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .stock-modal.open { display: flex; }
+
+  .stock-modal-inner {
+    background: var(--card);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    animation: modal-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .stock-modal-close {
+    display: block;
+    flex-shrink: 0;
+    width: calc(100% - 40px);
+    margin: 8px 20px 20px;
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--border);
+    border: none;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-2);
+    cursor: pointer;
+    font-family: var(--font);
+  }
+  .stock-modal-close:active { background: var(--divider); }
+
+  .stock-modal-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 24px 20px 8px;
+  }
+
+  :global(.smi-sector) {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--blue);
+    background: color-mix(in srgb, var(--blue) 12%, transparent);
+    border-radius: 6px;
+    padding: 2px 8px;
+    margin-bottom: 10px;
+  }
+  :global(.smi-name) {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-1);
+    margin-bottom: 10px;
+  }
+  :global(.smi-desc) {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  :global(.smi-unknown) {
+    font-size: 15px;
+    color: var(--text-3);
+    line-height: 1.6;
+  }
+</style>
 
 <script>
   const meta = document.querySelector('.detail-meta') as HTMLElement;
@@ -57,13 +169,11 @@ const dateKo = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (
   const showEl = document.querySelector('.detail-show') as HTMLElement;
 
   if (meta && hdrInner && showEl) {
-    // 방송명 라벨 삽입
     const label = document.createElement('span');
     label.className = 'hdr-ctx-label';
     label.textContent = showEl.textContent;
     hdrInner.appendChild(label);
 
-    // detail-meta가 헤더 뒤로 사라지면 전환
     const observer = new IntersectionObserver(
       ([entry]) => {
         hdrInner.classList.toggle('is-scrolled', !entry.isIntersecting);
@@ -72,4 +182,49 @@ const dateKo = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (
     );
     observer.observe(meta);
   }
+</script>
+
+<script define:vars={{ stockInfoJson }}>
+  const stockInfo = JSON.parse(stockInfoJson);
+  const backdrop = document.getElementById('stock-modal-backdrop');
+  const sheet = document.getElementById('stock-modal');
+  const content = document.getElementById('stock-modal-content');
+
+  function openModal(stockName) {
+    const info = stockInfo.find(s => s.name === stockName);
+    if (info) {
+      content.innerHTML = `
+        <div class="smi-sector">${info.sector}</div>
+        <div class="smi-name">${info.name}</div>
+        <div class="smi-desc">${info.desc}</div>
+      `;
+    } else {
+      content.innerHTML = `
+        <div class="smi-name">${stockName}</div>
+        <div class="smi-unknown">이 종목에 대한 설명이 아직 준비되지 않았어요.</div>
+      `;
+    }
+    backdrop.classList.add('open');
+    sheet.classList.add('open');
+    sheet.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    backdrop.classList.remove('open');
+    sheet.classList.remove('open');
+    sheet.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.block-stock').forEach(el => {
+    el.addEventListener('click', () => {
+      const name = el.querySelector('.block-stock-name')?.textContent?.trim() ?? '';
+      if (name) openModal(name);
+    });
+  });
+
+  sheet.addEventListener('click', closeModal);
+  document.getElementById('stock-modal-close').addEventListener('click', closeModal);
+  document.querySelector('.stock-modal-inner').addEventListener('click', e => e.stopPropagation());
 </script>
