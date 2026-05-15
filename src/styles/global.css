@@ -453,8 +453,8 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .stock-row {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 12px 0;
+  gap: 5px;
+  padding: 16px 0;
   border-bottom: 1px solid var(--border);
 }
 .stock-row:last-of-type { border-bottom: none; }
