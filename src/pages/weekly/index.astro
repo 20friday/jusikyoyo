@@ -1,0 +1,14 @@
+---
+import { getCollection } from 'astro:content';
+
+const allReports = await getCollection('weeklyReports');
+const latest = allReports.sort((a, b) => b.data.date.localeCompare(a.data.date))[0];
+
+if (latest) {
+  return Astro.redirect(`/weekly/${latest.data.date}`);
+}
+---
+<div style="text-align:center;padding:80px 24px;color:var(--text-3);">
+  <p style="font-size:32px;margin-bottom:12px;">📭</p>
+  <p style="font-size:16px;font-weight:700;">아직 주간 리포트가 없어요</p>
+</div>
