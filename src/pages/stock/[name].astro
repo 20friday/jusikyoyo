@@ -1,0 +1,248 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { stockInfo } from '../../lib/stockInfo';
+
+export async function getStaticPaths() {
+  const allReports = await getCollection('reports');
+  const nameSet = new Set<string>();
+  for (const r of allReports) {
+    for (const s of r.data.stocks) nameSet.add(s.name);
+  }
+  return [...nameSet].map(name => ({ params: { name } }));
+}
+
+const { name } = Astro.params;
+const allReports = await getCollection('reports');
+
+// 이 종목이 언급된 리포트를 날짜 내림차순으로 정렬
+const entries = allReports
+  .filter(r => r.data.stocks.some(s => s.name === name))
+  .sort((a, b) => b.data.date.localeCompare(a.data.date))
+  .map(r => {
+    const stock = r.data.stocks.find(s => s.name === name)!;
+    return { date: r.data.date, shows: stock.shows, notes: stock.notes ?? [] };
+  });
+
+const info = stockInfo.find(s => s.name === name);
+
+const days = ['일', '월', '화', '수', '목', '금', '토'];
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+}
+
+const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
+---
+<Base title={`${name} 언급 히스토리`} description={info?.desc ?? `${name} 방송 언급 모음`}>
+  <div class="stock-wrap">
+
+    <!-- 헤더 -->
+    <div class="stock-hero">
+      <a href="/" class="back-link">← 피드로</a>
+      {info && <span class="stock-sector">{info.sector}</span>}
+      <h1 class="stock-title">{name}</h1>
+      {info && <p class="stock-desc">{info.desc}</p>}
+      <div class="stock-stats">
+        <div class="stat-item">
+          <span class="stat-num">{entries.length}</span>
+          <span class="stat-label">일</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num">{totalMentions}</span>
+          <span class="stat-label">회 언급</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 타임라인 -->
+    {entries.length === 0 ? (
+      <div class="empty">아직 언급 기록이 없어요.</div>
+    ) : (
+      <div class="timeline">
+        {entries.map(entry => (
+          <div class="timeline-entry">
+            <div class="timeline-date">
+              <a href={`/report/${entry.date}`} class="timeline-date-link">{formatDate(entry.date)}</a>
+            </div>
+            <div class="timeline-notes">
+              {entry.notes.length > 0 ? entry.notes.map(note => (
+                <div class="note-card">
+                  <span class="note-show">{note.show}</span>
+                  <p class="note-view">{note.view}</p>
+                </div>
+              )) : (
+                <div class="note-card note-card--simple">
+                  <div class="note-shows">{entry.shows.map(s => (
+                    <span class="note-show">{s}</span>
+                  ))}</div>
+                  <p class="note-view note-view--muted">이 날 언급됐지만 상세 내용이 없어요.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+
+  </div>
+</Base>
+
+<style>
+  .stock-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+
+  .back-link {
+    display: inline-block;
+    font-size: 14px;
+    color: var(--text-3);
+    text-decoration: none;
+    margin-bottom: 20px;
+  }
+  .back-link:hover { color: var(--text-1); }
+
+  /* 헤더 */
+  .stock-hero {
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .stock-sector {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--blue);
+    background: color-mix(in srgb, var(--blue) 12%, transparent);
+    border-radius: 6px;
+    padding: 2px 8px;
+    margin-bottom: 10px;
+  }
+  .stock-title {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text-1);
+    margin-bottom: 10px;
+    line-height: 1.2;
+  }
+  .stock-desc {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-2);
+    margin-bottom: 20px;
+  }
+
+  /* 통계 */
+  .stock-stats {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .stat-item {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .stat-num {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text-1);
+    letter-spacing: -0.02em;
+  }
+  .stat-label {
+    font-size: 13px;
+    color: var(--text-3);
+    font-weight: 600;
+  }
+  .stat-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+  }
+
+  /* 타임라인 */
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  .timeline-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .timeline-date-link {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-3);
+    text-decoration: none;
+    letter-spacing: 0.01em;
+  }
+  .timeline-date-link:hover { color: var(--blue); }
+
+  .timeline-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .note-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .note-show {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-3);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 7px;
+    margin-bottom: 8px;
+  }
+  .note-shows {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .note-view {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-1);
+    margin: 0;
+  }
+  .note-view--muted { color: var(--text-3); font-size: 14px; }
+
+  .empty {
+    text-align: center;
+    padding: 60px 0;
+    color: var(--text-3);
+    font-size: 15px;
+  }
+</style>
+
+<script>
+  const hdrInner = document.querySelector('.hdr-inner') as HTMLElement;
+  if (hdrInner) {
+    const label = document.createElement('span');
+    label.className = 'hdr-ctx-label';
+    label.textContent = document.querySelector('.stock-title')?.textContent ?? '';
+    hdrInner.appendChild(label);
+
+    const hero = document.querySelector('.stock-hero') as HTMLElement;
+    if (hero) {
+      const observer = new IntersectionObserver(
+        ([entry]) => { hdrInner.classList.toggle('is-scrolled', !entry.isIntersecting); },
+        { threshold: 0, rootMargin: '-56px 0px 0px 0px' }
+      );
+      observer.observe(hero);
+    }
+  }
+</script>

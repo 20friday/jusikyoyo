@@ -161,6 +161,15 @@ const stockInfoJson = JSON.stringify(stockInfo);
     color: var(--text-3);
     line-height: 1.6;
   }
+  :global(.smi-history) {
+    display: inline-block;
+    margin-top: 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--blue);
+    text-decoration: none;
+  }
+  :global(.smi-history:hover) { text-decoration: underline; }
 </style>
 
 <script>
@@ -192,16 +201,19 @@ const stockInfoJson = JSON.stringify(stockInfo);
 
   function openModal(stockName) {
     const info = stockInfo.find(s => s.name === stockName);
+    const historyLink = `<a class="smi-history" href="/stock/${encodeURIComponent(stockName)}">방송 언급 히스토리 보기 →</a>`;
     if (info) {
       content.innerHTML = `
         <div class="smi-sector">${info.sector}</div>
         <div class="smi-name">${info.name}</div>
         <div class="smi-desc">${info.desc}</div>
+        ${historyLink}
       `;
     } else {
       content.innerHTML = `
         <div class="smi-name">${stockName}</div>
         <div class="smi-unknown">이 종목에 대한 설명이 아직 준비되지 않았어요.</div>
+        ${historyLink}
       `;
     }
     backdrop.classList.add('open');
