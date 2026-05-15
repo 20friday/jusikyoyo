@@ -37,7 +37,7 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
 
       <!-- 공통 언급 종목 -->
       <div class="report-section">
-        <div class="report-section-label">공통 언급 종목 <span class="section-hint">탭하면 방송 의견을 볼 수 있어요</span></div>
+        <div class="report-section-label">공통 언급 종목</div>
         {report.data.stocks.map((stock, i) => (
           <button class="stock-row stock-row--clickable" data-stock={stock.name}>
             <div class="stock-row-left">
