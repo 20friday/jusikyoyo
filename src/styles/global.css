@@ -171,6 +171,7 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .prose ul, .prose ol { margin: 0 0 16px; padding-left: 1.5em; }
 .prose li { margin-bottom: 6px; }
 .prose strong { font-weight: 700; }
+.prose hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; opacity: 0.5; }
 .prose table {
   width: 100%; border-collapse: collapse;
   margin: 20px 0 28px; font-size: 15px;
