@@ -14,8 +14,12 @@ if (Astro.request.method === 'POST') {
   const password = String(form.get('password') ?? '');
   const confirm = String(form.get('confirm') ?? '');
   const nickname = String(form.get('nickname') ?? '').trim();
+  const tos1 = form.get('tos1');
+  const tos2 = form.get('tos2');
 
-  if (password.length < 8) {
+  if (!tos1 || !tos2) {
+    errorMessage = '이용약관과 개인정보처리방침에 동의해 주세요.';
+  } else if (password.length < 8) {
     errorMessage = '비밀번호는 8자 이상이어야 해요.';
   } else if (password !== confirm) {
     errorMessage = '비밀번호가 일치하지 않아요.';
@@ -112,11 +116,26 @@ if (Astro.request.method === 'POST') {
 
         <div class="auth-spacer"></div>
 
-        <button class="btn-auth-primary" type="submit">가입하기</button>
+        <div class="tos-box">
+          <label class="tos-row tos-all">
+            <span class="tos-check" id="tos-all-box"></span>
+            <input type="checkbox" id="tos-all" style="display:none" />
+            <span class="tos-label-all">전체 동의</span>
+          </label>
+          <div class="tos-divider"></div>
+          <label class="tos-row">
+            <span class="tos-check" id="tos1-box"></span>
+            <input type="checkbox" id="tos1" name="tos1" style="display:none" />
+            <span class="tos-label">(필수) <a href="/terms" target="_blank">이용약관</a> 동의</span>
+          </label>
+          <label class="tos-row">
+            <span class="tos-check" id="tos2-box"></span>
+            <input type="checkbox" id="tos2" name="tos2" style="display:none" />
+            <span class="tos-label">(필수) <a href="/privacy" target="_blank">개인정보처리방침</a> 동의</span>
+          </label>
+        </div>
 
-        <p class="tos">
-          가입하면 <a href="/terms">이용약관</a> 및 <a href="/privacy">개인정보처리방침</a>에<br/>동의하는 것으로 간주됩니다.
-        </p>
+        <button class="btn-auth-primary" type="submit" id="submit-btn" disabled>가입하기</button>
       </form>
 
       <p class="auth-switch">이미 가입했어요? <a href="/login">로그인</a></p>
@@ -154,7 +173,7 @@ if (Astro.request.method === 'POST') {
     margin-bottom: 8px;
   }
   .auth-sub {
-    font-size: 15px;
+    font-size: 17px;
     line-height: 1.6;
     color: var(--text-2);
   }
@@ -247,15 +266,66 @@ if (Astro.request.method === 'POST') {
     margin-bottom: 12px;
   }
   .btn-auth-primary:active { transform: scale(0.985); opacity: 0.9; }
-
-  .tos {
-    font-size: 12px;
-    color: var(--text-3);
-    line-height: 1.7;
-    text-align: center;
-    margin-bottom: 14px;
+  .btn-auth-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
   }
-  .tos a {
+
+  .tos-box {
+    border: 1.5px solid var(--divider);
+    border-radius: 14px;
+    padding: 4px 14px;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 4px;
+  }
+  .tos-divider {
+    height: 1px;
+    background: var(--divider);
+    margin: 2px 0;
+  }
+  .tos-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 0;
+    cursor: pointer;
+  }
+  .tos-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--divider);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 140ms, border-color 140ms;
+  }
+  .tos-check.checked {
+    background: var(--blue);
+    border-color: var(--blue);
+  }
+  .tos-check.checked::after {
+    content: '';
+    display: block;
+    width: 10px;
+    height: 6px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: translateY(-1px) rotate(-45deg);
+  }
+  .tos-label-all {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-1);
+  }
+  .tos-label {
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .tos-label a {
     color: var(--text-2);
     text-decoration: underline;
     text-underline-offset: 2px;
@@ -357,4 +427,33 @@ if (Astro.request.method === 'POST') {
     const ok = nickInput.value.trim().length >= 2;
     setHint(nickInput, nickHint, ok ? 'ok' : 'err', ok ? '좋아요 ✓' : '2자 이상 입력해 주세요');
   });
+
+  // 약관 동의
+  const allBox   = document.getElementById('tos-all-box')!;
+  const allCheck = document.getElementById('tos-all') as HTMLInputElement;
+  const tos1Box  = document.getElementById('tos1-box')!;
+  const tos1     = document.getElementById('tos1') as HTMLInputElement;
+  const tos2Box  = document.getElementById('tos2-box')!;
+  const tos2     = document.getElementById('tos2') as HTMLInputElement;
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+
+  function setCheck(box: Element, input: HTMLInputElement, val: boolean) {
+    input.checked = val;
+    box.classList.toggle('checked', val);
+  }
+  function syncAll() {
+    const both = tos1.checked && tos2.checked;
+    setCheck(allBox, allCheck, both);
+    submitBtn.disabled = !both;
+  }
+
+  allBox.addEventListener('click', () => {
+    const next = !allCheck.checked;
+    setCheck(allBox, allCheck, next);
+    setCheck(tos1Box, tos1, next);
+    setCheck(tos2Box, tos2, next);
+    submitBtn.disabled = !next;
+  });
+  tos1Box.addEventListener('click', () => { setCheck(tos1Box, tos1, !tos1.checked); syncAll(); });
+  tos2Box.addEventListener('click', () => { setCheck(tos2Box, tos2, !tos2.checked); syncAll(); });
 </script>
