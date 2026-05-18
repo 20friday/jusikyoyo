@@ -1,15 +1,23 @@
 import { defineMiddleware } from 'astro:middleware';
-import { createSupabaseServerClient } from './lib/supabase';
+import { createServerClient, parseCookieHeader } from '@supabase/ssr';
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  const supabase = createSupabaseServerClient({
-    getAll: () =>
-      context.cookies.getAll().map((c) => ({ name: c.name, value: c.value })),
-    setAll: (cookiesToSet) =>
-      cookiesToSet.forEach(({ name, value, options }) =>
-        context.cookies.set(name, value, options ?? {})
-      ),
-  });
+  const supabase = createServerClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll() {
+          return parseCookieHeader(context.request.headers.get('Cookie') ?? '');
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            context.cookies.set(name, value, options ?? {})
+          );
+        },
+      },
+    }
+  );
 
   const {
     data: { session },
