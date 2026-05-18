@@ -2,6 +2,19 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 
+const allWeeklyReports = await getCollection('weeklyReports');
+const latestWeekly = allWeeklyReports.sort((a, b) => b.data.date.localeCompare(a.data.date))[0];
+
+function formatWeekRange(fridayStr: string) {
+  const friday = new Date(fridayStr + 'T00:00:00');
+  const monday = new Date(friday);
+  monday.setDate(friday.getDate() - 4);
+  return {
+    start: `${monday.getFullYear()}년 ${monday.getMonth() + 1}월 ${monday.getDate()}일`,
+    end: `${friday.getMonth() + 1}월 ${friday.getDate()}일`,
+  };
+}
+
 const allPosts = await getCollection('posts', ({ data }) => data.published !== false);
 const posts = allPosts.sort((a, b) => {
   const dateComp = b.data.date.localeCompare(a.data.date);
@@ -62,6 +75,20 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
         </div>
       ) : sortedDates.map(date => (
         <>
+          {latestWeekly && date === latestWeekly.data.date && (() => {
+            const range = formatWeekRange(latestWeekly.data.date);
+            return (
+              <>
+                <div class="date-divider date-divider--weekly">
+                  <span class="date-divider-label">{range.start} ~ {range.end}</span>
+                </div>
+                <a href={`/weekly/${latestWeekly.data.date}`} class="weekly-card">
+                  <div class="weekly-card-label">PICK 주간 리포트</div>
+                  <div class="weekly-card-headline">{latestWeekly.data.headline}</div>
+                </a>
+              </>
+            );
+          })()}
           <div class="date-divider" data-date={date}>
             <span class="date-divider-label">{formatDate(date)}</span>
           </div>
@@ -156,6 +183,33 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
     white-space: nowrap;
   }
 
+  /* 주간 리포트 카드 */
+  .weekly-card {
+    display: block;
+    background: #1a2540;
+    border: 1.5px solid #2d3a5a;
+    border-radius: 18px;
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    text-decoration: none;
+    transition: opacity 160ms ease;
+  }
+  .weekly-card:hover { opacity: 0.88; }
+  .weekly-card-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ed781f;
+    letter-spacing: 0.01em;
+    margin-bottom: 8px;
+  }
+  .weekly-card-headline {
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.45;
+    letter-spacing: -0.02em;
+  }
+
   /* 리포트 카드 */
   .report-card {
     display: block;
@@ -192,6 +246,14 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
     font-weight: 600;
     color: var(--text-2);
     margin-top: 12px;
+  }
+
+  .date-divider--weekly::before,
+  .date-divider--weekly::after { background: #b0b8c1; }
+  .date-divider--weekly .date-divider-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #4e5968;
   }
 
   .date-divider--today {

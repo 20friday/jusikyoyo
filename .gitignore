@@ -28,3 +28,4 @@ pnpm-debug.log*
 
 # editor config folders
 .vscode/
+.vercel
