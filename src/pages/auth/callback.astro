@@ -1,0 +1,15 @@
+---
+const code = Astro.url.searchParams.get('code');
+
+if (!code) {
+  return Astro.redirect('/login?error=auth_failed');
+}
+
+const { error } = await Astro.locals.supabase.auth.exchangeCodeForSession(code);
+
+if (error) {
+  return Astro.redirect('/login?error=auth_failed');
+}
+
+return Astro.redirect('/');
+---
