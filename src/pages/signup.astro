@@ -85,7 +85,7 @@ if (Astro.request.method === 'POST') {
         <div class="field">
           <label class="field-label" for="email">이메일</label>
           <input class="field-input" id="email" type="email" name="email" required autocomplete="email" placeholder="ted@example.com" />
-          <span class="field-hint">학교·회사 메일도 괜찮아요</span>
+          <span class="field-hint">리포트 알림과 로그인에 사용할 이메일이에요</span>
         </div>
 
         <div class="field">
@@ -113,7 +113,7 @@ if (Astro.request.method === 'POST') {
         <div class="field">
           <label class="field-label" for="nickname">닉네임</label>
           <input class="field-input" id="nickname" type="text" name="nickname" required autocomplete="nickname" placeholder="투자노트_ted" maxlength="20" />
-          <span class="field-hint">PICK 메모에 표시돼요</span>
+          <span class="field-hint">다른 사용자에게 보이는 이름이에요</span>
         </div>
 
         <div class="auth-spacer"></div>
@@ -506,7 +506,7 @@ if (Astro.request.method === 'POST') {
   const emailInput = document.getElementById('email') as HTMLInputElement;
   const emailHint  = emailInput.nextElementSibling as HTMLElement;
   emailInput.addEventListener('input', () => {
-    if (!emailInput.value) { setHint(emailInput, emailHint, 'idle', '학교·회사 메일도 괜찮아요'); return; }
+    if (!emailInput.value) { setHint(emailInput, emailHint, 'idle', '리포트 알림과 로그인에 사용할 이메일이에요'); return; }
     const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.value);
     setHint(emailInput, emailHint, ok ? 'ok' : 'err', ok ? '올바른 이메일이에요' : '이메일 형식을 확인해 주세요');
   });
@@ -541,7 +541,7 @@ if (Astro.request.method === 'POST') {
   const nickInput = document.getElementById('nickname') as HTMLInputElement;
   const nickHint  = nickInput.nextElementSibling as HTMLElement;
   nickInput.addEventListener('input', () => {
-    if (!nickInput.value) { setHint(nickInput, nickHint, 'idle', 'PICK 메모에 표시돼요'); return; }
+    if (!nickInput.value) { setHint(nickInput, nickHint, 'idle', '다른 사용자에게 보이는 이름이에요'); return; }
     const ok = nickInput.value.trim().length >= 2;
     setHint(nickInput, nickHint, ok ? 'ok' : 'err', ok ? '좋아요 ✓' : '2자 이상 입력해 주세요');
   });
