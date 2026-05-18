@@ -2,6 +2,8 @@
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 
+export const prerender = true;
+
 export async function getStaticPaths() {
   const allReports = await getCollection('reports');
   return allReports.map(r => ({ params: { date: r.data.date } }));
