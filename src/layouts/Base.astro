@@ -4,6 +4,7 @@ interface Props {
   description?: string;
 }
 const { title = '테드픽', description = '매일 12시, 장 정리' } = Astro.props;
+const { user } = Astro.locals;
 ---
 <!doctype html>
 <html lang="ko">
@@ -22,9 +23,13 @@ const { title = '테드픽', description = '매일 12시, 장 정리' } = Astro.
           <img src="/ted_logo.svg" alt="테드픽" class="brand-logo" />
         </a>
         <div class="hdr-spacer"></div>
-        <!-- <a href="/editor" class="btn-pill ghost">글 관리</a> -->
-        <!-- <a href="https://toss.me/" target="_blank" class="btn-pill primary">후원</a> -->
-        <button class="btn-pill ghost" disabled>로그인</button>
+        {user ? (
+          <form method="POST" action="/api/auth/logout">
+            <button class="btn-pill ghost" type="submit">로그아웃</button>
+          </form>
+        ) : (
+          <a href="/login" class="btn-pill ghost">로그인</a>
+        )}
       </div>
     </header>
     <main>

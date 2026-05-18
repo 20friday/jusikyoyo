@@ -1,0 +1,187 @@
+---
+import Base from '../layouts/Base.astro';
+
+if (Astro.locals.session) {
+  return Astro.redirect('/');
+}
+
+let errorMessage = '';
+const errorParam = Astro.url.searchParams.get('error');
+if (errorParam === 'auth_failed') errorMessage = '로그인에 실패했어요. 다시 시도해주세요.';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const email = String(form.get('email') ?? '');
+  const password = String(form.get('password') ?? '');
+
+  const { error } = await Astro.locals.supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    return Astro.redirect('/login?error=auth_failed');
+  }
+  return Astro.redirect('/');
+}
+---
+<Base title="로그인">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1 class="auth-title">로그인</h1>
+
+      {errorMessage && <p class="auth-error">{errorMessage}</p>}
+
+      <form method="POST" class="auth-form">
+        <label class="auth-label">
+          이메일
+          <input class="auth-input" type="email" name="email" required autocomplete="email" />
+        </label>
+        <label class="auth-label">
+          비밀번호
+          <input class="auth-input" type="password" name="password" required autocomplete="current-password" />
+        </label>
+        <button class="btn-pill primary auth-submit" type="submit">로그인</button>
+      </form>
+
+      <div class="auth-divider"><span>또는</span></div>
+
+      <div class="auth-social">
+        <a href="/api/auth/google" class="social-btn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+            <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+          </svg>
+          구글로 로그인
+        </a>
+        <a href="/api/auth/naver" class="social-btn social-btn--naver">
+          <span class="naver-n">N</span>
+          네이버로 로그인
+        </a>
+      </div>
+
+      <p class="auth-switch">계정이 없으신가요? <a href="/signup">회원가입</a></p>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .auth-wrap {
+    min-height: calc(100vh - 60px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 28px;
+  }
+  .auth-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-1);
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+  }
+  .auth-error {
+    font-size: 14px;
+    color: #e53e3e;
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+  }
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .auth-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .auth-input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 15px;
+    color: var(--text-1);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 140ms;
+  }
+  .auth-input:focus { border-color: var(--blue); }
+  .auth-submit {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    justify-content: center;
+    margin-top: 4px;
+  }
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 0;
+    color: var(--text-3);
+    font-size: 13px;
+  }
+  .auth-divider::before,
+  .auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .auth-social {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .social-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-1);
+    background: var(--card);
+    text-decoration: none;
+    transition: background 140ms;
+  }
+  .social-btn:hover { background: var(--bg); }
+  .social-btn--naver { background: #03c75a; color: #fff; border-color: #03c75a; }
+  .social-btn--naver:hover { background: #02b350; }
+  .naver-n {
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .auth-switch {
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-3);
+  }
+  .auth-switch a {
+    color: var(--blue);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .auth-switch a:hover { text-decoration: underline; }
+</style>
