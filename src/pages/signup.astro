@@ -590,7 +590,7 @@ if (Astro.request.method === 'POST') {
 
   function applyNick(val: string) {
     nickInput.value = val;
-    setHint(nickInput, nickHint, 'ok', '좋아요 ✓');
+    setHint(nickInput, nickHint, 'ok', '마이페이지에서 언제든지 변경할 수 있어요');
   }
 
   // 페이지 로드 시 자동 입력
@@ -600,9 +600,9 @@ if (Astro.request.method === 'POST') {
   nickReroll.addEventListener('click', () => applyNick(genNick()));
 
   nickInput.addEventListener('input', () => {
-    if (!nickInput.value) { setHint(nickInput, nickHint, 'idle', '다른 사용자에게 보이는 이름이에요'); return; }
+    if (!nickInput.value) { setHint(nickInput, nickHint, 'idle', '마이페이지에서 언제든지 변경할 수 있어요'); return; }
     const ok = nickInput.value.trim().length >= 2;
-    setHint(nickInput, nickHint, ok ? 'ok' : 'err', ok ? '좋아요 ✓' : '2자 이상 입력해 주세요');
+    setHint(nickInput, nickHint, ok ? 'ok' : 'err', ok ? '마이페이지에서 언제든지 변경할 수 있어요' : '2자 이상 입력해 주세요');
   });
 
   // 약관 동의
