@@ -22,25 +22,29 @@ export const GET: APIRoute = async ({ locals, request, redirect, cookies }) => {
     }),
   });
 
-  if (!tokenRes.ok) return redirect('/login?error=auth_failed');
+  if (!tokenRes.ok) {
+    const errText = await tokenRes.text();
+    console.error('Kakao token fetch failed:', tokenRes.status, errText);
+    return redirect('/login?error=token_failed');
+  }
 
   const tokens = await tokenRes.json();
   const idToken: string = tokens.id_token;
 
-  if (!idToken) return redirect('/login?error=auth_failed');
+  if (!idToken) {
+    console.error('No id_token in Kakao response:', JSON.stringify(tokens));
+    return redirect('/login?error=no_token');
+  }
 
-  // Supabase에 카카오 ID 토큰으로 로그인
-  const signInOptions: Parameters<typeof locals.supabase.auth.signInWithIdToken>[0] = {
+  const { error } = await locals.supabase.auth.signInWithIdToken({
     provider: 'kakao',
     token: idToken,
-  };
-  if (rawNonce) signInOptions.nonce = rawNonce;
-
-  const { error } = await locals.supabase.auth.signInWithIdToken(signInOptions);
+    ...(rawNonce ? { nonce: rawNonce } : {}),
+  });
 
   if (error) {
-    console.error('Kakao login error:', error.message);
-    return redirect('/login?error=auth_failed');
+    console.error('Kakao signInWithIdToken error:', error.message);
+    return redirect(`/login?error=supabase_${encodeURIComponent(error.message)}`);
   }
 
   return redirect('/');
