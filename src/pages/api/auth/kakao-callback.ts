@@ -5,9 +5,9 @@ export const GET: APIRoute = async ({ locals, request, redirect, cookies }) => {
   const code = url.searchParams.get('code');
   const rawNonce = cookies.get('kakao_nonce')?.value;
 
-  if (!code || !rawNonce) return redirect('/login?error=auth_failed');
+  if (!code) return redirect('/login?error=auth_failed');
 
-  cookies.delete('kakao_nonce', { path: '/' });
+  if (rawNonce) cookies.delete('kakao_nonce', { path: '/' });
 
   // 카카오에서 ID 토큰 발급
   const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
@@ -30,11 +30,13 @@ export const GET: APIRoute = async ({ locals, request, redirect, cookies }) => {
   if (!idToken) return redirect('/login?error=auth_failed');
 
   // Supabase에 카카오 ID 토큰으로 로그인
-  const { error } = await locals.supabase.auth.signInWithIdToken({
+  const signInOptions: Parameters<typeof locals.supabase.auth.signInWithIdToken>[0] = {
     provider: 'kakao',
     token: idToken,
-    nonce: rawNonce,
-  });
+  };
+  if (rawNonce) signInOptions.nonce = rawNonce;
+
+  const { error } = await locals.supabase.auth.signInWithIdToken(signInOptions);
 
   if (error) {
     console.error('Kakao login error:', error.message);
