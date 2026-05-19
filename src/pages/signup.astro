@@ -13,11 +13,18 @@ if (Astro.request.method === 'POST') {
   const email = String(form.get('email') ?? '');
   const password = String(form.get('password') ?? '');
   const confirm = String(form.get('confirm') ?? '');
-  const nickname = String(form.get('nickname') ?? '').trim();
   const tos_age = form.get('tos_age');
   const tos1 = form.get('tos1');
   const tos2 = form.get('tos2');
   const tos_marketing = form.get('tos_marketing');
+
+  // 닉네임 서버에서 자동 생성
+  const adjs  = ['냉철한','신중한','날카로운','대담한','현명한','꼼꼼한','침착한','용감한','느긋한','영리한','집요한','유연한'];
+  const nouns = ['고래','황소','부엉이','여우','독수리','곰돌이','늑대','토끼','사자','판다','다람쥐','펭귄'];
+  const adj   = adjs[Math.floor(Math.random() * adjs.length)];
+  const noun  = nouns[Math.floor(Math.random() * nouns.length)];
+  const num   = Math.floor(1000 + Math.random() * 9000);
+  const nickname = `${adj}_${noun}${num}`;
 
   if (!tos_age || !tos1 || !tos2) {
     errorMessage = '필수 항목에 모두 동의해 주세요.';
@@ -25,8 +32,6 @@ if (Astro.request.method === 'POST') {
     errorMessage = '비밀번호는 8자 이상이어야 해요.';
   } else if (password !== confirm) {
     errorMessage = '비밀번호가 일치하지 않아요.';
-  } else if (!nickname) {
-    errorMessage = '닉네임을 입력해 주세요.';
   } else {
     const { error } = await Astro.locals.supabase.auth.signUp({
       email,
@@ -110,22 +115,6 @@ if (Astro.request.method === 'POST') {
           <input class="field-input" id="confirm" type="password" name="confirm" required autocomplete="new-password" placeholder="비밀번호 재입력" />
         </div>
 
-        <div class="field">
-          <label class="field-label" for="nickname">닉네임</label>
-          <input class="field-input" id="nickname" type="text" name="nickname" required autocomplete="off" placeholder="닉네임 입력" maxlength="20" />
-          <div class="nick-hint-row">
-            <span class="field-hint" id="nick-hint">다른 사용자에게 보이는 이름이에요</span>
-            <button type="button" class="nick-reroll" id="nick-reroll" aria-label="닉네임 다시 뽑기">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                <path d="M13.5 2.5A6.5 6.5 0 0 0 2 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                <path d="M2.5 13.5A6.5 6.5 0 0 0 14 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                <polyline points="11,1 13.5,2.5 12,5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                <polyline points="5,11 2.5,13.5 4,16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              다시 뽑기
-            </button>
-          </div>
-        </div>
 
         <div class="auth-spacer"></div>
 
@@ -282,30 +271,6 @@ if (Astro.request.method === 'POST') {
   .field-hint.ok  { color: #38a169; }
   .field-hint.err { color: var(--up); }
 
-  .nick-hint-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: 2px;
-  }
-  .nick-reroll {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--blue);
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    font-family: var(--font);
-    opacity: 0.85;
-  }
-  .nick-reroll:hover { opacity: 1; }
   .field-input.ok  { border-color: #38a169; }
   .field-input.err { border-color: var(--up); }
 
@@ -573,37 +538,6 @@ if (Astro.request.method === 'POST') {
   }
   confirmInput.addEventListener('input', checkConfirm);
 
-  // 랜덤 닉네임
-  const adjs  = ['냉철한', '신중한', '날카로운', '대담한', '현명한', '꼼꼼한', '침착한', '용감한', '느긋한', '영리한', '집요한', '유연한'];
-  const nouns = ['고래', '황소', '부엉이', '여우', '독수리', '곰돌이', '늑대', '토끼', '사자', '판다', '다람쥐', '펭귄'];
-  function genNick() {
-    const adj  = adjs[Math.floor(Math.random() * adjs.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const num  = Math.floor(1000 + Math.random() * 9000);
-    return `${adj}_${noun}${num}`;
-  }
-
-  // 닉네임
-  const nickInput  = document.getElementById('nickname') as HTMLInputElement;
-  const nickHint   = document.getElementById('nick-hint') as HTMLElement;
-  const nickReroll = document.getElementById('nick-reroll') as HTMLButtonElement;
-
-  function applyNick(val: string) {
-    nickInput.value = val;
-    setHint(nickInput, nickHint, 'ok', '마이페이지에서 언제든지 변경할 수 있어요');
-  }
-
-  // 페이지 로드 시 자동 입력
-  applyNick(genNick());
-
-  // 다시 뽑기
-  nickReroll.addEventListener('click', () => applyNick(genNick()));
-
-  nickInput.addEventListener('input', () => {
-    if (!nickInput.value) { setHint(nickInput, nickHint, 'idle', '마이페이지에서 언제든지 변경할 수 있어요'); return; }
-    const ok = nickInput.value.trim().length >= 2;
-    setHint(nickInput, nickHint, ok ? 'ok' : 'err', ok ? '마이페이지에서 언제든지 변경할 수 있어요' : '2자 이상 입력해 주세요');
-  });
 
   // 약관 동의
   const allWrap  = document.getElementById('tos-all-wrap')!;
