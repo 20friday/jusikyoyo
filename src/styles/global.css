@@ -69,17 +69,38 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .hdr-spacer { flex: 1; transition: opacity 180ms ease; }
 
 /* 포스트 상세 스크롤 시 헤더 변환 */
-.hdr-ctx-label {
+.hdr-ctx {
   position: absolute;
   left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+.hdr-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-1);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+.hdr-back-btn:active { background: var(--border); }
+.hdr-ctx-label {
   font-size: 17px;
   font-weight: 800;
   color: var(--text-1);
   letter-spacing: -0.02em;
   white-space: nowrap;
-  opacity: 0;
-  transition: opacity 180ms ease;
-  pointer-events: none;
 }
 .hdr-inner.is-scrolled .brand,
 .hdr-inner.is-scrolled .hdr-spacer {
@@ -91,8 +112,9 @@ ul, ol { margin: 0; padding-left: 1.4em; }
   pointer-events: none;
   transition: opacity 180ms ease;
 }
-.hdr-inner.is-scrolled .hdr-ctx-label {
+.hdr-inner.is-scrolled .hdr-ctx {
   opacity: 1;
+  pointer-events: auto;
 }
 .btn-pill {
   display: inline-flex; align-items: center; gap: 6px;

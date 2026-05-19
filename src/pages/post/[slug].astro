@@ -37,7 +37,7 @@ const stockInfoJson = JSON.stringify(stockInfo);
     </article>
 
     <div class="post-footer">
-      <a href="/" class="btn-pill ghost">← 피드로</a>
+      <a href="/" class="btn-pill ghost">← 뒤로</a>
     </div>
   </div>
 
@@ -180,10 +180,22 @@ const stockInfoJson = JSON.stringify(stockInfo);
   const showEl = document.querySelector('.detail-show') as HTMLElement;
 
   if (meta && hdrInner && showEl) {
+    const ctx = document.createElement('div');
+    ctx.className = 'hdr-ctx';
+
+    const backBtn = document.createElement('button');
+    backBtn.className = 'hdr-back-btn';
+    backBtn.setAttribute('aria-label', '뒤로');
+    backBtn.textContent = '←';
+    backBtn.addEventListener('click', () => history.back());
+
     const label = document.createElement('span');
     label.className = 'hdr-ctx-label';
     label.textContent = showEl.textContent;
-    hdrInner.appendChild(label);
+
+    ctx.appendChild(backBtn);
+    ctx.appendChild(label);
+    hdrInner.appendChild(ctx);
 
     const observer = new IntersectionObserver(
       ([entry]) => {

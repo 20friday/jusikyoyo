@@ -316,6 +316,11 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
         card.style.display = (show === '전체' || card.dataset.show === show) ? '' : 'none';
       });
 
+      // 리포트·주간리포트 카드: 전체일 때만 표시
+      document.querySelectorAll<HTMLElement>('.report-card, .weekly-card').forEach(card => {
+        card.style.display = show === '전체' ? '' : 'none';
+      });
+
       // 날짜 구분선: 해당 날짜 아래 보이는 카드가 없으면 구분선도 숨김
       document.querySelectorAll<HTMLElement>('.date-divider').forEach(divider => {
         const date = divider.dataset.date;
