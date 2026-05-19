@@ -21,7 +21,7 @@ export const GET: APIRoute = async ({ request, redirect, cookies }) => {
 
   const params = new URLSearchParams({
     client_id: import.meta.env.KAKAO_REST_API_KEY,
-    redirect_uri: `${origin}/api/auth/kakao/callback`,
+    redirect_uri: `${origin}/api/auth/kakao-callback`,
     response_type: 'code',
     scope: 'openid profile_nickname profile_image',
     nonce: hashedNonce,

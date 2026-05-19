@@ -17,7 +17,7 @@ export const GET: APIRoute = async ({ locals, request, redirect, cookies }) => {
       grant_type: 'authorization_code',
       client_id: import.meta.env.KAKAO_REST_API_KEY,
       client_secret: import.meta.env.KAKAO_CLIENT_SECRET,
-      redirect_uri: `${url.origin}/api/auth/kakao/callback`,
+      redirect_uri: `${url.origin}/api/auth/kakao-callback`,
       code,
     }),
   });
