@@ -5,6 +5,8 @@ if (Astro.locals.session) {
   return Astro.redirect('/');
 }
 
+const view = Astro.url.searchParams.get('view') ?? 'sns';
+
 let errorMessage = '';
 const errorParam = Astro.url.searchParams.get('error');
 if (errorParam === 'auth_failed') errorMessage = '이메일 또는 비밀번호가 맞지 않아요.';
@@ -17,7 +19,7 @@ if (Astro.request.method === 'POST') {
 
   const { error } = await Astro.locals.supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    return Astro.redirect('/login?error=auth_failed');
+    return Astro.redirect('/login?view=email&error=auth_failed');
   }
   return Astro.redirect('/');
 }
@@ -26,62 +28,139 @@ if (Astro.request.method === 'POST') {
   <div class="auth-page">
     <div class="auth-inner">
 
-      <div class="auth-top">
-        <h1 class="auth-h1">다시 만나서<br/>반가워요</h1>
-        <p class="auth-sub">가입한 이메일과 비밀번호를 입력해 주세요.</p>
-      </div>
-
-      {errorMessage && (
-        <div class="auth-error">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-            <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/>
-            <path d="M10 6v4.5M10 13.2v.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
-          {errorMessage}
-        </div>
-      )}
-
-      <form method="POST" class="auth-form" id="login-form">
-        <div class="field">
-          <label class="field-label" for="email">이메일</label>
-          <input class="field-input" id="email" type="email" name="email" required autocomplete="email" placeholder="ted@example.com" />
-        </div>
-
-        <div class="field">
-          <label class="field-label" for="password">비밀번호</label>
-          <div class="field-pw-wrap">
-            <input class="field-input" id="password" type="password" name="password" required autocomplete="current-password" placeholder="비밀번호 입력" />
-            <button type="button" class="pw-toggle" id="pw-toggle" aria-label="비밀번호 보기">
-              <svg id="eye-show" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M3 10s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z" stroke="currentColor" stroke-width="1.6"/>
-                <circle cx="10" cy="10" r="2.2" stroke="currentColor" stroke-width="1.6"/>
+      {view === 'email' ? (
+        <>
+          <!-- 이메일 로그인 뷰 -->
+          <div class="email-header">
+            <a href="/login" class="back-btn" aria-label="뒤로">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M15 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              <svg id="eye-hide" width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:none">
-                <path d="M3 10s2.5-5 7-5c1.4 0 2.6.5 3.6 1.2M17 10s-2.5 5-7 5c-1.4 0-2.6-.5-3.6-1.2M3 3l14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-              </svg>
-            </button>
+            </a>
+            <span class="email-header-title">이메일 로그인</span>
           </div>
-        </div>
 
-        <div class="auth-row">
-          <label class="auto-login-label">
-            <span class="auto-login-box" id="auto-box">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="m2.5 6 2.5 2.5L9.5 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          {errorMessage && (
+            <div class="auth-error">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M10 6v4.5M10 13.2v.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
               </svg>
-            </span>
-            <input type="checkbox" name="remember" style="display:none" id="auto-check" checked />
-            <span class="auto-login-text">자동 로그인</span>
-          </label>
-          <a href="/forgot-password" class="micro-link">비밀번호 찾기</a>
-        </div>
+              {errorMessage}
+            </div>
+          )}
 
-        <div class="auth-spacer"></div>
+          <form method="POST" class="auth-form" id="login-form">
+            <div class="field">
+              <label class="field-label" for="email">이메일</label>
+              <input class="field-input" id="email" type="email" name="email" required autocomplete="email" placeholder="ted@example.com" />
+            </div>
 
-        <button class="btn-auth-primary" type="submit">로그인</button>
-      </form>
+            <div class="field">
+              <label class="field-label" for="password">비밀번호</label>
+              <div class="field-pw-wrap">
+                <input class="field-input" id="password" type="password" name="password" required autocomplete="current-password" placeholder="비밀번호 입력" />
+                <button type="button" class="pw-toggle" id="pw-toggle" aria-label="비밀번호 보기">
+                  <svg id="eye-show" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M3 10s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z" stroke="currentColor" stroke-width="1.6"/>
+                    <circle cx="10" cy="10" r="2.2" stroke="currentColor" stroke-width="1.6"/>
+                  </svg>
+                  <svg id="eye-hide" width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:none">
+                    <path d="M3 10s2.5-5 7-5c1.4 0 2.6.5 3.6 1.2M17 10s-2.5 5-7 5c-1.4 0-2.6-.5-3.6-1.2M3 3l14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
 
-      <p class="auth-switch">처음이세요? <a href="/signup">회원가입</a></p>
+            <div class="auth-row">
+              <label class="auto-login-label">
+                <span class="auto-login-box" id="auto-box">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="m2.5 6 2.5 2.5L9.5 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <input type="checkbox" name="remember" style="display:none" id="auto-check" checked />
+                <span class="auto-login-text">자동 로그인</span>
+              </label>
+              <a href="/forgot-password" class="micro-link">비밀번호 찾기</a>
+            </div>
+
+            <div class="auth-spacer"></div>
+
+            <button class="btn-auth-primary" type="submit">로그인</button>
+          </form>
+
+          <p class="auth-switch">처음이에요? <a href="/signup">이메일로 회원가입</a></p>
+        </>
+      ) : (
+        <>
+          <!-- SNS 로그인 뷰 -->
+          <div class="sns-top">
+            <div class="brand-logo">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <rect width="32" height="32" rx="10" fill="var(--blue)"/>
+                <path d="M9 22l4-10 3 7 3-5 4 8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="brand-name">테드픽</span>
+            </div>
+            <h1 class="sns-h1">다시 만나서<br/>반가워요</h1>
+            <p class="sns-sub">SNS 계정으로 1초 만에 시작하세요</p>
+          </div>
+
+          {errorMessage && (
+            <div class="auth-error">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M10 6v4.5M10 13.2v.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+              {errorMessage}
+            </div>
+          )}
+
+          <div class="sns-buttons">
+            <!-- 카카오 -->
+            <a href="/api/auth/kakao" class="sns-btn kakao">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M11 2C6.03 2 2 5.26 2 9.29c0 2.54 1.63 4.77 4.09 6.07l-1.04 3.86a.28.28 0 0 0 .42.3l4.53-2.98c.33.04.66.06 1 .06 4.97 0 9-3.26 9-7.29S15.97 2 11 2Z" fill="#3C1E1E"/>
+              </svg>
+              카카오로 시작하기
+            </a>
+
+            <!-- 네이버 -->
+            <a href="/api/auth/naver" class="sns-btn naver">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M3 3h5.14L11.86 10.4V3H17v14h-5.14L8.14 9.6V17H3V3Z" fill="white"/>
+              </svg>
+              네이버로 시작하기
+            </a>
+
+            <!-- 구글 -->
+            <a href="/api/auth/google" class="sns-btn google">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M19.6 10.23c0-.68-.06-1.36-.18-2H10v3.79h5.4a4.63 4.63 0 0 1-2 3.03v2.51h3.23c1.9-1.74 2.97-4.31 2.97-7.33Z" fill="#4285F4"/>
+                <path d="M10 20c2.7 0 4.97-.9 6.63-2.44l-3.23-2.51c-.9.6-2.04.96-3.4.96-2.61 0-4.82-1.76-5.61-4.13H1.06v2.6A10 10 0 0 0 10 20Z" fill="#34A853"/>
+                <path d="M4.39 11.88A6.02 6.02 0 0 1 4.07 10c0-.65.11-1.28.32-1.88V5.52H1.06A10 10 0 0 0 0 10c0 1.61.39 3.14 1.06 4.48l3.33-2.6Z" fill="#FBBC04"/>
+                <path d="M10 3.99c1.47 0 2.79.51 3.83 1.5l2.86-2.86A9.94 9.94 0 0 0 10 0 10 10 0 0 0 1.06 5.52l3.33 2.6C5.18 5.75 7.39 3.99 10 3.99Z" fill="#EA4335"/>
+              </svg>
+              구글로 시작하기
+            </a>
+          </div>
+
+          <div class="divider">
+            <span>또는</span>
+          </div>
+
+          <a href="/login?view=email" class="btn-email-login">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="4" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M2 7l8 5 8-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            이메일로 로그인
+          </a>
+
+          <p class="auth-switch">처음이에요? <a href="/signup">회원가입</a></p>
+        </>
+      )}
 
     </div>
   </div>
@@ -104,19 +183,133 @@ if (Astro.request.method === 'POST') {
     padding-top: 40px;
   }
 
-  .auth-top { margin-bottom: 32px; }
-  .auth-h1 {
+  /* ── SNS 뷰 ── */
+  .sns-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+  .brand-name {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--text-1);
+    letter-spacing: -0.03em;
+  }
+  .sns-h1 {
     font-size: 28px;
     font-weight: 900;
     line-height: 1.3;
     letter-spacing: -0.03em;
     color: var(--text-1);
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
-  .auth-sub {
-    font-size: 17px;
-    line-height: 1.6;
+  .sns-sub {
+    font-size: 15px;
+    color: var(--text-3);
+    line-height: 1.5;
+  }
+
+  .sns-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .sns-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 54px;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    transition: opacity 140ms, transform 140ms;
+  }
+  .sns-btn:active { opacity: 0.85; transform: scale(0.985); }
+
+  .sns-btn.kakao {
+    background: #FEE500;
+    color: #3C1E1E;
+  }
+  .sns-btn.naver {
+    background: #03C75A;
+    color: #fff;
+  }
+  .sns-btn.google {
+    background: var(--card);
+    color: var(--text-1);
+    border: 1.5px solid var(--divider);
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0;
+    color: var(--text-3);
+    font-size: 13px;
+  }
+  .divider::before,
+  .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--divider);
+  }
+
+  .btn-email-login {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 52px;
+    border-radius: 14px;
+    border: 1.5px solid var(--divider);
+    background: transparent;
     color: var(--text-2);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    transition: border-color 140ms, color 140ms;
+    margin-bottom: 24px;
+  }
+  .btn-email-login:hover {
+    border-color: var(--text-2);
+    color: var(--text-1);
+  }
+
+  /* ── 이메일 뷰 ── */
+  .email-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .back-btn {
+    display: flex;
+    align-items: center;
+    color: var(--text-2);
+    padding: 4px;
+    margin-left: -4px;
+  }
+  .back-btn:hover { color: var(--text-1); }
+  .email-header-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-1);
+    letter-spacing: -0.02em;
   }
 
   .auth-error {
@@ -139,7 +332,6 @@ if (Astro.request.method === 'POST') {
     flex: 1;
   }
 
-  /* Fields */
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field-label {
     font-size: 12px;
@@ -164,7 +356,6 @@ if (Astro.request.method === 'POST') {
   .field-input::placeholder { color: var(--text-3); }
   .field-input:focus { border-color: var(--blue); background: #fff; }
 
-  /* Password wrapper */
   .field-pw-wrap { position: relative; }
   .field-pw-wrap .field-input { padding-right: 48px; }
   .pw-toggle {
@@ -179,7 +370,6 @@ if (Astro.request.method === 'POST') {
     align-items: center;
   }
 
-  /* Auto login row */
   .auth-row {
     display: flex;
     align-items: center;
@@ -222,10 +412,8 @@ if (Astro.request.method === 'POST') {
   }
   .micro-link:hover { color: var(--text-2); }
 
-  /* Spacer pushes button to bottom */
   .auth-spacer { flex: 1; min-height: 24px; }
 
-  /* Primary button */
   .btn-auth-primary {
     width: 100%;
     height: 54px;
@@ -250,6 +438,8 @@ if (Astro.request.method === 'POST') {
     text-align: center;
     font-size: 14px;
     color: var(--text-3);
+    margin-top: auto;
+    padding-top: 20px;
   }
   .auth-switch a {
     color: var(--blue);
@@ -260,12 +450,13 @@ if (Astro.request.method === 'POST') {
 </style>
 
 <script>
-  // Eye toggle
-  const pwInput = document.getElementById('password') as HTMLInputElement;
+  // Eye toggle (이메일 뷰에서만 존재)
+  const pwInput = document.getElementById('password') as HTMLInputElement | null;
   const toggle = document.getElementById('pw-toggle');
   const eyeShow = document.getElementById('eye-show');
   const eyeHide = document.getElementById('eye-hide');
   toggle?.addEventListener('click', () => {
+    if (!pwInput) return;
     const isText = pwInput.type === 'text';
     pwInput.type = isText ? 'password' : 'text';
     eyeShow!.style.display = isText ? '' : 'none';
@@ -274,16 +465,10 @@ if (Astro.request.method === 'POST') {
 
   // Auto-login checkbox
   const autoBox = document.getElementById('auto-box');
-  const autoCheck = document.getElementById('auto-check') as HTMLInputElement;
+  const autoCheck = document.getElementById('auto-check') as HTMLInputElement | null;
   autoBox?.addEventListener('click', () => {
+    if (!autoCheck) return;
     autoCheck.checked = !autoCheck.checked;
     autoBox.classList.toggle('unchecked', !autoCheck.checked);
-  });
-
-  // Add has-value border on input
-  document.querySelectorAll('.field-input').forEach(input => {
-    input.addEventListener('input', function() {
-      (this as HTMLInputElement).style.borderColor = (this as HTMLInputElement).value ? 'var(--text-1)' : '';
-    });
   });
 </script>
