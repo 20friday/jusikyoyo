@@ -24,9 +24,7 @@ const { user } = Astro.locals;
         </a>
         <div class="hdr-spacer"></div>
         {user ? (
-          <form method="POST" action="/api/auth/logout">
-            <button class="btn-pill ghost" type="submit">로그아웃</button>
-          </form>
+          <a href="/mypage" class="btn-pill ghost">내 계정</a>
         ) : (
           <a href="/login" class="btn-pill ghost">로그인</a>
         )}
