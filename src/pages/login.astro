@@ -126,14 +126,6 @@ if (Astro.request.method === 'POST') {
               카카오로 시작하기
             </a>
 
-            <!-- 네이버 -->
-            <a href="/api/auth/naver" class="sns-btn naver">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M3 3h5.14L11.86 10.4V3H17v14h-5.14L8.14 9.6V17H3V3Z" fill="white"/>
-              </svg>
-              네이버로 시작하기
-            </a>
-
             <!-- 구글 -->
             <a href="/api/auth/google" class="sns-btn google">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -241,10 +233,6 @@ if (Astro.request.method === 'POST') {
   .sns-btn.kakao {
     background: #FEE500;
     color: #3C1E1E;
-  }
-  .sns-btn.naver {
-    background: #03C75A;
-    color: #fff;
   }
   .sns-btn.google {
     background: var(--card);
