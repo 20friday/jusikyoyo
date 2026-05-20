@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tedpick-dev",
+      "runtimeExecutable": "node_modules/.bin/astro",
+      "runtimeArgs": ["dev"],
+      "port": 4321
+    }
+  ]
+}

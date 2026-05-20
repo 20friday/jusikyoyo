@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import PrepCard from '../components/PrepCard.astro';
 
 const allWeeklyReports = await getCollection('weeklyReports');
 const latestWeekly = allWeeklyReports.sort((a, b) => b.data.date.localeCompare(a.data.date))[0];
@@ -15,16 +16,18 @@ function formatWeekRange(fridayStr: string) {
   };
 }
 
-const allPosts = await getCollection('posts', ({ data }) => data.published !== false);
-const posts = allPosts.sort((a, b) => {
-  const dateComp = b.data.date.localeCompare(a.data.date);
-  if (dateComp !== 0) return dateComp;
-  const aOrder = a.data.order ?? 999;
-  const bOrder = b.data.order ?? 999;
-  return bOrder - aOrder;
-});
+const { data: rawPosts, error: postsError } = await Astro.locals.supabase
+  .from('posts')
+  .select('title, slug, show, summary, date, display_order, tags, is_premium')
+  .eq('published', true)
+  .order('date', { ascending: false })
+  .order('display_order', { ascending: true });
+
+
+const posts = rawPosts ?? [];
+
 const showOrder = ['12시에 만나요', '삼프로TV', '한국경제TV', '연합뉴스경제TV'];
-const existingShows = new Set(posts.map(p => p.data.show));
+const existingShows = new Set(posts.map((p: any) => p.show));
 const shows = ['전체', ...showOrder.filter(s => existingShows.has(s))];
 
 // 날짜별 리포트 맵
@@ -41,14 +44,20 @@ function formatDate(dateStr: string) {
 }
 
 // 날짜별로 그룹핑
-const groupedPosts: Record<string, typeof posts> = {};
+const groupedPosts: Record<string, any[]> = {};
 for (const post of posts) {
-  const d = post.data.date;
+  const d = post.date;
   if (!groupedPosts[d]) groupedPosts[d] = [];
   groupedPosts[d].push(post);
 }
-// 포스트 날짜 + 리포트 날짜를 합쳐서 정렬
-const allDates = [...new Set([...Object.keys(groupedPosts), ...Object.keys(reportsByDate)])];
+// 오늘 날짜 (KST 근사: UTC+9)
+const todayKey = (() => {
+  const d = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return d.toISOString().slice(0, 10);
+})();
+
+// 포스트 날짜 + 리포트 날짜를 합쳐서 정렬 (오늘은 항상 맨 앞에 포함)
+const allDates = [...new Set([todayKey, ...Object.keys(groupedPosts), ...Object.keys(reportsByDate)])];
 const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
 ---
 <Base title="피드">
@@ -92,16 +101,19 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
           <div class="date-divider" data-date={date}>
             <span class="date-divider-label">{formatDate(date)}</span>
           </div>
+          {date === todayKey && !(groupedPosts[date]?.length) && (
+            <PrepCard latestSlug={posts[0]?.slug} />
+          )}
           {reportsByDate[date] && (
             <a href={`/report/${date}`} class="report-card" data-date={date}>
               <div class="report-card-label">PICK 리포트</div>
               <div class="report-card-headline">{reportsByDate[date].data.headline}</div>
             </a>
           )}
-          {(groupedPosts[date] ?? []).map(post => {
-            const { title, show, summary } = post.data;
+          {(groupedPosts[date] ?? []).map((post: any) => {
+            const { title, show, summary, slug } = post;
             return (
-              <a href={`/post/${post.id}`} class="post-card" data-show={show} data-date={date}>
+              <a href={`/post/${slug}`} class="post-card" data-show={show} data-date={date}>
                 <div class="card-meta">
                   <span class="card-show">{show}</span>
                   <span class="card-dot"></span>

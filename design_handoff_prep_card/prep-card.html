@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TED PICK · 오늘 PICK 준비중 카드</title>
+  <link rel="stylesheet" href="assets/global.css" />
+  <style>
+    /* =========================================================
+       PREP CARD — shared base
+       ========================================================= */
+    .prep {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px 20px 18px;
+      border: 1px solid var(--border);
+      font-family: var(--font);
+      position: relative;
+      overflow: hidden;
+    }
+    .prep-status {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 12px; font-weight: 700; letter-spacing: -0.01em;
+      color: var(--text-2);
+      padding: 5px 10px 5px 9px;
+      background: var(--border);
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+    .prep-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--blue);
+      position: relative; flex-shrink: 0;
+      box-shadow: 0 0 0 0 rgba(237,120,31, 0.55);
+      animation: prep-pulse 1.8s ease-out infinite;
+    }
+    @keyframes prep-pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(237,120,31, 0.45); }
+      70%  { box-shadow: 0 0 0 7px rgba(237,120,31, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(237,120,31, 0); }
+    }
+    .prep-title {
+      font-size: 18px; font-weight: 800;
+      letter-spacing: -0.02em; line-height: 1.4;
+      color: var(--text-1);
+      margin: 0 0 8px;
+    }
+    .prep-desc {
+      font-size: 14px; line-height: 1.65;
+      color: var(--text-2);
+      margin: 0;
+    }
+    .prep-foot {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .prep-eta {
+      font-size: 12px; color: var(--text-3); font-weight: 600;
+      display: inline-flex; align-items: center; gap: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .prep-eta-clock {
+      width: 12px; height: 12px; opacity: 0.7;
+    }
+    .prep-cta {
+      font-size: 13px; font-weight: 700; color: var(--blue);
+      letter-spacing: -0.01em;
+      display: inline-flex; align-items: center; gap: 4px;
+      background: none; border: none; padding: 0; cursor: pointer;
+    }
+    .prep-cta:hover { color: var(--blue-dark); }
+    .prep-cta-arrow { font-weight: 800; }
+
+    /* =========================================================
+       VARIANT A — 차분한 안내 (minimal, neutral)
+       기존 post-card와 가장 자연스럽게 어울리는 기본 스타일
+       ========================================================= */
+    .prep.variant-a .prep-dot { background: #94a0ad; box-shadow: 0 0 0 0 rgba(148,160,173,0.55); animation-name: prep-pulse-gray; }
+    @keyframes prep-pulse-gray {
+      0%   { box-shadow: 0 0 0 0 rgba(148,160,173, 0.5); }
+      70%  { box-shadow: 0 0 0 7px rgba(148,160,173, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(148,160,173, 0); }
+    }
+
+    /* =========================================================
+       VARIANT B — 오렌지 펄스 (brand-aligned warm tone)
+       ========================================================= */
+    .prep.variant-b {
+      background: linear-gradient(180deg, #fff7ef 0%, #ffffff 75%);
+      border-color: #fde4cc;
+    }
+    .prep.variant-b .prep-status {
+      background: #fdf0e6;
+      color: var(--blue-dark);
+    }
+
+    /* =========================================================
+       VARIANT C — 진행 타임라인 (day progress)
+       하루 흐름을 보여줘 운영 리듬을 드러냄
+       ========================================================= */
+    .prep.variant-c .prep-timeline {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 4px; margin-top: 16px; padding-top: 4px;
+    }
+    .prep.variant-c .pt-step {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .prep.variant-c .pt-bar {
+      height: 3px; border-radius: 2px; background: var(--border);
+      position: relative; overflow: hidden;
+    }
+    .prep.variant-c .pt-step.done .pt-bar { background: var(--blue); }
+    .prep.variant-c .pt-step.now .pt-bar {
+      background: linear-gradient(90deg, var(--blue) 0%, var(--blue) 65%, #ffe4cc 65%, #ffe4cc 100%);
+    }
+    .prep.variant-c .pt-step.now .pt-bar::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.7) 50%, transparent 100%);
+      animation: pt-shimmer 1.6s linear infinite;
+    }
+    @keyframes pt-shimmer {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .prep.variant-c .pt-label {
+      font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: -0.01em;
+    }
+    .prep.variant-c .pt-step.done .pt-label,
+    .prep.variant-c .pt-step.now .pt-label { color: var(--text-1); }
+    .prep.variant-c .pt-step.now .pt-label { color: var(--blue); }
+
+    /* =========================================================
+       VARIANT D — 살짝 비친 카드 (skeleton glimpse)
+       오늘 글이 들어올 자리를 미리 보여주는 결
+       ========================================================= */
+    .prep.variant-d {
+      background: var(--card);
+    }
+    .prep.variant-d .prep-glimpse {
+      margin-top: 16px;
+      padding: 14px 14px 16px;
+      background: #fafbfc;
+      border: 1px dashed #e5e8eb;
+      border-radius: 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .prep.variant-d .glimpse-show {
+      width: 64px; height: 18px; border-radius: 6px;
+      background: linear-gradient(90deg, #f0f2f4 0%, #f7f8f9 50%, #f0f2f4 100%);
+      background-size: 200% 100%;
+      animation: glimpse 1.6s ease-in-out infinite;
+    }
+    .prep.variant-d .glimpse-line {
+      height: 12px; border-radius: 6px;
+      background: linear-gradient(90deg, #f0f2f4 0%, #f7f8f9 50%, #f0f2f4 100%);
+      background-size: 200% 100%;
+      animation: glimpse 1.6s ease-in-out infinite;
+    }
+    .prep.variant-d .glimpse-line.w-90 { width: 92%; }
+    .prep.variant-d .glimpse-line.w-70 { width: 68%; animation-delay: 0.15s; }
+    @keyframes glimpse {
+      0%, 100% { background-position: 200% 0; }
+      50% { background-position: -200% 0; }
+    }
+
+    /* =========================================================
+       VARIANT E — 소 캐릭터 (cow mascot)
+       시간대별 다른 동작: 자고 · 보고 · 정리하기
+       ========================================================= */
+    .prep.variant-e {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: center;
+      padding: 18px 20px;
+    }
+    .prep.variant-e .prep-cow-slot {
+      width: 126px; height: 108px;
+      display: flex; align-items: center; justify-content: center;
+      background: #fff7ef;
+      border-radius: 14px;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .prep.variant-e .prep-cow-slot::before {
+      content: '';
+      position: absolute; left: 12px; right: 12px; bottom: 14px;
+      height: 1px; background: rgba(31,26,20,0.08);
+    }
+    .prep.variant-e .prep-text { min-width: 0; }
+    .prep.variant-e .prep-status { margin-bottom: 8px; }
+    .prep.variant-e .prep-title { font-size: 17px; margin-bottom: 6px; }
+    .prep.variant-e .prep-desc { font-size: 13px; line-height: 1.6; }
+    .prep.variant-e .prep-foot {
+      grid-column: 1 / -1;
+      margin-top: 12px;
+      padding-top: 12px;
+    }
+
+    /* ========== Cow animations ========== */
+    .cow .cow-body-grp {
+      transform-origin: 70px 80px;
+      animation: cow-breathe 3.4s ease-in-out infinite;
+    }
+    @keyframes cow-breathe {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.02); }
+    }
+    .cow-sleeping .cow-body-grp {
+      animation: cow-sleep-bob 3.6s ease-in-out infinite;
+    }
+    @keyframes cow-sleep-bob {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50%      { transform: translateY(3px) scale(1.025); }
+    }
+    .zzz .z { opacity: 0; }
+    .zzz .z1 { animation: zfloat 2.8s ease-out infinite 0s; }
+    .zzz .z2 { animation: zfloat 2.8s ease-out infinite 0.9s; }
+    .zzz .z3 { animation: zfloat 2.8s ease-out infinite 1.8s; }
+    @keyframes zfloat {
+      0%   { opacity: 0; transform: translate(0, 6px); }
+      20%  { opacity: 1; }
+      70%  { opacity: 1; }
+      100% { opacity: 0; transform: translate(4px, -10px); }
+    }
+    .cow-watching .eyes-scan {
+      animation: eyes-scan 2.4s ease-in-out infinite;
+    }
+    @keyframes eyes-scan {
+      0%, 100% { transform: translateX(-2.5px); }
+      50%      { transform: translateX(2.5px); }
+    }
+    .cow-watching .ear-l {
+      transform-origin: 32px 50px;
+      animation: ear-flick-l 4.8s ease-in-out infinite;
+    }
+    .cow-watching .ear-r {
+      transform-origin: 88px 50px;
+      animation: ear-flick-r 4.8s ease-in-out infinite 2.4s;
+    }
+    @keyframes ear-flick-l {
+      0%, 90%, 100% { transform: rotate(0); }
+      93%           { transform: rotate(-10deg); }
+      96%           { transform: rotate(2deg); }
+    }
+    @keyframes ear-flick-r {
+      0%, 90%, 100% { transform: rotate(0); }
+      93%           { transform: rotate(10deg); }
+      96%           { transform: rotate(-2deg); }
+    }
+    .chart .bar { transform-box: fill-box; transform-origin: bottom center; }
+    .chart .bar1 { animation: bar-pulse 1.8s ease-in-out infinite 0s; }
+    .chart .bar2 { animation: bar-pulse 1.8s ease-in-out infinite 0.3s; }
+    .chart .bar3 { animation: bar-pulse 1.8s ease-in-out infinite 0.6s; }
+    @keyframes bar-pulse {
+      0%, 100% { transform: scaleY(0.65); }
+      50%      { transform: scaleY(1); }
+    }
+    .cow-organizing .cow-body-grp {
+      animation: cow-nod 3.2s ease-in-out infinite;
+      transform-origin: 60px 90px;
+    }
+    @keyframes cow-nod {
+      0%, 100% { transform: rotate(0); }
+      30%      { transform: rotate(-3deg); }
+      70%      { transform: rotate(2deg); }
+    }
+    .pencil {
+      transform-box: fill-box;
+      transform-origin: 0% 100%;
+      animation: pencil-write 1.4s ease-in-out infinite;
+    }
+    @keyframes pencil-write {
+      0%, 100% { transform: translate(0, 0) rotate(0); }
+      50%      { transform: translate(-3px, 1px) rotate(-10deg); }
+    }
+    .cb-line { stroke-dasharray: 22; }
+    .cb-l1 { animation: line-draw 4.5s ease-in-out infinite 0s; }
+    .cb-l2 { animation: line-draw 4.5s ease-in-out infinite 1.5s; }
+    .cb-l3 { animation: line-draw 4.5s ease-in-out infinite 3s; }
+    @keyframes line-draw {
+      0%   { stroke-dashoffset: 22; }
+      30%  { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cow *, .prep-dot,
+      .prep.variant-d .glimpse-line, .prep.variant-d .glimpse-show {
+        animation: none !important;
+      }
+    }
+
+    /* =========================================================
+       Feed mock — mobile context
+       ========================================================= */
+    .feed-mock {
+      background: var(--bg);
+      padding: 16px;
+      min-height: 100%;
+    }
+    .feed-mock .feed-heading {
+      font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+      color: var(--text-1); margin: 12px 0 6px;
+    }
+    .feed-mock .feed-sub {
+      font-size: 14px; color: var(--text-3); line-height: 1.5;
+      margin-bottom: 18px;
+    }
+    .feed-mock .feed-filters {
+      display: flex; gap: 6px; margin-bottom: 18px; overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .feed-mock .feed-filters::-webkit-scrollbar { display: none; }
+    .feed-mock .filter-btn {
+      padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+      color: var(--text-2); background: var(--card);
+      border: 1px solid var(--border); white-space: nowrap; flex-shrink: 0;
+    }
+    .feed-mock .filter-btn.active { background: #111; color: #fff; border-color: #111; }
+    .feed-mock .date-divider--today {
+      display: flex; justify-content: center; margin: 4px 0 12px;
+    }
+    .feed-mock .date-divider--today .date-divider-label {
+      font-size: 13px; font-weight: 800; color: #ed781f;
+      background: color-mix(in srgb, #ed781f 12%, transparent);
+      padding: 5px 14px; border-radius: 20px; letter-spacing: -0.01em;
+    }
+    .feed-mock .date-divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 24px 0 12px;
+    }
+    .feed-mock .date-divider::before,
+    .feed-mock .date-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .feed-mock .date-divider-label {
+      font-size: 12px; font-weight: 600; color: var(--text-3);
+    }
+    .feed-mock .post-card-mock {
+      background: var(--card); border-radius: 16px;
+      padding: 18px; margin-bottom: 10px;
+    }
+    .feed-mock .pcm-meta {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+      font-size: 12px;
+    }
+    .feed-mock .pcm-show {
+      font-size: 12px; font-weight: 700; color: var(--blue);
+      background: #fdf0e6; padding: 3px 9px; border-radius: 6px;
+    }
+    .feed-mock .pcm-date { font-size: 12px; color: var(--text-3); }
+    .feed-mock .pcm-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-3); }
+    .feed-mock .pcm-title {
+      font-size: 17px; font-weight: 800; letter-spacing: -0.02em;
+      line-height: 1.4; margin-bottom: 8px;
+    }
+    .feed-mock .pcm-sum {
+      font-size: 14px; color: var(--text-2); line-height: 1.6;
+    }
+
+    /* time-band switcher inside the feed artboard (visible chrome — like a phone shortcut bar) */
+    .band-switcher {
+      display: flex; gap: 4px;
+      padding: 4px;
+      background: #111;
+      border-radius: 999px;
+      margin: 0 0 16px;
+      font-family: var(--font);
+    }
+    .band-switcher button {
+      flex: 1; padding: 7px 8px;
+      border-radius: 999px;
+      font-size: 11px; font-weight: 700;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+    }
+    .band-switcher button.active { background: #fff; color: var(--text-1); }
+    .band-switcher .bs-label {
+      font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.4);
+      padding: 7px 6px 7px 10px;
+      align-self: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="cow.jsx"></script>
+  <script type="text/babel" src="prep-card.jsx"></script>
+</body>
+</html>
