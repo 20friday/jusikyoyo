@@ -9,107 +9,75 @@ const user = Astro.locals.user!;
 
 const { data: profile } = await Astro.locals.supabase
   .from('profiles')
-  .select('role, expires_at, is_admin')
+  .select('role, expires_at')
   .eq('user_id', user.id)
   .single();
 
 const email = user.email ?? '';
 const initial = email.charAt(0).toUpperCase();
-const nickname = user.user_metadata?.full_name ?? user.user_metadata?.name ?? '';
 
 const role = profile?.role ?? 'free';
 const expiresAt = profile?.expires_at ? new Date(profile.expires_at) : null;
-
 const now = new Date();
 const isExpired = expiresAt ? expiresAt < now : true;
 
-function roleBadge(r: string) {
-  if (r === 'paid') return { label: '구독 중', color: '#ed781f' };
-  if (r === 'trial') return isExpired
-    ? { label: '체험 만료', color: '#999' }
-    : { label: '무료 체험 중', color: '#3b82f6' };
-  return { label: '무료', color: '#999' };
+type BadgeMeta = { label: string; color: string; bg: string };
+function roleMeta(r: string): BadgeMeta {
+  if (r === 'paid')                  return { label: '구독 중',     color: '#ed781f', bg: '#fdf0e6' };
+  if (r === 'trial' && !isExpired)   return { label: '무료 체험 중', color: '#3b82f6', bg: '#eff6ff' };
+  if (r === 'trial' && isExpired)    return { label: '체험 만료',   color: '#8b95a1', bg: '#f2f4f6' };
+  return                                    { label: '무료',         color: '#8b95a1', bg: '#f2f4f6' };
 }
+const badge = roleMeta(role);
 
-const badge = roleBadge(role);
-
+const days = ['일', '월', '화', '수', '목', '금', '토'];
 function formatExpiry(d: Date) {
-  const days = ['일', '월', '화', '수', '목', '금', '토'];
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
 }
-
 function daysLeft(d: Date) {
-  const diff = d.getTime() - now.getTime();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  return Math.max(0, Math.ceil((d.getTime() - now.getTime()) / 86400000));
 }
 ---
 <Base title="내 계정">
   <div class="mypage-wrap">
 
-    <!-- 프로필 -->
+    <!-- 프로필 카드 -->
     <div class="profile-card">
       <div class="avatar">{initial}</div>
-      {nickname && <div class="nickname">{nickname}</div>}
-      <div class="email">{email}</div>
-      <div class="role-badge" style={`background: color-mix(in srgb, ${badge.color} 12%, transparent); color: ${badge.color};`}>
-        {badge.label}
-      </div>
+      <p class="profile-email">{email}</p>
+      <span class="badge" style={`color:${badge.color}; background:${badge.bg}`}>{badge.label}</span>
     </div>
 
-    <!-- 구독 상태 -->
-    <div class="info-section">
-      <div class="section-title">구독 상태</div>
+    <!-- 정보 카드 -->
+    <div class="info-card">
 
-      {role === 'paid' && (
-        <div class="info-row">
-          <span class="info-label">상태</span>
-          <span class="info-value paid">구독 중</span>
-        </div>
-      )}
+      <div class="row">
+        <span class="row-label">구독 상태</span>
+        <span class="row-value" style={`color:${badge.color}`}>{badge.label}</span>
+      </div>
 
       {role === 'trial' && !isExpired && expiresAt && (
         <>
-          <div class="info-row">
-            <span class="info-label">상태</span>
-            <span class="info-value trial">무료 체험 중</span>
+          <div class="row">
+            <span class="row-label">체험 만료일</span>
+            <span class="row-value">{formatExpiry(expiresAt)}</span>
           </div>
-          <div class="info-row">
-            <span class="info-label">체험 만료일</span>
-            <span class="info-value">{formatExpiry(expiresAt)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">남은 기간</span>
-            <span class="info-value">{daysLeft(expiresAt)}일</span>
+          <div class="row">
+            <span class="row-label">남은 기간</span>
+            <span class="row-value">{daysLeft(expiresAt)}일</span>
           </div>
         </>
       )}
 
-      {role === 'trial' && isExpired && (
-        <div class="info-row">
-          <span class="info-label">상태</span>
-          <span class="info-value expired">체험 기간 만료</span>
-        </div>
-      )}
-
-      {role === 'free' && (
-        <div class="info-row">
-          <span class="info-label">상태</span>
-          <span class="info-value">무료 이용 중</span>
-        </div>
-      )}
-    </div>
-
-    <!-- 계정 -->
-    <div class="info-section">
-      <div class="section-title">계정</div>
-      <div class="info-row">
-        <span class="info-label">이메일</span>
-        <span class="info-value">{email}</span>
+      <div class="row">
+        <span class="row-label">이메일</span>
+        <span class="row-value" style="font-weight:400; color:var(--text-3); font-size:15px">{email}</span>
       </div>
+
     </div>
 
     <!-- 로그아웃 -->
-    <form method="POST" action="/api/auth/logout" class="logout-form">
+    <form method="POST" action="/api/auth/logout">
       <button type="submit" class="logout-btn">로그아웃</button>
     </form>
 
@@ -120,51 +88,42 @@ function daysLeft(d: Date) {
   .mypage-wrap {
     max-width: 480px;
     margin: 0 auto;
-    padding: 24px 16px 80px;
-  }
-
-  /* 프로필 카드 */
-  .profile-card {
+    padding: 20px 16px 80px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 32px 24px 28px;
+    gap: 10px;
+  }
+
+  /* ── 프로필 카드 ── */
+  .profile-card {
     background: var(--card);
-    border: 1px solid var(--border);
     border-radius: 20px;
-    margin-bottom: 16px;
+    padding: 36px 20px 28px;
     text-align: center;
   }
 
   .avatar {
-    width: 72px;
-    height: 72px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     background: #ed781f;
     color: #fff;
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 14px;
-    letter-spacing: -0.02em;
+    margin: 0 auto 16px;
   }
 
-  .nickname {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-1);
-    margin-bottom: 4px;
-  }
-
-  .email {
+  .profile-email {
     font-size: 15px;
     color: var(--text-3);
-    margin-bottom: 14px;
+    margin-bottom: 12px;
   }
 
-  .role-badge {
+  .badge {
+    display: inline-block;
     font-size: 13px;
     font-weight: 700;
     padding: 5px 14px;
@@ -172,66 +131,53 @@ function daysLeft(d: Date) {
     letter-spacing: -0.01em;
   }
 
-  /* 정보 섹션 */
-  .info-section {
+  /* ── 정보 카드 ── */
+  .info-card {
     background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 12px;
+    border-radius: 20px;
+    padding: 0 20px;
   }
 
-  .section-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-3);
-    letter-spacing: 0.02em;
-    margin-bottom: 14px;
-  }
-
-  .info-row {
+  .row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
+    gap: 16px;
+    padding: 18px 0;
     border-bottom: 1px solid var(--border);
-    gap: 12px;
   }
-  .info-row:last-child { border-bottom: none; padding-bottom: 0; }
-  .info-row:first-of-type { padding-top: 0; }
+  .row:last-child { border-bottom: none; }
 
-  .info-label {
-    font-size: 15px;
-    color: var(--text-3);
+  .row-label {
+    font-size: 17px;
+    color: var(--text-1);
     flex-shrink: 0;
   }
 
-  .info-value {
-    font-size: 15px;
+  .row-value {
+    font-size: 17px;
     font-weight: 600;
     color: var(--text-1);
     text-align: right;
   }
+  .row-value--muted {
+    font-weight: 400;
+    color: var(--text-3);
+    font-size: 15px;
+  }
 
-  .info-value.paid   { color: #ed781f; }
-  .info-value.trial  { color: #3b82f6; }
-  .info-value.expired { color: #999; }
-
-  /* 로그아웃 */
-  .logout-form { margin-top: 8px; }
-
+  /* ── 로그아웃 ── */
   .logout-btn {
     width: 100%;
-    padding: 16px;
-    border-radius: 14px;
-    border: 1px solid var(--border);
+    padding: 18px;
+    border-radius: 20px;
     background: var(--card);
     font-size: 17px;
     font-weight: 600;
-    color: var(--text-2);
+    color: var(--text-3);
     cursor: pointer;
     font-family: var(--font);
-    transition: background 140ms ease;
+    transition: background 140ms;
   }
-  .logout-btn:active { background: var(--border); }
+  .logout-btn:active { background: var(--divider); }
 </style>
