@@ -13,11 +13,15 @@ const [
   { count: trialMembers },
   { count: paidMembers },
   { count: totalPosts },
+  { count: totalReports },
+  { count: totalWeekly },
 ] = await Promise.all([
   supabase.from('profiles').select('*', { count: 'exact', head: true }),
   supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'trial'),
   supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'paid'),
   supabase.from('posts').select('*', { count: 'exact', head: true }),
+  supabase.from('daily_reports').select('*', { count: 'exact', head: true }),
+  supabase.from('weekly_reports').select('*', { count: 'exact', head: true }),
 ]);
 
 // 최근 가입 회원 5명
@@ -44,8 +48,16 @@ const { data: recentMembers } = await supabase
       <p class="stat-value">{paidMembers ?? 0}<span class="stat-unit">명</span></p>
     </div>
     <div class="stat-card">
-      <p class="stat-label">전체 게시글</p>
+      <p class="stat-label">피드 글</p>
       <p class="stat-value">{totalPosts ?? 0}<span class="stat-unit">개</span></p>
+    </div>
+    <div class="stat-card">
+      <p class="stat-label">오늘의 PICK</p>
+      <p class="stat-value">{totalReports ?? 0}<span class="stat-unit">개</span></p>
+    </div>
+    <div class="stat-card">
+      <p class="stat-label">주간 픽</p>
+      <p class="stat-value">{totalWeekly ?? 0}<span class="stat-unit">개</span></p>
     </div>
   </div>
 
@@ -82,19 +94,26 @@ const { data: recentMembers } = await supabase
 
   <!-- 바로가기 -->
   <div class="shortcut-grid">
+    <a href="/admin/reports/new" class="shortcut-card">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      오늘의 PICK 추가
+    </a>
+    <a href="/admin/posts/new" class="shortcut-card">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      피드 글 작성
+    </a>
     <a href="/admin/notices/new" class="shortcut-card">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/>
         <path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
       </svg>
       공지사항 작성
-    </a>
-    <a href="/admin/faq/new" class="shortcut-card">
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/>
-        <path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-      </svg>
-      FAQ 추가
     </a>
     <a href="/admin/members" class="shortcut-card">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -109,7 +128,7 @@ const { data: recentMembers } = await supabase
 <style>
   .stat-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
     margin-bottom: 32px;
   }
@@ -203,7 +222,7 @@ const { data: recentMembers } = await supabase
 
   .shortcut-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
   }
   .shortcut-card {
