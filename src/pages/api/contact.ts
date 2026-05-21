@@ -11,7 +11,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  let body: { type?: string; title?: string; content?: string };
+  let body: { type?: string; title?: string; content?: string; email?: string };
   try {
     body = await request.json();
   } catch {
@@ -29,7 +29,10 @@ export const POST: APIRoute = async ({ locals, request }) => {
     return new Response('내용을 입력해주세요', { status: 400 });
   }
 
-  const email = locals.user.email ?? '';
+  const email = locals.user.email || body.email?.trim() || '';
+  if (!email) {
+    return new Response('이메일을 입력해주세요', { status: 400 });
+  }
   const userId = locals.user.id;
 
   const { error: dbError } = await locals.supabase.from('inquiries').insert({

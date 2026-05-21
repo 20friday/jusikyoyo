@@ -6,6 +6,7 @@ if (!Astro.locals.session) {
 }
 
 const email = Astro.locals.user?.email ?? '';
+const hasEmail = email.length > 0;
 ---
 
 <Base title="문의하기 — 테드픽">
@@ -25,8 +26,11 @@ const email = Astro.locals.user?.email ?? '';
           </select>
         </div>
         <div class="form-field">
-          <label class="form-label">이메일</label>
-          <input class="form-input" type="text" value={email} readonly />
+          <label class="form-label">이메일 {!hasEmail && <span class="required">*</span>}</label>
+          {hasEmail
+            ? <input class="form-input" type="text" name="email" value={email} readonly />
+            : <input class="form-input" type="email" name="email" placeholder="답변받을 이메일을 입력해주세요" required />
+          }
         </div>
         <div class="form-field">
           <label class="form-label">제목 <span class="required">*</span></label>
