@@ -1,0 +1,12 @@
+import type { APIRoute } from 'astro';
+import { isAdmin } from '../../../../lib/adminGuard';
+import { createAdminClient } from '../../../../lib/adminSupabase';
+
+export const DELETE: APIRoute = async ({ locals, params }) => {
+  if (!locals.session || !isAdmin(locals.user?.email)) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  const { error } = await createAdminClient().from('daily_reports').delete().eq('id', params.id);
+  if (error) return new Response(error.message, { status: 500 });
+  return new Response('ok');
+};

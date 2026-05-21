@@ -1,0 +1,135 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { isAdmin } from '../../../lib/adminGuard';
+import { createAdminClient } from '../../../lib/adminSupabase';
+
+if (!Astro.locals.session) return Astro.redirect('/admin/login');
+if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
+
+const { id } = Astro.params;
+const adminDb = createAdminClient();
+
+let error = '';
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const date = String(form.get('date') ?? '').trim();
+  const headline = String(form.get('headline') ?? '').trim();
+  const insight = String(form.get('insight') ?? '').trim();
+  const published = form.get('published') === 'true';
+
+  let stocks = [], comparisons = [], sectors = [], shows = [];
+  try { stocks = JSON.parse(String(form.get('stocks') ?? '[]')); } catch { error = 'stocks JSON 형식 오류'; }
+  try { comparisons = JSON.parse(String(form.get('comparisons') ?? '[]')); } catch { error = 'comparisons JSON 형식 오류'; }
+  try { sectors = JSON.parse(String(form.get('sectors') ?? '[]')); } catch { error = 'sectors JSON 형식 오류'; }
+  try { shows = JSON.parse(String(form.get('shows') ?? '[]')); } catch { error = 'shows JSON 형식 오류'; }
+
+  if (!date) { error = '날짜는 필수예요.'; }
+  else if (!error) {
+    const { error: dbErr } = await adminDb
+      .from('daily_reports')
+      .update({ date, headline, insight, published, stocks, comparisons, sectors, shows })
+      .eq('id', id);
+    if (dbErr) error = dbErr.message;
+    else return Astro.redirect('/admin/reports');
+  }
+}
+
+const { data: report } = await adminDb.from('daily_reports').select('*').eq('id', id).single();
+if (!report) return Astro.redirect('/admin/reports');
+
+const fmt = (v: any) => JSON.stringify(v ?? [], null, 2);
+---
+
+<AdminLayout title="오늘의 PICK 수정">
+  <div class="form-wrap">
+    {error && <div class="form-error">{error}</div>}
+    <form method="POST" class="report-form">
+
+      <div class="form-section">
+        <h2 class="section-title">기본 정보</h2>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label">날짜 <span class="required">*</span></label>
+            <input class="form-input" type="date" name="date" value={report.date} required />
+          </div>
+          <div class="form-field flex-1">
+            <label class="form-label">헤드라인</label>
+            <input class="form-input" type="text" name="headline" value={report.headline ?? ''} />
+          </div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">방송 목록 (JSON)</label>
+          <input class="form-input" type="text" name="shows" value={JSON.stringify(report.shows ?? [])} />
+        </div>
+        <div class="form-field">
+          <label class="form-label">인사이트</label>
+          <textarea class="form-textarea" name="insight" rows="4">{report.insight ?? ''}</textarea>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">종목 (JSON)</h2>
+        <div class="form-field">
+          <label class="form-label">공통 언급 종목</label>
+          <textarea class="form-textarea mono" name="stocks" rows="14">{fmt(report.stocks)}</textarea>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">비교 분석 (JSON)</h2>
+        <div class="form-field">
+          <label class="form-label">방송 간 의견 차이</label>
+          <textarea class="form-textarea mono" name="comparisons" rows="10">{fmt(report.comparisons)}</textarea>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">섹터 (JSON)</h2>
+        <div class="form-field">
+          <label class="form-label">섹터 흐름</label>
+          <textarea class="form-textarea mono" name="sectors" rows="8">{fmt(report.sectors)}</textarea>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">공개 설정</h2>
+        <div class="form-field">
+          <div class="form-radio-group">
+            <label class="radio-label"><input type="radio" name="published" value="false" checked={!report.published} /> 임시저장</label>
+            <label class="radio-label"><input type="radio" name="published" value="true" checked={report.published} /> 게시</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-btns">
+        <a href="/admin/reports" class="btn-cancel">취소</a>
+        <button type="submit" class="btn-primary">저장하기</button>
+      </div>
+    </form>
+  </div>
+</AdminLayout>
+
+<style>
+  .form-wrap { max-width: 860px; }
+  .form-error { background: #fee2e2; color: #dc2626; border-radius: 8px; padding: 12px 16px; font-size: 14px; margin-bottom: 16px; }
+  .report-form { display: flex; flex-direction: column; gap: 16px; }
+  .form-section { background: #fff; border-radius: 12px; border: 1px solid #e8eaed; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+  .section-title { font-size: 14px; font-weight: 700; color: #555; }
+  .form-field { display: flex; flex-direction: column; gap: 6px; }
+  .form-row { display: flex; gap: 16px; align-items: flex-start; }
+  .flex-1 { flex: 1; }
+  .form-label { font-size: 13px; font-weight: 700; color: #444; }
+  .required { color: #ef4444; }
+  .form-input { height: 42px; border-radius: 8px; border: 1.5px solid #e8eaed; padding: 0 12px; font-size: 14px; color: #111; outline: none; width: 100%; }
+  .form-input:focus { border-color: #ed781f; }
+  .form-textarea { border-radius: 8px; border: 1.5px solid #e8eaed; padding: 10px 12px; font-size: 14px; color: #111; outline: none; resize: vertical; line-height: 1.65; width: 100%; }
+  .form-textarea:focus { border-color: #ed781f; }
+  .form-textarea.mono { font-family: 'Menlo', 'Monaco', monospace; font-size: 12.5px; line-height: 1.7; }
+  .form-radio-group { display: flex; gap: 16px; height: 42px; align-items: center; }
+  .radio-label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #555; cursor: pointer; }
+  .form-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn-cancel { height: 38px; padding: 0 16px; border-radius: 8px; background: #f2f4f6; color: #555; font-size: 14px; font-weight: 600; display: flex; align-items: center; text-decoration: none; }
+  .btn-cancel:hover { background: #e8eaed; }
+  .btn-primary { height: 38px; padding: 0 20px; border-radius: 8px; background: #ed781f; color: #fff; border: none; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-primary:hover { opacity: 0.88; }
+</style>

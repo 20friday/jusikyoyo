@@ -1,0 +1,90 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { isAdmin } from '../../../lib/adminGuard';
+
+if (!Astro.locals.session) return Astro.redirect('/admin/login');
+if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
+
+const { data: reports } = await Astro.locals.supabase
+  .from('daily_reports')
+  .select('id, date, headline, published')
+  .order('date', { ascending: false });
+---
+
+<AdminLayout title="오늘의 PICK 관리">
+  <div class="list-header">
+    <div class="table-meta">총 {reports?.length ?? 0}개</div>
+    <a href="/admin/reports/new" class="btn-new">+ 새 리포트</a>
+  </div>
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>날짜</th>
+          <th>헤드라인</th>
+          <th>상태</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {reports?.map(r => (
+          <tr>
+            <td class="td-date">{r.date}</td>
+            <td class="td-headline">{r.headline ?? '—'}</td>
+            <td>
+              {r.published
+                ? <span class="badge published">게시</span>
+                : <span class="badge draft">임시</span>
+              }
+            </td>
+            <td class="td-actions">
+              <a href={`/report/${r.date}`} target="_blank" class="action-btn">보기</a>
+              <a href={`/admin/reports/${r.id}`} class="action-btn">수정</a>
+              <button class="action-btn danger" data-id={r.id} data-title={r.date}>삭제</button>
+            </td>
+          </tr>
+        ))}
+        {(!reports || reports.length === 0) && (
+          <tr><td colspan="4" class="td-empty">리포트가 없어요</td></tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>
+
+<script>
+  document.querySelectorAll('.danger').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = (btn as HTMLElement).dataset.id;
+      const title = (btn as HTMLElement).dataset.title;
+      if (!confirm(`${title} 리포트를 삭제할까요?`)) return;
+      const res = await fetch(`/api/admin/reports/${id}`, { method: 'DELETE' });
+      if (res.ok) location.reload();
+      else alert('삭제 실패: ' + await res.text());
+    });
+  });
+</script>
+
+<style>
+  .list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .table-meta { font-size: 13px; color: #888; }
+  .btn-new { height: 34px; padding: 0 16px; background: #ed781f; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 700; display: flex; align-items: center; }
+  .btn-new:hover { opacity: 0.88; }
+  .table-wrap { background: #fff; border-radius: 12px; border: 1px solid #e8eaed; overflow: hidden; }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .admin-table th { background: #f9fafb; text-align: left; padding: 11px 16px; font-size: 12px; font-weight: 700; color: #888; border-bottom: 1px solid #e8eaed; }
+  .admin-table td { padding: 12px 16px; border-bottom: 1px solid #f0f1f3; color: #333; vertical-align: middle; }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-table tr:hover td { background: #fafafa; }
+  .td-date { font-weight: 700; white-space: nowrap; color: #555; width: 120px; }
+  .td-headline { max-width: 560px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .td-empty { text-align: center; color: #bbb; padding: 40px; }
+  .td-actions { white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+  .badge { font-size: 11px; font-weight: 700; border-radius: 5px; padding: 2px 7px; }
+  .badge.published { background: #dcfce7; color: #16a34a; }
+  .badge.draft { background: #f1f5f9; color: #94a3b8; }
+  .action-btn { font-size: 12px; font-weight: 600; color: #555; background: #f2f4f6; border: none; border-radius: 6px; padding: 5px 10px; text-decoration: none; display: inline-block; cursor: pointer; transition: background 120ms; }
+  .action-btn:hover { background: #e8eaed; }
+  .action-btn.danger { color: #ef4444; background: #fff1f1; }
+  .action-btn.danger:hover { background: #fecaca; }
+</style>

@@ -1,0 +1,136 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { isAdmin } from '../../../lib/adminGuard';
+import { createAdminClient } from '../../../lib/adminSupabase';
+
+if (!Astro.locals.session) return Astro.redirect('/admin/login');
+if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
+
+let error = '';
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const date = String(form.get('date') ?? '').trim();
+  const period = String(form.get('period') ?? '').trim();
+  const headline = String(form.get('headline') ?? '').trim();
+  const published = form.get('published') === 'true';
+
+  let insight = [], sectors = [], stocks = [], splits = [], gaps = [], watchlist = [], checkpoints = [];
+  try { insight = JSON.parse(String(form.get('insight') ?? '[]')); } catch { error = 'insight JSON 오류'; }
+  try { sectors = JSON.parse(String(form.get('sectors') ?? '[]')); } catch { error = 'sectors JSON 오류'; }
+  try { stocks = JSON.parse(String(form.get('stocks') ?? '[]')); } catch { error = 'stocks JSON 오류'; }
+  try { splits = JSON.parse(String(form.get('splits') ?? '[]')); } catch { error = 'splits JSON 오류'; }
+  try { gaps = JSON.parse(String(form.get('gaps') ?? '[]')); } catch { error = 'gaps JSON 오류'; }
+  try { watchlist = JSON.parse(String(form.get('watchlist') ?? '[]')); } catch { error = 'watchlist JSON 오류'; }
+  try { checkpoints = JSON.parse(String(form.get('checkpoints') ?? '[]')); } catch { error = 'checkpoints JSON 오류'; }
+
+  if (!date) { error = '날짜는 필수예요.'; }
+  else if (!error) {
+    const { error: dbErr } = await createAdminClient()
+      .from('weekly_reports')
+      .insert({ date, period, headline, published, insight, sectors, stocks, splits, gaps, watchlist, checkpoints });
+    if (dbErr) error = dbErr.message;
+    else return Astro.redirect('/admin/weekly');
+  }
+}
+
+const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+---
+
+<AdminLayout title="주간 픽 추가">
+  <div class="form-wrap">
+    {error && <div class="form-error">{error}</div>}
+    <form method="POST" class="report-form">
+
+      <div class="form-section">
+        <h2 class="section-title">기본 정보</h2>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label">날짜 <span class="required">*</span></label>
+            <input class="form-input" type="date" name="date" value={today} required />
+          </div>
+          <div class="form-field flex-1">
+            <label class="form-label">기간</label>
+            <input class="form-input" type="text" name="period" placeholder="예: 2026-05-19 – 05-23" />
+          </div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">헤드라인</label>
+          <input class="form-input" type="text" name="headline" placeholder="이번 주 한 줄 요약" />
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">주간 인사이트 (JSON 배열)</h2>
+        <textarea class="form-textarea mono" name="insight" rows="5" placeholder='["첫 번째 인사이트 문장","두 번째 인사이트 문장"]'></textarea>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">섹터 (JSON)</h2>
+        <textarea class="form-textarea mono" name="sectors" rows="5" placeholder='[{"name":"반도체","flow":"설명"}]'></textarea>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">공통 언급 종목 (JSON)</h2>
+        <textarea class="form-textarea mono" name="stocks" rows="5" placeholder='[{"name":"삼성전자","days":4,"reason":"이유"}]'></textarea>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">관점이 갈린 종목 (JSON)</h2>
+        <textarea class="form-textarea mono" name="splits" rows="4" placeholder='[{"name":"삼성전자","desc":"설명"}]'></textarea>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">전문가 의견 갈린 지점 (JSON 배열)</h2>
+        <textarea class="form-textarea mono" name="gaps" rows="4" placeholder='["첫 번째 갈린 지점","두 번째 갈린 지점"]'></textarea>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">다음 주 관심 종목 (JSON)</h2>
+        <textarea class="form-textarea mono" name="watchlist" rows="4" placeholder='[{"name":"삼성전자","reason":"이유"}]'></textarea>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">다음 주 체크포인트 (JSON 배열)</h2>
+        <textarea class="form-textarea mono" name="checkpoints" rows="4" placeholder='["체크포인트 1","체크포인트 2"]'></textarea>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">공개 설정</h2>
+        <div class="form-radio-group">
+          <label class="radio-label"><input type="radio" name="published" value="false" checked /> 임시저장</label>
+          <label class="radio-label"><input type="radio" name="published" value="true" /> 게시</label>
+        </div>
+      </div>
+
+      <div class="form-btns">
+        <a href="/admin/weekly" class="btn-cancel">취소</a>
+        <button type="submit" class="btn-primary">저장하기</button>
+      </div>
+    </form>
+  </div>
+</AdminLayout>
+
+<style>
+  .form-wrap { max-width: 860px; }
+  .form-error { background: #fee2e2; color: #dc2626; border-radius: 8px; padding: 12px 16px; font-size: 14px; margin-bottom: 16px; }
+  .report-form { display: flex; flex-direction: column; gap: 16px; }
+  .form-section { background: #fff; border-radius: 12px; border: 1px solid #e8eaed; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+  .section-title { font-size: 14px; font-weight: 700; color: #555; }
+  .form-field { display: flex; flex-direction: column; gap: 6px; }
+  .form-row { display: flex; gap: 16px; align-items: flex-start; }
+  .flex-1 { flex: 1; }
+  .form-label { font-size: 13px; font-weight: 700; color: #444; }
+  .required { color: #ef4444; }
+  .form-input { height: 42px; border-radius: 8px; border: 1.5px solid #e8eaed; padding: 0 12px; font-size: 14px; color: #111; outline: none; width: 100%; }
+  .form-input:focus { border-color: #ed781f; }
+  .form-textarea { border-radius: 8px; border: 1.5px solid #e8eaed; padding: 10px 12px; font-size: 14px; color: #111; outline: none; resize: vertical; line-height: 1.65; width: 100%; }
+  .form-textarea:focus { border-color: #ed781f; }
+  .form-textarea.mono { font-family: 'Menlo', 'Monaco', monospace; font-size: 12.5px; line-height: 1.7; }
+  .form-radio-group { display: flex; gap: 16px; height: 42px; align-items: center; }
+  .radio-label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #555; cursor: pointer; }
+  .form-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn-cancel { height: 38px; padding: 0 16px; border-radius: 8px; background: #f2f4f6; color: #555; font-size: 14px; font-weight: 600; display: flex; align-items: center; text-decoration: none; }
+  .btn-cancel:hover { background: #e8eaed; }
+  .btn-primary { height: 38px; padding: 0 20px; border-radius: 8px; background: #ed781f; color: #fff; border: none; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-primary:hover { opacity: 0.88; }
+</style>
