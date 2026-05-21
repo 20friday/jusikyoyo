@@ -2,7 +2,7 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { isAdmin } from '../../../lib/adminGuard';
 
-if (!Astro.locals.session) return Astro.redirect('/login');
+if (!Astro.locals.session) return Astro.redirect('/admin/login');
 if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
 
 const { data: faqs } = await Astro.locals.supabase
