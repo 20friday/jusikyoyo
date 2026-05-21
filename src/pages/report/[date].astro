@@ -2,6 +2,9 @@
 import Base from '../../layouts/Base.astro';
 
 const { date } = Astro.params;
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+
 const { data: report } = await Astro.locals.supabase
   .from('daily_reports')
   .select('*')
@@ -273,6 +276,14 @@ const stocksJson = report ? JSON.stringify(report.stocks) : '[]';
   sheet.addEventListener('click', closeModal);
   document.getElementById('stock-modal-close').addEventListener('click', closeModal);
   document.querySelector('.stock-modal-inner').addEventListener('click', e => e.stopPropagation());
+</script>
+
+<script define:vars={{ date, supabaseUrl, supabaseKey }}>
+  fetch(`${supabaseUrl}/rest/v1/rpc/increment_daily_report_view`, {
+    method: 'POST',
+    headers: { 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ report_date: date }),
+  });
 </script>
 
 <script>
