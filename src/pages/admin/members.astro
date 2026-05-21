@@ -8,18 +8,29 @@ if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
 
 const adminDb = createAdminClient();
 
-// 회원 목록 + auth.users에서 이메일 가져오기
-const { data: members } = await adminDb
-  .from('profiles')
-  .select('user_id, role, expires_at, created_at')
-  .order('created_at', { ascending: false });
+// auth.users 전체 조회 (기준)
+const { data: { users: authUsers } } = await adminDb.auth.admin.listUsers({ perPage: 1000 });
 
-// auth.users에서 이메일 조회
-const { data: { users: authUsers } } = await adminDb.auth.admin.listUsers();
-const emailMap: Record<string, string> = {};
-for (const u of authUsers ?? []) {
-  emailMap[u.id] = u.email ?? '';
+// profiles 조회 (역할/만료일)
+const { data: profiles } = await adminDb
+  .from('profiles')
+  .select('user_id, role, expires_at');
+const profileMap: Record<string, { role: string; expires_at: string | null }> = {};
+for (const p of profiles ?? []) {
+  profileMap[p.user_id] = { role: p.role, expires_at: p.expires_at };
 }
+
+// auth.users 기준으로 합치기, 최신 가입순 정렬
+const members = (authUsers ?? [])
+  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  .map(u => ({
+    user_id: u.id,
+    email: u.email ?? '—',
+    provider: u.app_metadata?.provider ?? 'email',
+    role: profileMap[u.id]?.role ?? '—',
+    expires_at: profileMap[u.id]?.expires_at ?? null,
+    created_at: u.created_at,
+  }));
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return '—';
@@ -30,13 +41,14 @@ function formatDate(dateStr: string | null) {
 
 <AdminLayout title="회원 목록">
   <div class="list-header">
-    <div class="table-meta">총 {members?.length ?? 0}명</div>
+    <div class="table-meta">총 {members.length}명</div>
   </div>
   <div class="table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
           <th>이메일</th>
+          <th>가입 방식</th>
           <th>등급</th>
           <th>만료일</th>
           <th>가입일</th>
@@ -44,11 +56,15 @@ function formatDate(dateStr: string | null) {
         </tr>
       </thead>
       <tbody>
-        {members?.map(m => (
+        {members.map(m => (
           <tr id={`row-${m.user_id}`}>
-            <td class="td-email">{emailMap[m.user_id] ?? '—'}</td>
+            <td class="td-email">{m.email}</td>
+            <td>
+              <span class={`badge-provider badge-${m.provider}`}>{m.provider}</span>
+            </td>
             <td>
               <select class="role-select" data-uid={m.user_id}>
+                <option value="—" selected={m.role === '—'} disabled>—</option>
                 <option value="free" selected={m.role === 'free'}>free</option>
                 <option value="trial" selected={m.role === 'trial'}>trial</option>
                 <option value="paid" selected={m.role === 'paid'}>paid</option>
@@ -64,12 +80,14 @@ function formatDate(dateStr: string | null) {
             </td>
             <td class="td-gray">{formatDate(m.created_at)}</td>
             <td>
-              <button class="btn-save" data-uid={m.user_id}>저장</button>
+              {m.role !== '—' && (
+                <button class="btn-save" data-uid={m.user_id}>저장</button>
+              )}
             </td>
           </tr>
         ))}
-        {(!members || members.length === 0) && (
-          <tr><td colspan="5" class="td-empty">회원 데이터가 없어요</td></tr>
+        {members.length === 0 && (
+          <tr><td colspan="6" class="td-empty">회원 데이터가 없어요</td></tr>
         )}
       </tbody>
     </table>
@@ -141,4 +159,11 @@ function formatDate(dateStr: string | null) {
   }
   .btn-save:hover { opacity: 0.85; }
   .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+  .badge-provider {
+    font-size: 11px; font-weight: 700; border-radius: 5px; padding: 2px 7px;
+    background: #f1f5f9; color: #64748b;
+  }
+  .badge-google { background: #fef9c3; color: #b45309; }
+  .badge-email { background: #eff6ff; color: #3b82f6; }
+  .badge-kakao { background: #fef3c7; color: #92400e; }
 </style>
