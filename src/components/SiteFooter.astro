@@ -1,0 +1,59 @@
+<footer class="site-footer">
+  <nav class="site-footer-nav">
+    <a href="/notice">공지사항</a>
+    <span class="footer-dot">·</span>
+    <a href="/faq">FAQ</a>
+    <span class="footer-dot">·</span>
+    <a href="/contact">문의하기</a>
+  </nav>
+  <nav class="site-footer-nav">
+    <a href="/terms">이용약관</a>
+    <span class="footer-dot">·</span>
+    <a href="/privacy">개인정보처리방침</a>
+  </nav>
+  <p class="site-footer-disclaimer">TED PICK은 외부 경제 방송 내용을 요약·재구성해 제공하는 정보 서비스입니다.<br/>특정 종목의 매수·매도를 권유하지 않으며, 투자 판단과 책임은 투자자 본인에게 있습니다.</p>
+  <p class="site-footer-copy">© 2026 TED PICK</p>
+</footer>
+
+<style>
+  .site-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    padding: 32px 24px 48px;
+    border-top: 1px solid var(--divider);
+    margin-top: 40px;
+  }
+  .site-footer-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .site-footer-nav a {
+    font-size: 13px;
+    color: var(--text-3);
+    text-decoration: none;
+  }
+  .site-footer-nav a:hover { color: var(--text-2); }
+  .footer-dot {
+    font-size: 13px;
+    color: var(--text-3);
+    opacity: 0.5;
+  }
+  .site-footer-disclaimer {
+    font-size: 12px;
+    color: var(--text-3);
+    line-height: 1.6;
+    margin-top: 4px;
+    opacity: 0.8;
+  }
+  .site-footer-copy {
+    font-size: 12px;
+    color: var(--text-3);
+    opacity: 0.6;
+  }
+</style>

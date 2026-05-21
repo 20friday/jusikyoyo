@@ -1,9 +1,13 @@
 ---
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteFooterMin from '../components/SiteFooterMin.astro';
+
 interface Props {
   title?: string;
   description?: string;
+  footer?: 'default' | 'minimal' | 'none';
 }
-const { title = '테드픽', description = '매일 12시, 장 정리' } = Astro.props;
+const { title = '테드픽', description = '매일 12시, 장 정리', footer = 'default' } = Astro.props;
 const { user } = Astro.locals;
 ---
 <!doctype html>
@@ -24,7 +28,11 @@ const { user } = Astro.locals;
         </a>
         <div class="hdr-spacer"></div>
         {user ? (
-          <a href="/mypage" class="btn-pill ghost">내 계정</a>
+          <a href="/mypage" class="hamburger-btn" aria-label="메뉴">
+            <span></span>
+            <span></span>
+            <span></span>
+          </a>
         ) : (
           <a href="/login" class="btn-pill ghost">로그인</a>
         )}
@@ -33,10 +41,37 @@ const { user } = Astro.locals;
     <main>
       <slot />
     </main>
+    {footer === 'default' && <SiteFooter />}
+    {footer === 'minimal' && <SiteFooterMin />}
   </div>
 </body>
 </html>
 
 <style is:global>
   @import '../styles/global.css';
+</style>
+
+<style>
+  /* ── 햄버거 버튼 ── */
+  .hamburger-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    padding: 4px;
+    border-radius: 8px;
+    transition: background 140ms;
+    text-decoration: none;
+  }
+  .hamburger-btn:hover { background: var(--divider); }
+  .hamburger-btn span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: var(--text-1);
+    border-radius: 2px;
+  }
 </style>
