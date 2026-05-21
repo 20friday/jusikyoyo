@@ -1,0 +1,59 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { isAdmin } from '../../lib/adminGuard';
+
+if (!Astro.locals.session) return Astro.redirect('/login');
+if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
+
+const supabase = Astro.locals.supabase;
+const { data: members } = await supabase
+  .from('profiles')
+  .select('user_id, role, expires_at, created_at')
+  .order('created_at', { ascending: false });
+---
+
+<AdminLayout title="회원 목록">
+  <div class="table-meta">총 {members?.length ?? 0}명</div>
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>User ID</th>
+          <th>등급</th>
+          <th>만료일</th>
+          <th>가입일</th>
+        </tr>
+      </thead>
+      <tbody>
+        {members?.map(m => (
+          <tr>
+            <td class="td-mono">{m.user_id}</td>
+            <td><span class={`badge badge-${m.role}`}>{m.role}</span></td>
+            <td class="td-gray">{m.expires_at ? new Date(m.expires_at).toLocaleDateString('ko-KR') : '—'}</td>
+            <td class="td-gray">{new Date(m.created_at).toLocaleDateString('ko-KR')}</td>
+          </tr>
+        ))}
+        {(!members || members.length === 0) && (
+          <tr><td colspan="4" class="td-empty">회원 데이터가 없어요</td></tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>
+
+<style>
+  .table-meta { font-size: 13px; color: #888; margin-bottom: 12px; }
+  .table-wrap { background: #fff; border-radius: 12px; border: 1px solid #e8eaed; overflow: hidden; }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .admin-table th { background: #f9fafb; text-align: left; padding: 11px 16px; font-size: 12px; font-weight: 700; color: #888; letter-spacing: 0.02em; border-bottom: 1px solid #e8eaed; }
+  .admin-table td { padding: 13px 16px; border-bottom: 1px solid #f0f1f3; color: #333; }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-table tr:hover td { background: #fafafa; }
+  .td-mono { font-family: monospace; font-size: 12px; color: #555; }
+  .td-gray { color: #999; font-size: 13px; }
+  .td-empty { text-align: center; color: #bbb; padding: 40px; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .badge-paid { background: #fdf0e6; color: #ed781f; }
+  .badge-trial { background: #eff6ff; color: #3b82f6; }
+  .badge-free { background: #f2f4f6; color: #888; }
+</style>

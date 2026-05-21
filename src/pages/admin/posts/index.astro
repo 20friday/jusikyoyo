@@ -1,0 +1,60 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { isAdmin } from '../../../lib/adminGuard';
+
+if (!Astro.locals.session) return Astro.redirect('/login');
+if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
+
+const { data: posts } = await Astro.locals.supabase
+  .from('posts')
+  .select('id, title, source, published_at, created_at')
+  .order('published_at', { ascending: false })
+  .limit(100);
+---
+
+<AdminLayout title="피드 글 관리">
+  <div class="table-meta">총 {posts?.length ?? 0}개</div>
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>제목</th>
+          <th>출처</th>
+          <th>발행일</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {posts?.map(p => (
+          <tr>
+            <td class="td-title">{p.title}</td>
+            <td class="td-gray">{p.source ?? '—'}</td>
+            <td class="td-gray">{p.published_at ? new Date(p.published_at).toLocaleDateString('ko-KR') : '—'}</td>
+            <td class="td-actions">
+              <a href={`/post/${p.id}`} target="_blank" class="action-btn">보기</a>
+            </td>
+          </tr>
+        ))}
+        {(!posts || posts.length === 0) && (
+          <tr><td colspan="4" class="td-empty">게시글이 없어요</td></tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>
+
+<style>
+  .table-meta { font-size: 13px; color: #888; margin-bottom: 12px; }
+  .table-wrap { background: #fff; border-radius: 12px; border: 1px solid #e8eaed; overflow: hidden; }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .admin-table th { background: #f9fafb; text-align: left; padding: 11px 16px; font-size: 12px; font-weight: 700; color: #888; border-bottom: 1px solid #e8eaed; }
+  .admin-table td { padding: 13px 16px; border-bottom: 1px solid #f0f1f3; color: #333; }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-table tr:hover td { background: #fafafa; }
+  .td-title { font-weight: 600; max-width: 480px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .td-gray { color: #999; font-size: 13px; }
+  .td-empty { text-align: center; color: #bbb; padding: 40px; }
+  .td-actions { white-space: nowrap; }
+  .action-btn { font-size: 13px; font-weight: 600; color: #555; background: #f2f4f6; border: none; border-radius: 6px; padding: 5px 12px; text-decoration: none; display: inline-block; transition: background 120ms; }
+  .action-btn:hover { background: #e8eaed; }
+</style>

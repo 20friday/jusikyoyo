@@ -1,0 +1,81 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { isAdmin } from '../../../lib/adminGuard';
+
+if (!Astro.locals.session) return Astro.redirect('/login');
+if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
+
+const { data: faqs } = await Astro.locals.supabase
+  .from('faqs')
+  .select('id, question, is_published, sort_order, created_at')
+  .order('sort_order', { ascending: true });
+---
+
+<AdminLayout title="FAQ">
+  <div class="page-actions">
+    <a href="/admin/faq/new" class="btn-primary">+ FAQ 추가</a>
+  </div>
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>질문</th>
+          <th>상태</th>
+          <th>순서</th>
+          <th>작성일</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {faqs?.map(f => (
+          <tr>
+            <td class="td-title">{f.question}</td>
+            <td><span class={`badge ${f.is_published ? 'badge-published' : 'badge-draft'}`}>{f.is_published ? '게시됨' : '임시저장'}</span></td>
+            <td class="td-gray">{f.sort_order}</td>
+            <td class="td-gray">{new Date(f.created_at).toLocaleDateString('ko-KR')}</td>
+            <td class="td-actions">
+              <a href={`/admin/faq/${f.id}`} class="action-btn">수정</a>
+              <button class="action-btn danger" data-id={f.id} onclick="deleteFaq(this)">삭제</button>
+            </td>
+          </tr>
+        ))}
+        {(!faqs || faqs.length === 0) && (
+          <tr><td colspan="5" class="td-empty">FAQ가 없어요. 첫 항목을 추가해보세요!</td></tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>
+
+<script>
+  async function deleteFaq(btn: HTMLButtonElement) {
+    if (!confirm('이 FAQ를 삭제할까요?')) return;
+    const res = await fetch(`/api/admin/faq/${btn.dataset.id}`, { method: 'DELETE' });
+    if (res.ok) location.reload();
+    else alert('삭제에 실패했어요.');
+  }
+  (window as any).deleteFaq = deleteFaq;
+</script>
+
+<style>
+  .page-actions { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+  .btn-primary { background: #ed781f; color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-size: 14px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; transition: opacity 140ms; }
+  .btn-primary:hover { opacity: 0.88; }
+  .table-wrap { background: #fff; border-radius: 12px; border: 1px solid #e8eaed; overflow: hidden; }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .admin-table th { background: #f9fafb; text-align: left; padding: 11px 16px; font-size: 12px; font-weight: 700; color: #888; border-bottom: 1px solid #e8eaed; }
+  .admin-table td { padding: 13px 16px; border-bottom: 1px solid #f0f1f3; color: #333; }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-table tr:hover td { background: #fafafa; }
+  .td-title { font-weight: 600; max-width: 400px; }
+  .td-gray { color: #999; font-size: 13px; }
+  .td-empty { text-align: center; color: #bbb; padding: 40px; }
+  .td-actions { display: flex; gap: 8px; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .badge-published { background: #e6f9f0; color: #16a34a; }
+  .badge-draft { background: #f2f4f6; color: #888; }
+  .action-btn { font-size: 13px; font-weight: 600; color: #555; background: #f2f4f6; border: none; border-radius: 6px; padding: 5px 12px; cursor: pointer; transition: background 120ms; text-decoration: none; display: inline-block; }
+  .action-btn:hover { background: #e8eaed; }
+  .action-btn.danger { color: #dc2626; }
+  .action-btn.danger:hover { background: #fee2e2; }
+</style>

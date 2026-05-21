@@ -1,0 +1,295 @@
+---
+interface Props {
+  title?: string;
+  section?: string;
+}
+const { title = '관리자', section = '' } = Astro.props;
+const pathname = Astro.url.pathname;
+
+const nav = [
+  { label: '대시보드', href: '/admin', icon: 'grid' },
+  { label: '구분', type: 'divider' },
+  { label: '콘텐츠', type: 'group' },
+  { label: '피드 글 관리', href: '/admin/posts', icon: 'file' },
+  { label: '공지사항', href: '/admin/notices', icon: 'bell' },
+  { label: 'FAQ', href: '/admin/faq', icon: 'help' },
+  { label: '구분', type: 'divider' },
+  { label: '회원', type: 'group' },
+  { label: '회원 목록', href: '/admin/members', icon: 'users' },
+];
+
+function isActive(href: string) {
+  if (href === '/admin') return pathname === '/admin';
+  return pathname.startsWith(href);
+}
+---
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title} — TED PICK 관리자</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body class="admin-body">
+  <div class="admin-shell">
+
+    <!-- 사이드바 -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <a href="/" class="logo-link">
+          <span class="logo-mark">TP</span>
+          <span class="logo-text">TED PICK</span>
+        </a>
+        <span class="logo-badge">관리자</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        {nav.map(item => item.type === 'divider' ? (
+          <div class="nav-divider" />
+        ) : item.type === 'group' ? (
+          <p class="nav-group-label">{item.label}</p>
+        ) : (
+          <a
+            href={item.href}
+            class={`nav-item ${isActive(item.href!) ? 'active' : ''}`}
+          >
+            <!-- 아이콘 -->
+            {item.icon === 'grid' && (
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <rect x="2" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/>
+                <rect x="11" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/>
+                <rect x="2" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/>
+                <rect x="11" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
+            )}
+            {item.icon === 'file' && (
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <path d="M5 2h7l4 4v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M12 2v4h4M7 9h6M7 12h6M7 15h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            )}
+            {item.icon === 'bell' && (
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <path d="M10 2a6 6 0 0 1 6 6v3l1.5 2.5H2.5L4 11V8a6 6 0 0 1 6-6Z" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M8 16a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
+            )}
+            {item.icon === 'help' && (
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M10 14v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M10 11a2.5 2.5 0 1 0-2.5-2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            )}
+            {item.icon === 'users' && (
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <circle cx="8" cy="7" r="3" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M2 17c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M14 5a2.5 2.5 0 1 1 0 5M18 17c0-2.5-1.5-4-4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            )}
+            <span>{item.label}</span>
+          </a>
+        ))}
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/" class="sidebar-back">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+            <path d="M15 10H5M5 10l5-5M5 10l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          서비스로 돌아가기
+        </a>
+      </div>
+    </aside>
+
+    <!-- 메인 -->
+    <main class="admin-main">
+      <div class="admin-topbar">
+        <h1 class="admin-page-title">{title}</h1>
+      </div>
+      <div class="admin-content">
+        <slot />
+      </div>
+    </main>
+
+  </div>
+</body>
+</html>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body.admin-body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f5f6f8;
+    color: #111;
+    line-height: 1.5;
+  }
+  button { cursor: pointer; font-family: inherit; }
+  a { text-decoration: none; }
+  input, textarea, select {
+    font-family: inherit;
+    font-size: 14px;
+  }
+</style>
+
+<style>
+  .admin-shell {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── 사이드바 ── */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: #16181d;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 10;
+  }
+
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .logo-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .logo-mark {
+    width: 28px;
+    height: 28px;
+    background: #ed781f;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.5px;
+    flex-shrink: 0;
+  }
+  .logo-text {
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+  .logo-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #ed781f;
+    background: rgba(237,120,31,0.15);
+    border-radius: 4px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 12px 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .nav-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.07);
+    margin: 8px 0;
+  }
+
+  .nav-group-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0 8px;
+    margin: 4px 0 2px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.55);
+    transition: background 120ms, color 120ms;
+  }
+  .nav-item:hover {
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.9);
+  }
+  .nav-item.active {
+    background: rgba(237,120,31,0.18);
+    color: #f49547;
+    font-weight: 700;
+  }
+  .nav-item svg { flex-shrink: 0; }
+
+  .sidebar-footer {
+    padding: 12px 10px 16px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .sidebar-back {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.35);
+    transition: color 120ms, background 120ms;
+  }
+  .sidebar-back:hover {
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.06);
+  }
+
+  /* ── 메인 ── */
+  .admin-main {
+    flex: 1;
+    margin-left: 220px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .admin-topbar {
+    background: #fff;
+    border-bottom: 1px solid #e8eaed;
+    padding: 0 32px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  .admin-page-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #111;
+    letter-spacing: -0.02em;
+  }
+
+  .admin-content {
+    flex: 1;
+    padding: 28px 32px;
+  }
+</style>

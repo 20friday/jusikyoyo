@@ -1,0 +1,228 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { isAdmin } from '../../lib/adminGuard';
+
+if (!Astro.locals.session) return Astro.redirect('/login');
+if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
+
+const supabase = Astro.locals.supabase;
+
+// 통계 데이터
+const [
+  { count: totalMembers },
+  { count: trialMembers },
+  { count: paidMembers },
+  { count: totalPosts },
+] = await Promise.all([
+  supabase.from('profiles').select('*', { count: 'exact', head: true }),
+  supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'trial'),
+  supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'paid'),
+  supabase.from('posts').select('*', { count: 'exact', head: true }),
+]);
+
+// 최근 가입 회원 5명
+const { data: recentMembers } = await supabase
+  .from('profiles')
+  .select('user_id, role, created_at')
+  .order('created_at', { ascending: false })
+  .limit(5);
+---
+
+<AdminLayout title="대시보드">
+  <!-- 통계 카드 -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <p class="stat-label">전체 회원</p>
+      <p class="stat-value">{totalMembers ?? 0}<span class="stat-unit">명</span></p>
+    </div>
+    <div class="stat-card">
+      <p class="stat-label">무료 체험</p>
+      <p class="stat-value">{trialMembers ?? 0}<span class="stat-unit">명</span></p>
+    </div>
+    <div class="stat-card accent">
+      <p class="stat-label">유료 구독</p>
+      <p class="stat-value">{paidMembers ?? 0}<span class="stat-unit">명</span></p>
+    </div>
+    <div class="stat-card">
+      <p class="stat-label">전체 게시글</p>
+      <p class="stat-value">{totalPosts ?? 0}<span class="stat-unit">개</span></p>
+    </div>
+  </div>
+
+  <!-- 최근 가입 -->
+  <div class="section">
+    <div class="section-head">
+      <h2 class="section-title">최근 가입 회원</h2>
+      <a href="/admin/members" class="section-link">전체 보기 →</a>
+    </div>
+    <div class="table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>User ID</th>
+            <th>등급</th>
+            <th>가입일</th>
+          </tr>
+        </thead>
+        <tbody>
+          {recentMembers?.map(m => (
+            <tr>
+              <td class="td-mono">{m.user_id.slice(0, 16)}…</td>
+              <td><span class={`badge badge-${m.role}`}>{m.role}</span></td>
+              <td class="td-gray">{new Date(m.created_at).toLocaleDateString('ko-KR')}</td>
+            </tr>
+          ))}
+          {(!recentMembers || recentMembers.length === 0) && (
+            <tr><td colspan="3" class="td-empty">회원 데이터가 없어요</td></tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 바로가기 -->
+  <div class="shortcut-grid">
+    <a href="/admin/notices/new" class="shortcut-card">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      공지사항 작성
+    </a>
+    <a href="/admin/faq/new" class="shortcut-card">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      FAQ 추가
+    </a>
+    <a href="/admin/members" class="shortcut-card">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="8" cy="7" r="3" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M2 17c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      회원 목록 보기
+    </a>
+  </div>
+</AdminLayout>
+
+<style>
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 24px;
+    border: 1px solid #e8eaed;
+  }
+  .stat-card.accent { border-color: #ed781f; }
+  .stat-label {
+    font-size: 13px;
+    color: #888;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: #111;
+    letter-spacing: -0.03em;
+  }
+  .stat-card.accent .stat-value { color: #ed781f; }
+  .stat-unit {
+    font-size: 14px;
+    font-weight: 500;
+    color: #aaa;
+    margin-left: 4px;
+  }
+
+  .section { margin-bottom: 32px; }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111;
+  }
+  .section-link {
+    font-size: 13px;
+    color: #ed781f;
+    font-weight: 600;
+  }
+
+  .table-wrap {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e8eaed;
+    overflow: hidden;
+  }
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .admin-table th {
+    background: #f9fafb;
+    text-align: left;
+    padding: 11px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 0.02em;
+    border-bottom: 1px solid #e8eaed;
+  }
+  .admin-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f1f3;
+    color: #333;
+  }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-table tr:hover td { background: #fafafa; }
+  .td-mono { font-family: monospace; font-size: 13px; color: #555; }
+  .td-gray { color: #999; }
+  .td-empty { text-align: center; color: #bbb; padding: 24px; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .badge-paid { background: #fdf0e6; color: #ed781f; }
+  .badge-trial { background: #eff6ff; color: #3b82f6; }
+  .badge-free { background: #f2f4f6; color: #888; }
+
+  .shortcut-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .shortcut-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    border: 1px solid #e8eaed;
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    transition: border-color 120ms, box-shadow 120ms;
+  }
+  .shortcut-card:hover {
+    border-color: #ed781f;
+    box-shadow: 0 0 0 3px rgba(237,120,31,0.08);
+    color: #ed781f;
+  }
+  .shortcut-card svg { color: #ed781f; flex-shrink: 0; }
+</style>
