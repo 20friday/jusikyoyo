@@ -4,6 +4,8 @@ import { stockInfo } from '../../lib/stockInfo';
 import { renderMarkdown } from '../../lib/renderMarkdown';
 
 const { slug } = Astro.params;
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 
 const { data: post, error } = await Astro.locals.supabase
   .from('posts')
@@ -254,4 +256,12 @@ const stockInfoJson = JSON.stringify(stockInfo);
   sheet.addEventListener('click', closeModal);
   document.getElementById('stock-modal-close').addEventListener('click', closeModal);
   document.querySelector('.stock-modal-inner').addEventListener('click', e => e.stopPropagation());
+</script>
+
+<script define:vars={{ slug, supabaseUrl, supabaseKey }}>
+  fetch(`${supabaseUrl}/rest/v1/rpc/increment_post_view`, {
+    method: 'POST',
+    headers: { 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ post_slug: slug }),
+  });
 </script>
