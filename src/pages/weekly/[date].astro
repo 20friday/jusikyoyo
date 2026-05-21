@@ -1,10 +1,12 @@
 ---
-import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 
 const { date } = Astro.params;
-const allReports = await getCollection('weeklyReports');
-const report = allReports.find(r => r.data.date === date);
+const { data: report } = await Astro.locals.supabase
+  .from('weekly_reports')
+  .select('*')
+  .eq('date', date)
+  .single();
 ---
 <Base title="주간 PICK 리포트" description="이번 주 방송 종합 리포트">
   {!report ? (
@@ -18,16 +20,16 @@ const report = allReports.find(r => r.data.date === date);
       <!-- 1. 주간 한 줄 요약 (히어로) -->
       <div class="report-hero">
         <div class="report-hero-label">
-          <span class="report-hero-label-pick">주간 PICK 리포트</span> · {report.data.period}
+          <span class="report-hero-label-pick">주간 PICK 리포트</span> · {report.period}
         </div>
-        <div class="report-hero-headline">{report.data.headline}</div>
+        <div class="report-hero-headline">{report.headline}</div>
       </div>
 
       <!-- 2. 주간 인사이트 -->
       <div class="report-section">
         <div class="report-section-label">주간 인사이트</div>
         <div class="weekly-insight">
-          {report.data.insight.map(para => (
+          {report.insight.map((para: string) => (
             <p class="weekly-insight-para">{para}</p>
           ))}
         </div>
@@ -36,7 +38,7 @@ const report = allReports.find(r => r.data.date === date);
       <!-- 3. 이번 주 반복 언급 섹터 -->
       <div class="report-section">
         <div class="report-section-label">이번 주 반복 언급 섹터</div>
-        {report.data.sectors.map(sector => (
+        {report.sectors.map((sector: any) => (
           <div class="sector-row">
             <div class="sector-name">{sector.name}</div>
             <div class="sector-flow">{sector.flow}</div>
@@ -47,7 +49,7 @@ const report = allReports.find(r => r.data.date === date);
       <!-- 4. 이번 주 공통 언급 종목 -->
       <div class="report-section">
         <div class="report-section-label">이번 주 공통 언급 종목</div>
-        {report.data.stocks.map((stock, i) => (
+        {report.stocks.map((stock: any, i: number) => (
           <div class="stock-row">
             <div class="stock-row-left">
               <span class="stock-rank">#{i + 1}</span>
@@ -61,7 +63,7 @@ const report = allReports.find(r => r.data.date === date);
       <!-- 5. 여러 방송에서 관점이 갈린 종목 -->
       <div class="report-section">
         <div class="report-section-label">여러 방송에서 관점이 갈린 종목</div>
-        {report.data.splits.map(split => (
+        {report.splits.map((split: any) => (
           <div class="sector-row">
             <div class="sector-name">{split.name}</div>
             <div class="sector-flow">{split.desc}</div>
@@ -72,7 +74,7 @@ const report = allReports.find(r => r.data.date === date);
       <!-- 6. 이번 주 전문가들이 갈린 지점 -->
       <div class="report-section">
         <div class="report-section-label">이번 주 전문가들이 갈린 지점</div>
-        {report.data.gaps.map(gap => (
+        {report.gaps.map((gap: string) => (
           <div class="weekly-gap" set:html={gap} />
         ))}
       </div>
@@ -81,7 +83,7 @@ const report = allReports.find(r => r.data.date === date);
       <div class="report-section">
         <div class="report-section-label">다음 주까지 이어서 봐야 할 종목</div>
         <div class="weekly-chips">
-          {report.data.watchlist.map(item => (
+          {report.watchlist.map((item: any) => (
             <span class="weekly-chip">{item.name}</span>
           ))}
         </div>
@@ -90,7 +92,7 @@ const report = allReports.find(r => r.data.date === date);
       <!-- 8. 다음 주 체크 포인트 -->
       <div class="report-section">
         <div class="report-section-label">다음 주 체크 포인트</div>
-        {report.data.checkpoints.map(point => (
+        {report.checkpoints.map((point: string) => (
           <div class="weekly-checkpoint">
             <span class="weekly-checkpoint-dot">·</span>
             <span class="weekly-checkpoint-text">{point}</span>

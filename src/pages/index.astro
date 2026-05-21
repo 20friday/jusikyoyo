@@ -1,10 +1,15 @@
 ---
-import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import PrepCard from '../components/PrepCard.astro';
 
-const allWeeklyReports = await getCollection('weeklyReports');
-const latestWeekly = allWeeklyReports.sort((a, b) => b.data.date.localeCompare(a.data.date))[0];
+// 주간 픽 (최신 1개)
+const { data: weeklyList } = await Astro.locals.supabase
+  .from('weekly_reports')
+  .select('date, headline, period')
+  .eq('published', true)
+  .order('date', { ascending: false })
+  .limit(1);
+const latestWeekly = weeklyList?.[0] ?? null;
 
 function formatWeekRange(fridayStr: string) {
   const friday = new Date(fridayStr + 'T00:00:00');
@@ -16,13 +21,12 @@ function formatWeekRange(fridayStr: string) {
   };
 }
 
-const { data: rawPosts, error: postsError } = await Astro.locals.supabase
+const { data: rawPosts } = await Astro.locals.supabase
   .from('posts')
   .select('title, slug, show, summary, date, display_order, tags, is_premium')
   .eq('published', true)
   .order('date', { ascending: false })
   .order('display_order', { ascending: true });
-
 
 const posts = rawPosts ?? [];
 
@@ -30,11 +34,14 @@ const showOrder = ['12시에 만나요', '삼프로TV', '한국경제TV', '연�
 const existingShows = new Set(posts.map((p: any) => p.show));
 const shows = ['전체', ...showOrder.filter(s => existingShows.has(s))];
 
-// 날짜별 리포트 맵
-const allReports = await getCollection('reports');
-const reportsByDate: Record<string, typeof allReports[0]> = {};
-for (const r of allReports) {
-  reportsByDate[r.data.date] = r;
+// 날짜별 리포트 맵 (DB에서)
+const { data: allReports } = await Astro.locals.supabase
+  .from('daily_reports')
+  .select('date, headline')
+  .eq('published', true);
+const reportsByDate: Record<string, { date: string; headline: string }> = {};
+for (const r of allReports ?? []) {
+  reportsByDate[r.date] = r;
 }
 
 const days = ['일', '월', '화', '수', '목', '금', '토'];
@@ -84,16 +91,16 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
         </div>
       ) : sortedDates.map(date => (
         <>
-          {latestWeekly && date === latestWeekly.data.date && (() => {
-            const range = formatWeekRange(latestWeekly.data.date);
+          {latestWeekly && date === latestWeekly.date && (() => {
+            const range = formatWeekRange(latestWeekly.date);
             return (
               <>
                 <div class="date-divider date-divider--weekly">
                   <span class="date-divider-label">{range.start} ~ {range.end}</span>
                 </div>
-                <a href={`/weekly/${latestWeekly.data.date}`} class="weekly-card">
+                <a href={`/weekly/${latestWeekly.date}`} class="weekly-card">
                   <div class="weekly-card-label">PICK 주간 리포트</div>
-                  <div class="weekly-card-headline">{latestWeekly.data.headline}</div>
+                  <div class="weekly-card-headline">{latestWeekly.headline}</div>
                 </a>
               </>
             );
@@ -107,7 +114,7 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
           {reportsByDate[date] && (
             <a href={`/report/${date}`} class="report-card" data-date={date}>
               <div class="report-card-label">PICK 리포트</div>
-              <div class="report-card-headline">{reportsByDate[date].data.headline}</div>
+              <div class="report-card-headline">{reportsByDate[date].headline}</div>
             </a>
           )}
           {(groupedPosts[date] ?? []).map((post: any) => {
