@@ -261,7 +261,7 @@ const stockInfoJson = JSON.stringify(stockInfo);
 <script define:vars={{ slug, supabaseUrl, supabaseKey }}>
   fetch(`${supabaseUrl}/rest/v1/rpc/increment_post_view`, {
     method: 'POST',
-    headers: { 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+    headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ post_slug: slug }),
   });
 </script>

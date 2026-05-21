@@ -187,7 +187,7 @@ const { data: report } = await Astro.locals.supabase
 <script define:vars={{ date, supabaseUrl, supabaseKey }}>
   fetch(`${supabaseUrl}/rest/v1/rpc/increment_weekly_report_view`, {
     method: 'POST',
-    headers: { 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+    headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ report_date: date }),
   });
 </script>
