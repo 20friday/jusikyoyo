@@ -7,20 +7,25 @@ if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
 
 const { data: posts } = await Astro.locals.supabase
   .from('posts')
-  .select('id, title, source, published_at, created_at')
-  .order('published_at', { ascending: false })
-  .limit(100);
+  .select('id, title, show, date, published, is_premium, slug')
+  .order('date', { ascending: false })
+  .order('display_order', { ascending: true })
+  .limit(200);
 ---
 
 <AdminLayout title="피드 글 관리">
-  <div class="table-meta">총 {posts?.length ?? 0}개</div>
+  <div class="list-header">
+    <div class="table-meta">총 {posts?.length ?? 0}개</div>
+    <a href="/admin/posts/new" class="btn-new">+ 새 글 작성</a>
+  </div>
   <div class="table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
           <th>제목</th>
-          <th>출처</th>
-          <th>발행일</th>
+          <th>방송</th>
+          <th>날짜</th>
+          <th>상태</th>
           <th></th>
         </tr>
       </thead>
@@ -28,33 +33,64 @@ const { data: posts } = await Astro.locals.supabase
         {posts?.map(p => (
           <tr>
             <td class="td-title">{p.title}</td>
-            <td class="td-gray">{p.source ?? '—'}</td>
-            <td class="td-gray">{p.published_at ? new Date(p.published_at).toLocaleDateString('ko-KR') : '—'}</td>
+            <td class="td-gray">{p.show ?? '—'}</td>
+            <td class="td-gray">{p.date ?? '—'}</td>
+            <td>
+              {p.published
+                ? <span class="badge published">게시</span>
+                : <span class="badge draft">임시</span>
+              }
+              {p.is_premium && <span class="badge premium">프리미엄</span>}
+            </td>
             <td class="td-actions">
-              <a href={`/post/${p.id}`} target="_blank" class="action-btn">보기</a>
+              <a href={`/post/${p.slug}`} target="_blank" class="action-btn">보기</a>
+              <a href={`/admin/posts/${p.id}`} class="action-btn">수정</a>
+              <button class="action-btn danger" data-id={p.id} data-title={p.title}>삭제</button>
             </td>
           </tr>
         ))}
         {(!posts || posts.length === 0) && (
-          <tr><td colspan="4" class="td-empty">게시글이 없어요</td></tr>
+          <tr><td colspan="5" class="td-empty">게시글이 없어요</td></tr>
         )}
       </tbody>
     </table>
   </div>
 </AdminLayout>
 
+<script>
+  document.querySelectorAll('.danger').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = (btn as HTMLElement).dataset.id;
+      const title = (btn as HTMLElement).dataset.title;
+      if (!confirm(`"${title}" 글을 삭제할까요?`)) return;
+      const res = await fetch(`/api/admin/posts/${id}`, { method: 'DELETE' });
+      if (res.ok) location.reload();
+      else alert('삭제 실패: ' + await res.text());
+    });
+  });
+</script>
+
 <style>
-  .table-meta { font-size: 13px; color: #888; margin-bottom: 12px; }
+  .list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .table-meta { font-size: 13px; color: #888; }
+  .btn-new { height: 34px; padding: 0 16px; background: #ed781f; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 700; display: flex; align-items: center; }
+  .btn-new:hover { opacity: 0.88; }
   .table-wrap { background: #fff; border-radius: 12px; border: 1px solid #e8eaed; overflow: hidden; }
   .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .admin-table th { background: #f9fafb; text-align: left; padding: 11px 16px; font-size: 12px; font-weight: 700; color: #888; border-bottom: 1px solid #e8eaed; }
-  .admin-table td { padding: 13px 16px; border-bottom: 1px solid #f0f1f3; color: #333; }
+  .admin-table td { padding: 12px 16px; border-bottom: 1px solid #f0f1f3; color: #333; vertical-align: middle; }
   .admin-table tr:last-child td { border-bottom: none; }
   .admin-table tr:hover td { background: #fafafa; }
-  .td-title { font-weight: 600; max-width: 480px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .td-gray { color: #999; font-size: 13px; }
+  .td-title { font-weight: 600; max-width: 400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .td-gray { color: #999; font-size: 13px; white-space: nowrap; }
   .td-empty { text-align: center; color: #bbb; padding: 40px; }
-  .td-actions { white-space: nowrap; }
-  .action-btn { font-size: 13px; font-weight: 600; color: #555; background: #f2f4f6; border: none; border-radius: 6px; padding: 5px 12px; text-decoration: none; display: inline-block; transition: background 120ms; }
+  .td-actions { white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+  .badge { font-size: 11px; font-weight: 700; border-radius: 5px; padding: 2px 7px; display: inline-block; }
+  .badge.published { background: #dcfce7; color: #16a34a; }
+  .badge.draft { background: #f1f5f9; color: #94a3b8; }
+  .badge.premium { background: #fef3c7; color: #d97706; margin-left: 4px; }
+  .action-btn { font-size: 12px; font-weight: 600; color: #555; background: #f2f4f6; border: none; border-radius: 6px; padding: 5px 10px; text-decoration: none; display: inline-block; cursor: pointer; transition: background 120ms; white-space: nowrap; }
   .action-btn:hover { background: #e8eaed; }
+  .action-btn.danger { color: #ef4444; background: #fff1f1; }
+  .action-btn.danger:hover { background: #fecaca; }
 </style>
