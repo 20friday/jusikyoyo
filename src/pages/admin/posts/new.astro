@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { isAdmin } from '../../../lib/adminGuard';
+import { createAdminClient } from '../../../lib/adminSupabase';
 
 if (!Astro.locals.session) return Astro.redirect('/admin/login');
 if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
@@ -27,7 +28,7 @@ if (Astro.request.method === 'POST') {
   if (!title || !slug || !date) {
     error = '제목, 슬러그, 날짜는 필수예요.';
   } else {
-    const { error: dbErr } = await Astro.locals.supabase
+    const { error: dbErr } = await createAdminClient()
       .from('posts')
       .insert({ title, slug, show, date, summary, content, hosts, tags, display_order, is_premium, published });
     if (dbErr) error = dbErr.message;

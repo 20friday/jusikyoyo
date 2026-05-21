@@ -1,12 +1,13 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { isAdmin } from '../../../lib/adminGuard';
+import { createAdminClient } from '../../../lib/adminSupabase';
 
 if (!Astro.locals.session) return Astro.redirect('/admin/login');
 if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
 
 const { id } = Astro.params;
-const supabase = Astro.locals.supabase;
+const supabase = createAdminClient();
 const SHOWS = ['12시에 만나요', '삼프로TV', '한국경제TV', '연합뉴스경제TV'];
 
 let error = '';
