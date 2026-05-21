@@ -101,8 +101,8 @@ if (Astro.request.method === 'POST') {
         <>
           <!-- SNS 로그인 뷰 -->
           <div class="sns-top">
-            <h1 class="sns-h1">테드가 직접 고른<br/>콘텐츠만 모았어요</h1>
-            <p class="sns-sub">로그인하면 주간 PICK 리포트를<br/>무료로 받아볼 수 있어요</p>
+            <h1 class="sns-h1">오늘 시장이 어디로 갔는지,<br/>3분이면 충분해요.</h1>
+            <p class="sns-sub">이메일로 로그인하고 PICK을 확인하세요.</p>
           </div>
 
           {errorMessage && (
@@ -147,6 +147,23 @@ if (Astro.request.method === 'POST') {
             </svg>
             이메일로 로그인 / 회원가입
           </a>
+
+          <footer class="login-footer">
+            <nav class="login-footer-nav">
+              <a href="/notice">공지사항</a>
+              <span class="footer-dot">·</span>
+              <a href="/faq">FAQ</a>
+              <span class="footer-dot">·</span>
+              <a href="/contact">문의하기</a>
+            </nav>
+            <nav class="login-footer-nav">
+              <a href="/terms">이용약관</a>
+              <span class="footer-dot">·</span>
+              <a href="/privacy">개인정보처리방침</a>
+            </nav>
+            <p class="login-footer-disclaimer">TED PICK은 외부 경제 방송 내용을 요약·재구성해 제공하는 정보 서비스입니다.<br/>특정 종목의 매수·매도를 권유하지 않으며, 투자 판단과 책임은 투자자 본인에게 있습니다.</p>
+            <p class="login-footer-copy">© 2026 TED PICK</p>
+          </footer>
         </>
       )}
 
@@ -451,6 +468,47 @@ if (Astro.request.method === 'POST') {
     margin-left: 4px;
   }
   .auth-switch a:hover { text-decoration: underline; }
+
+  /* ── 로그인 푸터 ── */
+  .login-footer {
+    margin-top: auto;
+    padding-top: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+  .login-footer-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .login-footer-nav a {
+    font-size: 13px;
+    color: var(--text-3);
+    text-decoration: none;
+  }
+  .login-footer-nav a:hover { color: var(--text-2); }
+  .footer-dot {
+    font-size: 13px;
+    color: var(--text-3);
+    opacity: 0.5;
+  }
+  .login-footer-disclaimer {
+    font-size: 12px;
+    color: var(--text-3);
+    line-height: 1.6;
+    margin-top: 4px;
+    opacity: 0.8;
+  }
+  .login-footer-copy {
+    font-size: 12px;
+    color: var(--text-3);
+    opacity: 0.6;
+  }
 </style>
 
 <script>
