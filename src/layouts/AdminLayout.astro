@@ -15,6 +15,7 @@ const nav = [
   { label: '주간 픽', href: '/admin/weekly', icon: 'weekly' },
   { label: '공지사항', href: '/admin/notices', icon: 'bell' },
   { label: 'FAQ', href: '/admin/faq', icon: 'help' },
+  { label: '문의 관리', href: '/admin/contacts', icon: 'mail' },
   { label: '구분', type: 'divider' },
   { label: '회원', type: 'group' },
   { label: '회원 목록', href: '/admin/members', icon: 'users' },
@@ -95,6 +96,11 @@ function isActive(href: string) {
                 <rect x="2" y="4" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/>
                 <path d="M6 2v4M14 2v4M2 9h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
                 <path d="M6 13h2M10 13h2M6 16h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            )}
+            {item.icon === 'mail' && (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
               </svg>
             )}
             {item.icon === 'users' && (
