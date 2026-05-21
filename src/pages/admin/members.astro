@@ -1,59 +1,144 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { isAdmin } from '../../lib/adminGuard';
+import { createAdminClient } from '../../lib/adminSupabase';
 
 if (!Astro.locals.session) return Astro.redirect('/admin/login');
 if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
 
-const supabase = Astro.locals.supabase;
-const { data: members } = await supabase
+const adminDb = createAdminClient();
+
+// 회원 목록 + auth.users에서 이메일 가져오기
+const { data: members } = await adminDb
   .from('profiles')
   .select('user_id, role, expires_at, created_at')
   .order('created_at', { ascending: false });
+
+// auth.users에서 이메일 조회
+const { data: { users: authUsers } } = await adminDb.auth.admin.listUsers();
+const emailMap: Record<string, string> = {};
+for (const u of authUsers ?? []) {
+  emailMap[u.id] = u.email ?? '';
+}
+
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
 ---
 
 <AdminLayout title="회원 목록">
-  <div class="table-meta">총 {members?.length ?? 0}명</div>
+  <div class="list-header">
+    <div class="table-meta">총 {members?.length ?? 0}명</div>
+  </div>
   <div class="table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
-          <th>User ID</th>
+          <th>이메일</th>
           <th>등급</th>
           <th>만료일</th>
           <th>가입일</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         {members?.map(m => (
-          <tr>
-            <td class="td-mono">{m.user_id}</td>
-            <td><span class={`badge badge-${m.role}`}>{m.role}</span></td>
-            <td class="td-gray">{m.expires_at ? new Date(m.expires_at).toLocaleDateString('ko-KR') : '—'}</td>
-            <td class="td-gray">{new Date(m.created_at).toLocaleDateString('ko-KR')}</td>
+          <tr id={`row-${m.user_id}`}>
+            <td class="td-email">{emailMap[m.user_id] ?? '—'}</td>
+            <td>
+              <select class="role-select" data-uid={m.user_id}>
+                <option value="free" selected={m.role === 'free'}>free</option>
+                <option value="trial" selected={m.role === 'trial'}>trial</option>
+                <option value="paid" selected={m.role === 'paid'}>paid</option>
+              </select>
+            </td>
+            <td>
+              <input
+                class="expires-input"
+                type="date"
+                data-uid={m.user_id}
+                value={m.expires_at ? m.expires_at.slice(0, 10) : ''}
+              />
+            </td>
+            <td class="td-gray">{formatDate(m.created_at)}</td>
+            <td>
+              <button class="btn-save" data-uid={m.user_id}>저장</button>
+            </td>
           </tr>
         ))}
         {(!members || members.length === 0) && (
-          <tr><td colspan="4" class="td-empty">회원 데이터가 없어요</td></tr>
+          <tr><td colspan="5" class="td-empty">회원 데이터가 없어요</td></tr>
         )}
       </tbody>
     </table>
   </div>
 </AdminLayout>
 
+<script>
+  document.querySelectorAll('.btn-save').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const uid = (btn as HTMLElement).dataset.uid!;
+      const row = document.getElementById(`row-${uid}`)!;
+      const role = (row.querySelector('.role-select') as HTMLSelectElement).value;
+      const expiresVal = (row.querySelector('.expires-input') as HTMLInputElement).value;
+      const expires_at = expiresVal || null;
+
+      (btn as HTMLButtonElement).textContent = '저장 중...';
+      (btn as HTMLButtonElement).disabled = true;
+
+      const res = await fetch(`/api/admin/members/${uid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role, expires_at }),
+      });
+
+      if (res.ok) {
+        (btn as HTMLButtonElement).textContent = '완료 ✓';
+        setTimeout(() => {
+          (btn as HTMLButtonElement).textContent = '저장';
+          (btn as HTMLButtonElement).disabled = false;
+        }, 1500);
+      } else {
+        alert('저장 실패: ' + await res.text());
+        (btn as HTMLButtonElement).textContent = '저장';
+        (btn as HTMLButtonElement).disabled = false;
+      }
+    });
+  });
+</script>
+
 <style>
-  .table-meta { font-size: 13px; color: #888; margin-bottom: 12px; }
+  .list-header { margin-bottom: 12px; }
+  .table-meta { font-size: 13px; color: #888; }
   .table-wrap { background: #fff; border-radius: 12px; border: 1px solid #e8eaed; overflow: hidden; }
   .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  .admin-table th { background: #f9fafb; text-align: left; padding: 11px 16px; font-size: 12px; font-weight: 700; color: #888; letter-spacing: 0.02em; border-bottom: 1px solid #e8eaed; }
-  .admin-table td { padding: 13px 16px; border-bottom: 1px solid #f0f1f3; color: #333; }
+  .admin-table th { background: #f9fafb; text-align: left; padding: 11px 16px; font-size: 12px; font-weight: 700; color: #888; border-bottom: 1px solid #e8eaed; }
+  .admin-table td { padding: 10px 16px; border-bottom: 1px solid #f0f1f3; color: #333; vertical-align: middle; }
   .admin-table tr:last-child td { border-bottom: none; }
   .admin-table tr:hover td { background: #fafafa; }
-  .td-mono { font-family: monospace; font-size: 12px; color: #555; }
-  .td-gray { color: #999; font-size: 13px; }
+  .td-email { font-size: 14px; color: #333; }
+  .td-gray { color: #999; font-size: 13px; white-space: nowrap; }
   .td-empty { text-align: center; color: #bbb; padding: 40px; }
-  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-  .badge-paid { background: #fdf0e6; color: #ed781f; }
-  .badge-trial { background: #eff6ff; color: #3b82f6; }
-  .badge-free { background: #f2f4f6; color: #888; }
+  .role-select {
+    height: 32px; border-radius: 6px; border: 1.5px solid #e8eaed;
+    padding: 0 8px; font-size: 13px; font-weight: 600; color: #333;
+    background: #f9fafb; cursor: pointer; outline: none;
+  }
+  .role-select:focus { border-color: #ed781f; }
+  .expires-input {
+    height: 32px; border-radius: 6px; border: 1.5px solid #e8eaed;
+    padding: 0 8px; font-size: 13px; color: #333;
+    background: #f9fafb; outline: none;
+  }
+  .expires-input:focus { border-color: #ed781f; }
+  .btn-save {
+    height: 30px; padding: 0 14px; border-radius: 6px;
+    background: #ed781f; color: #fff; border: none;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: opacity 120ms; white-space: nowrap;
+  }
+  .btn-save:hover { opacity: 0.85; }
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
