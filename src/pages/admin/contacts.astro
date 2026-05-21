@@ -1,0 +1,123 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { isAdmin } from '../../lib/adminGuard';
+import { createAdminClient } from '../../lib/adminSupabase';
+
+if (!Astro.locals.session) return Astro.redirect('/admin/login');
+if (!isAdmin(Astro.locals.user?.email)) return Astro.redirect('/');
+
+const adminDb = createAdminClient();
+const { data: inquiries } = await adminDb
+  .from('inquiries')
+  .select('id, email, type, title, content, created_at')
+  .order('created_at', { ascending: false })
+  .limit(200);
+
+const TYPE_LABELS: Record<string, string> = {
+  service: '서비스 문의',
+  content: '콘텐츠 제안',
+};
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+---
+
+<AdminLayout title="문의 관리">
+  <div class="list-header">
+    <div class="table-meta">총 {inquiries?.length ?? 0}건</div>
+  </div>
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>유형</th>
+          <th>제목</th>
+          <th>이메일</th>
+          <th>접수일</th>
+        </tr>
+      </thead>
+      <tbody>
+        {inquiries?.map(q => (
+          <tr class="inquiry-row" data-content={q.content} data-title={q.title} data-email={q.email} data-type={TYPE_LABELS[q.type] ?? q.type} data-date={formatDate(q.created_at)}>
+            <td>
+              <span class={`badge-type badge-${q.type}`}>{TYPE_LABELS[q.type] ?? q.type}</span>
+            </td>
+            <td class="td-title">{q.title}</td>
+            <td class="td-gray">{q.email}</td>
+            <td class="td-gray">{formatDate(q.created_at)}</td>
+          </tr>
+        ))}
+        {(!inquiries || inquiries.length === 0) && (
+          <tr><td colspan="4" class="td-empty">접수된 문의가 없어요</td></tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+
+  <div id="modal-backdrop" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <span id="modal-type" class="modal-badge"></span>
+          <h2 id="modal-title" class="modal-title"></h2>
+        </div>
+        <button id="modal-close" class="modal-close">✕</button>
+      </div>
+      <div class="modal-meta">
+        <span id="modal-email"></span>
+        <span>·</span>
+        <span id="modal-date"></span>
+      </div>
+      <p id="modal-content" class="modal-content"></p>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  const rows = document.querySelectorAll('.inquiry-row');
+  const backdrop = document.getElementById('modal-backdrop')!;
+  const closeBtn = document.getElementById('modal-close')!;
+
+  rows.forEach(row => {
+    row.addEventListener('click', () => {
+      const el = row as HTMLElement;
+      document.getElementById('modal-title')!.textContent = el.dataset.title ?? '';
+      document.getElementById('modal-type')!.textContent = el.dataset.type ?? '';
+      document.getElementById('modal-email')!.textContent = el.dataset.email ?? '';
+      document.getElementById('modal-date')!.textContent = el.dataset.date ?? '';
+      document.getElementById('modal-content')!.textContent = el.dataset.content ?? '';
+      backdrop.style.display = 'flex';
+    });
+  });
+
+  closeBtn.addEventListener('click', () => { backdrop.style.display = 'none'; });
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.style.display = 'none'; });
+</script>
+
+<style>
+  .list-header { margin-bottom: 12px; }
+  .table-meta { font-size: 13px; color: #888; }
+  .table-wrap { background: #fff; border-radius: 12px; border: 1px solid #e8eaed; overflow: hidden; }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .admin-table th { background: #f9fafb; text-align: left; padding: 11px 16px; font-size: 12px; font-weight: 700; color: #888; border-bottom: 1px solid #e8eaed; }
+  .admin-table td { padding: 10px 16px; border-bottom: 1px solid #f0f1f3; color: #333; vertical-align: middle; }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .inquiry-row { cursor: pointer; }
+  .inquiry-row:hover td { background: #fafafa; }
+  .td-title { font-weight: 600; }
+  .td-gray { color: #999; font-size: 13px; white-space: nowrap; }
+  .td-empty { text-align: center; color: #bbb; padding: 40px; }
+  .badge-type { font-size: 11px; font-weight: 700; border-radius: 5px; padding: 2px 7px; background: #f1f5f9; color: #64748b; }
+  .badge-service { background: #eff6ff; color: #3b82f6; }
+  .badge-content { background: #f0fdf4; color: #16a34a; }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 24px; }
+  .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 560px; padding: 28px; display: flex; flex-direction: column; gap: 12px; }
+  .modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .modal-badge { font-size: 11px; font-weight: 700; border-radius: 5px; padding: 2px 7px; background: #eff6ff; color: #3b82f6; display: inline-block; margin-bottom: 6px; }
+  .modal-title { font-size: 17px; font-weight: 700; color: #111; margin: 0; }
+  .modal-close { background: none; border: none; font-size: 18px; color: #999; cursor: pointer; flex-shrink: 0; padding: 0; }
+  .modal-meta { font-size: 13px; color: #999; display: flex; gap: 8px; }
+  .modal-content { font-size: 14px; color: #333; line-height: 1.8; white-space: pre-wrap; background: #f9fafb; border-radius: 8px; padding: 16px; margin: 0; }
+</style>
