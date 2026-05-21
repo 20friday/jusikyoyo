@@ -1,29 +1,29 @@
 ---
 import { isAdmin } from '../../lib/adminGuard';
 
-// 이미 로그인된 관리자면 대시보드로
 if (Astro.locals.session && isAdmin(Astro.locals.user?.email)) {
   return Astro.redirect('/admin');
 }
 
-let sent = false;
 let error = '';
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const email = String(form.get('email') ?? '').trim();
+  const password = String(form.get('password') ?? '');
 
-  if (!email) {
-    error = '이메일을 입력해주세요.';
-  } else if (!isAdmin(email)) {
-    error = '관리자 계정이 아니에요.';
+  if (!email || !password) {
+    error = '이메일과 비밀번호를 입력해주세요.';
   } else {
-    const { error: authErr } = await Astro.locals.supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${Astro.url.origin}/api/auth/callback?next=/admin` },
-    });
-    if (authErr) error = authErr.message;
-    else sent = true;
+    const { data, error: authErr } = await Astro.locals.supabase.auth.signInWithPassword({ email, password });
+    if (authErr || !data.user) {
+      error = '이메일 또는 비밀번호가 올바르지 않아요.';
+    } else if (!isAdmin(data.user.email)) {
+      await Astro.locals.supabase.auth.signOut();
+      error = '관리자 계정이 아니에요.';
+    } else {
+      return Astro.redirect('/admin');
+    }
   }
 }
 ---
@@ -45,40 +45,62 @@ if (Astro.request.method === 'POST') {
           <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="800" fill="white" font-family="system-ui">TP</text>
         </svg>
       </div>
+      <h1 class="card-title">관리자 로그인</h1>
+      <p class="card-sub">TED PICK 관리자 계정으로 로그인하세요</p>
 
-      {sent ? (
-        <>
-          <h1 class="card-title">메일을 확인하세요</h1>
-          <p class="card-sub sent-sub">
-            <strong>20friday@gmail.com</strong>으로<br />로그인 링크를 보냈어요.<br />메일함에서 링크를 클릭하면 바로 접속돼요.
-          </p>
-        </>
-      ) : (
-        <>
-          <h1 class="card-title">관리자 로그인</h1>
-          <p class="card-sub">TED PICK 관리자 계정으로 로그인하세요</p>
+      {error && <div class="error-msg">{error}</div>}
 
-          {error && <div class="error-msg">{error}</div>}
-
-          <form method="POST" class="login-form">
-            <div class="field">
-              <label class="field-label">관리자 이메일</label>
-              <div class="input-wrap">
-                <span class="input-icon">
-                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                    <circle cx="10" cy="7" r="3.5" stroke="#94a3b8" stroke-width="1.6"/>
-                    <path d="M3 17c0-3.314 3.134-5 7-5s7 1.686 7 5" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round"/>
-                  </svg>
-                </span>
-                <input class="field-input" type="email" name="email" placeholder="관리자 이메일 주소" autocomplete="email" required />
-              </div>
-            </div>
-            <button type="submit" class="btn-login">로그인 링크 받기</button>
-          </form>
-        </>
-      )}
+      <form method="POST" class="login-form">
+        <div class="field">
+          <label class="field-label">이메일</label>
+          <div class="input-wrap">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="7" r="3.5" stroke="#94a3b8" stroke-width="1.6"/>
+                <path d="M3 17c0-3.314 3.134-5 7-5s7 1.686 7 5" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <input class="field-input" type="email" name="email" placeholder="관리자 이메일" autocomplete="email" required />
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">비밀번호</label>
+          <div class="input-wrap">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <rect x="4" y="9" width="12" height="9" rx="2" stroke="#94a3b8" stroke-width="1.6"/>
+                <path d="M7 9V6a3 3 0 0 1 6 0v3" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <input class="field-input" type="password" name="password" id="pw-input" placeholder="비밀번호" autocomplete="current-password" required />
+            <button type="button" class="pw-toggle" id="pw-toggle" aria-label="비밀번호 보기">
+              <svg id="eye-on" width="17" height="17" viewBox="0 0 20 20" fill="none">
+                <ellipse cx="10" cy="10" rx="8" ry="5" stroke="#94a3b8" stroke-width="1.6"/>
+                <circle cx="10" cy="10" r="2.5" stroke="#94a3b8" stroke-width="1.6"/>
+              </svg>
+              <svg id="eye-off" width="17" height="17" viewBox="0 0 20 20" fill="none" style="display:none">
+                <path d="M3 3l14 14M8.5 8.7A2.5 2.5 0 0 0 11.3 11.5M6.2 6.4C4.6 7.3 3.3 8.6 2 10c2 2.8 5.2 5 8 5 1.3 0 2.6-.4 3.8-1M10 5c2.8 0 6 2.2 8 5-0.6.9-1.4 1.7-2.2 2.4" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn-login">로그인</button>
+      </form>
     </div>
   </div>
+
+  <script>
+    const toggle = document.getElementById('pw-toggle');
+    const input = document.getElementById('pw-input') as HTMLInputElement;
+    const eyeOn = document.getElementById('eye-on');
+    const eyeOff = document.getElementById('eye-off');
+    toggle?.addEventListener('click', () => {
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      eyeOn!.style.display = isHidden ? 'none' : '';
+      eyeOff!.style.display = isHidden ? '' : 'none';
+    });
+  </script>
 </body>
 </html>
 
@@ -124,11 +146,6 @@ if (Astro.request.method === 'POST') {
     margin-bottom: 28px;
     text-align: center;
   }
-  .sent-sub {
-    line-height: 1.8;
-    color: #64748b;
-  }
-  .sent-sub strong { color: #111; }
   .error-msg {
     width: 100%;
     background: #fee2e2;
@@ -169,7 +186,7 @@ if (Astro.request.method === 'POST') {
     height: 48px;
     border: 1.5px solid #e2e8f0;
     border-radius: 10px;
-    padding: 0 14px 0 40px;
+    padding: 0 44px 0 40px;
     font-size: 14.5px;
     color: #111;
     outline: none;
@@ -180,6 +197,16 @@ if (Astro.request.method === 'POST') {
   .field-input:focus {
     border-color: #ed781f;
     background: #fff;
+  }
+  .pw-toggle {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 4px;
   }
   .btn-login {
     margin-top: 4px;
@@ -193,7 +220,6 @@ if (Astro.request.method === 'POST') {
     font-weight: 700;
     cursor: pointer;
     transition: opacity 140ms;
-    letter-spacing: -0.01em;
   }
   .btn-login:hover { opacity: 0.88; }
   .btn-login:active { opacity: 0.78; }
