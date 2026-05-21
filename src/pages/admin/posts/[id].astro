@@ -18,8 +18,10 @@ if (Astro.request.method === 'POST') {
   const date = String(form.get('date') ?? '').trim();
   const summary = String(form.get('summary') ?? '').trim();
   const content = String(form.get('content') ?? '').trim();
-  const hosts = String(form.get('hosts') ?? '').trim();
-  const tags = String(form.get('tags') ?? '').trim();
+  const hostsRaw = String(form.get('hosts') ?? '').trim();
+  const tagsRaw = String(form.get('tags') ?? '').trim();
+  const hosts = hostsRaw ? hostsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const tags = tagsRaw ? tagsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
   const display_order = parseInt(String(form.get('display_order') ?? '0'));
   const is_premium = form.get('is_premium') === 'true';
   const published = form.get('published') === 'true';
@@ -75,7 +77,7 @@ if (!post) return Astro.redirect('/admin/posts');
           </div>
           <div class="form-field flex-1">
             <label class="form-label">진행자</label>
-            <input class="form-input" type="text" name="hosts" value={post.hosts ?? ''} />
+            <input class="form-input" type="text" name="hosts" value={Array.isArray(post.hosts) ? post.hosts.join(', ') : (post.hosts ?? '')} />
           </div>
         </div>
       </div>
@@ -92,7 +94,7 @@ if (!post) return Astro.redirect('/admin/posts');
         </div>
         <div class="form-field">
           <label class="form-label">태그 (쉼표로 구분)</label>
-          <input class="form-input" type="text" name="tags" value={post.tags ?? ''} />
+          <input class="form-input" type="text" name="tags" value={Array.isArray(post.tags) ? post.tags.join(', ') : (post.tags ?? '')} />
         </div>
       </div>
 

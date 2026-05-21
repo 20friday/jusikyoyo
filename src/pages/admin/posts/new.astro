@@ -16,8 +16,10 @@ if (Astro.request.method === 'POST') {
   const date = String(form.get('date') ?? '').trim();
   const summary = String(form.get('summary') ?? '').trim();
   const content = String(form.get('content') ?? '').trim();
-  const hosts = String(form.get('hosts') ?? '').trim();
-  const tags = String(form.get('tags') ?? '').trim();
+  const hostsRaw = String(form.get('hosts') ?? '').trim();
+  const tagsRaw = String(form.get('tags') ?? '').trim();
+  const hosts = hostsRaw ? hostsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const tags = tagsRaw ? tagsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
   const display_order = parseInt(String(form.get('display_order') ?? '0'));
   const is_premium = form.get('is_premium') === 'true';
   const published = form.get('published') === 'true';
