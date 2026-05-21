@@ -1,0 +1,80 @@
+---
+import Base from '../../layouts/Base.astro';
+
+const { id } = Astro.params;
+const { data: notice } = await Astro.locals.supabase
+  .from('notices')
+  .select('*')
+  .eq('id', id)
+  .eq('is_published', true)
+  .single();
+
+if (!notice) return Astro.redirect('/notice');
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+---
+
+<Base title={`${notice.title} — 공지사항`}>
+  <div class="notice-wrap">
+    <div class="notice-top">
+      <a href="/notice" class="notice-back">← 공지사항</a>
+    </div>
+    <article class="notice-article">
+      <h1 class="notice-title">{notice.title}</h1>
+      <p class="notice-date">{formatDate(notice.created_at)}</p>
+      <div class="notice-divider"></div>
+      <div class="notice-content">{notice.content}</div>
+    </article>
+  </div>
+</Base>
+
+<style>
+  .notice-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 24px 16px 80px;
+  }
+  .notice-top {
+    margin-bottom: 20px;
+  }
+  .notice-back {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-3);
+    text-decoration: none;
+  }
+  .notice-back:hover { color: var(--text-2); }
+  .notice-article {
+    background: var(--card);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    padding: 28px 24px;
+  }
+  .notice-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-1);
+    line-height: 1.45;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+  }
+  .notice-date {
+    font-size: 13px;
+    color: var(--text-3);
+    margin-bottom: 20px;
+  }
+  .notice-divider {
+    height: 1px;
+    background: var(--border);
+    margin-bottom: 24px;
+  }
+  .notice-content {
+    font-size: 16px;
+    color: var(--text-2);
+    line-height: 1.8;
+    white-space: pre-wrap;
+  }
+</style>
