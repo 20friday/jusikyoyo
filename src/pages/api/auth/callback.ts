@@ -6,7 +6,8 @@ export const GET: APIRoute = async ({ url, locals, redirect }) => {
   if (code) {
     const { error } = await locals.supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return redirect('/');
+      const next = url.searchParams.get('next') ?? '/';
+      return redirect(next);
     }
   }
 
