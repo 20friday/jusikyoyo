@@ -10,6 +10,8 @@ const { data: report } = await Astro.locals.supabase
   .select('*')
   .eq('date', date)
   .single();
+
+const sectorsJson = JSON.stringify(report?.sectors ?? []);
 ---
 <Base title="주간 PICK 리포트" description="이번 주 방송 종합 리포트">
   {!report ? (
@@ -41,11 +43,14 @@ const { data: report } = await Astro.locals.supabase
       <!-- 3. 이번 주 반복 언급 섹터 -->
       <div class="report-section">
         <div class="report-section-label">이번 주 반복 언급 섹터</div>
-        {report.sectors.map((sector: any) => (
-          <div class="sector-row">
-            <div class="sector-name">{sector.name}</div>
-            <div class="sector-flow">{sector.flow}</div>
-          </div>
+        {report.sectors.map((sector: any, i: number) => (
+          <button class="sector-row sector-row--clickable" data-sector-index={i}>
+            <div class="sector-row-left">
+              <div class="sector-name">{sector.name}</div>
+              <div class="sector-flow">{sector.flow}</div>
+            </div>
+            <span class="sector-row-chevron">›</span>
+          </button>
         ))}
       </div>
 
@@ -105,6 +110,15 @@ const { data: report } = await Astro.locals.supabase
 
     </div>
   )}
+
+  <!-- 섹터 모달 -->
+  <div id="sector-modal-backdrop" class="sector-modal-backdrop"></div>
+  <div id="sector-modal" class="sector-modal" aria-hidden="true" role="dialog">
+    <div class="sector-modal-inner">
+      <div id="sector-modal-content" class="sector-modal-content"></div>
+      <button id="sector-modal-close" class="sector-modal-close" aria-label="닫기">닫기</button>
+    </div>
+  </div>
 </Base>
 
 <style>
@@ -162,7 +176,144 @@ const { data: report } = await Astro.locals.supabase
     color: var(--text-2);
     line-height: 1.75;
   }
+
+  /* 클릭 가능한 섹터 행 */
+  .sector-row--clickable {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+  }
+  .sector-row--clickable:active { opacity: 0.7; }
+  .sector-row-left { flex: 1; min-width: 0; }
+  .sector-row-chevron {
+    font-size: 20px;
+    color: var(--text-3);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  /* 섹터 모달 */
+  .sector-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  .sector-modal-backdrop.open { display: block; }
+
+  .sector-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 101;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .sector-modal.open { display: flex; }
+
+  .sector-modal-inner {
+    background: var(--card);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    animation: modal-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .sector-modal-close {
+    display: block;
+    flex-shrink: 0;
+    width: calc(100% - 40px);
+    margin: 8px 20px 20px;
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--border);
+    border: none;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-2);
+    cursor: pointer;
+    font-family: var(--font);
+  }
+  .sector-modal-close:active { background: var(--divider); }
+
+  .sector-modal-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px 20px 8px;
+  }
+
+  .sector-modal-name {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-1);
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .sector-modal-flow {
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--text-2);
+  }
 </style>
+
+<script define:vars={{ sectorsJson }}>
+  const sectors = JSON.parse(sectorsJson);
+  const backdrop = document.getElementById('sector-modal-backdrop');
+  const sheet = document.getElementById('sector-modal');
+  const content = document.getElementById('sector-modal-content');
+
+  function openModal(index) {
+    const sector = sectors[index];
+    if (!sector) return;
+    content.innerHTML = `
+      <div class="sector-modal-name">${sector.name}</div>
+      <div class="sector-modal-flow">${sector.flow}</div>
+    `;
+    backdrop.classList.add('open');
+    sheet.classList.add('open');
+    sheet.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    backdrop.classList.remove('open');
+    sheet.classList.remove('open');
+    sheet.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.sector-row--clickable').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openModal(Number(btn.dataset.sectorIndex));
+    });
+  });
+
+  sheet.addEventListener('click', closeModal);
+  document.getElementById('sector-modal-close').addEventListener('click', closeModal);
+  document.querySelector('.sector-modal-inner').addEventListener('click', e => e.stopPropagation());
+</script>
 
 <script>
   const hero = document.querySelector('.report-hero') as HTMLElement;
