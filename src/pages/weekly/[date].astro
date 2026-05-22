@@ -398,13 +398,13 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
         let dailyHtml = '';
 
         if (summary) {
-          dailyHtml += `<div class="weekly-summary-box">${summary}</div>`;
+          dailyHtml += `<div style="background:#fff3ea;border-left:3px solid #ed781f;border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:20px;font-size:14px;line-height:1.75;color:#1a1a1a;font-weight:500;">${summary}</div>`;
         }
 
         // 일별 상세
         for (const m of mentions) {
-          dailyHtml += `<div class="daily-block">`;
-          dailyHtml += `<div class="daily-date-label">${formatDate(m.date)}</div>`;
+          dailyHtml += `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee;">`;
+          dailyHtml += `<div style="font-size:12px;font-weight:700;color:#ed781f;margin-bottom:8px;">${formatDate(m.date)}</div>`;
           if (m.notes.length > 0) {
             m.notes.forEach(n => {
               dailyHtml += `<div class="sheet-point"><span class="sheet-point-show">${n.show}</span><span class="sheet-point-body">${n.view}</span></div>`;
@@ -419,7 +419,7 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
         // daily 데이터 없으면 weekly notes로 fallback
         const fallbackMentions = [{ date: date, notes: s.notes, shows: [] }];
         const summary = synthesize(fallbackMentions);
-        let notesHtml = summary ? `<div class="weekly-summary-box">${summary}</div>` : '';
+        let notesHtml = summary ? `<div style="background:#fff3ea;border-left:3px solid #ed781f;border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:20px;font-size:14px;line-height:1.75;color:#1a1a1a;font-weight:500;">${summary}</div>` : '';
         s.notes.forEach(n => {
           notesHtml += `<div class="sheet-point"><span class="sheet-point-show">${n.show}</span><span class="sheet-point-body">${n.view}</span></div>`;
         });
