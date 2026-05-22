@@ -3,28 +3,35 @@ import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import { stockInfo } from '../../lib/stockInfo';
 
-export const prerender = true;
+const { name } = Astro.params as { name: string };
 
-export async function getStaticPaths() {
-  const allReports = await getCollection('reports');
-  const nameSet = new Set<string>();
-  for (const r of allReports) {
-    for (const s of r.data.stocks) nameSet.add(s.name);
-  }
-  return [...nameSet].map(name => ({ params: { name } }));
-}
-
-const { name } = Astro.params;
+// 1. content collection (과거 리포트)
 const allReports = await getCollection('reports');
-
-// 이 종목이 언급된 리포트를 날짜 내림차순으로 정렬
-const entries = allReports
-  .filter(r => r.data.stocks.some(s => s.name === name))
-  .sort((a, b) => b.data.date.localeCompare(a.data.date))
+const contentEntries = allReports
+  .filter(r => r.data.stocks?.some((s: any) => s.name === name))
   .map(r => {
-    const stock = r.data.stocks.find(s => s.name === name)!;
-    return { date: r.data.date, shows: stock.shows, notes: stock.notes ?? [] };
+    const stock = r.data.stocks.find((s: any) => s.name === name)!;
+    return { date: r.data.date as string, shows: stock.shows as string[], notes: (stock.notes ?? []) as any[] };
   });
+
+// 2. Supabase (신규 리포트)
+const { data: supabaseReports } = await Astro.locals.supabase
+  .from('daily_reports')
+  .select('date, stocks')
+  .order('date', { ascending: false });
+
+const supabaseEntries = (supabaseReports ?? [])
+  .filter((r: any) => r.stocks?.some((s: any) => s.name === name))
+  .map((r: any) => {
+    const stock = r.stocks.find((s: any) => s.name === name);
+    return { date: r.date as string, shows: (stock?.shows ?? []) as string[], notes: (stock?.notes ?? []) as any[] };
+  });
+
+// 3. 날짜 기준으로 병합 (Supabase 우선), 최신순 정렬
+const dateMap = new Map<string, { date: string; shows: string[]; notes: any[] }>();
+for (const e of contentEntries) dateMap.set(e.date, e);
+for (const e of supabaseEntries) dateMap.set(e.date, e); // Supabase가 더 최신이면 덮어씀
+const entries = [...dateMap.values()].sort((a, b) => b.date.localeCompare(a.date));
 
 const info = stockInfo.find(s => s.name === name);
 
