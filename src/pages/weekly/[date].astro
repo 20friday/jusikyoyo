@@ -279,11 +279,33 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
     -webkit-overflow-scrolling: touch;
     padding: 20px 20px 8px;
   }
+
+  /* 일별 언급 카드 */
+  .daily-block {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .daily-block:last-of-type { border-bottom: none; }
+  .daily-date-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--blue);
+    margin-bottom: 8px;
+    letter-spacing: 0.01em;
+  }
+  .modal-loading {
+    font-size: 14px;
+    color: var(--text-3);
+    padding: 16px 0;
+    text-align: center;
+  }
 </style>
 
-<script define:vars={{ sectorsJson, stocksJson }}>
+<script define:vars={{ sectorsJson, stocksJson, date, supabaseUrl, supabaseKey }}>
   const sectors = JSON.parse(sectorsJson);
   const stocks  = JSON.parse(stocksJson);
+  const DAYS = ['일','월','화','수','목','금','토'];
 
   const backdrop = document.getElementById('weekly-modal-backdrop');
   const sheet    = document.getElementById('weekly-modal');
@@ -304,40 +326,93 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
     document.body.style.overflow = '';
   }
 
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`;
+  }
+
+  async function openStockModal(s) {
+    const daysLabel = s.days === 5 ? '5일 내내' : `${s.days}일`;
+    // 즉시 로딩 상태 표시
+    let html = `<div class="sheet-stock-name">${s.name}</div>`;
+    html += `<div class="sheet-stock-shows">이번 주 ${daysLabel} 언급</div>`;
+    html += `<div id="modal-daily-area"><div class="modal-loading">불러오는 중…</div></div>`;
+    html += `<a class="sheet-history" href="/stock/${s.name}">방송 언급 히스토리 보기 →</a>`;
+    openModal(html);
+
+    // 이번 주 날짜 범위 계산 (weekly report date 기준 -6일)
+    const endDate = new Date(date + 'T00:00:00');
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 6);
+    const startStr = startDate.toISOString().slice(0, 10);
+
+    try {
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/daily_reports?date=gte.${startStr}&date=lte.${date}&select=date,stocks&order=date.desc`,
+        { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+      );
+      const reports = await res.json();
+
+      // 이 종목이 언급된 날만 추출
+      const mentions = reports
+        .map(r => {
+          const st = r.stocks?.find(st => st.name === s.name);
+          return st ? { date: r.date, notes: st.notes ?? [], shows: st.shows ?? [] } : null;
+        })
+        .filter(Boolean);
+
+      const area = document.getElementById('modal-daily-area');
+      if (!area) return;
+
+      if (mentions.length > 0) {
+        let dailyHtml = '';
+        for (const m of mentions) {
+          dailyHtml += `<div class="daily-block">`;
+          dailyHtml += `<div class="daily-date-label">${formatDate(m.date)}</div>`;
+          if (m.notes.length > 0) {
+            m.notes.forEach(n => {
+              dailyHtml += `<div class="sheet-point"><span class="sheet-point-show">${n.show}</span><span class="sheet-point-body">${n.view}</span></div>`;
+            });
+          } else if (m.shows.length > 0) {
+            dailyHtml += `<div class="sheet-point"><span class="sheet-point-body">${m.shows.join(' · ')} 에서 언급</span></div>`;
+          }
+          dailyHtml += `</div>`;
+        }
+        area.innerHTML = dailyHtml;
+      } else if (s.notes && s.notes.length > 0) {
+        // daily 데이터 없으면 weekly notes로 fallback
+        let notesHtml = '';
+        s.notes.forEach(n => {
+          notesHtml += `<div class="sheet-point"><span class="sheet-point-show">${n.show}</span><span class="sheet-point-body">${n.view}</span></div>`;
+        });
+        area.innerHTML = notesHtml;
+      } else {
+        area.innerHTML = `<div class="sheet-no-comp">이번 주 상세 내용이 없어요.</div>`;
+      }
+    } catch {
+      const area = document.getElementById('modal-daily-area');
+      if (area) area.innerHTML = `<div class="sheet-no-comp">내용을 불러올 수 없어요.</div>`;
+    }
+  }
+
   document.querySelectorAll('.stock-row--clickable').forEach(btn => {
     btn.addEventListener('click', () => {
       const type  = btn.dataset.type;
       const index = Number(btn.dataset.index);
-      let html = '';
 
       if (type === 'sector') {
         const s = sectors[index];
         if (!s) return;
-        html  = `<div class="sheet-stock-name">${s.name}</div>`;
+        let html  = `<div class="sheet-stock-name">${s.name}</div>`;
         html += `<div class="sheet-stock-shows">반복 언급 섹터</div>`;
         html += `<div class="sheet-point"><span class="sheet-point-body">${s.flow}</span></div>`;
+        openModal(html);
 
       } else if (type === 'stock') {
         const s = stocks[index];
         if (!s) return;
-        const daysLabel = s.days === 5 ? '5일 내내' : `${s.days}일`;
-        html  = `<div class="sheet-stock-name">${s.name}</div>`;
-        html += `<div class="sheet-stock-shows">이번 주 ${daysLabel} 언급</div>`;
-
-        if (s.notes && s.notes.length > 0) {
-          s.notes.forEach(n => {
-            html += `<div class="sheet-point"><span class="sheet-point-show">${n.show}</span><span class="sheet-point-body">${n.view}</span></div>`;
-          });
-        } else if (s.reason) {
-          html += `<div class="sheet-point"><span class="sheet-point-body">${s.reason}</span></div>`;
-        } else {
-          html += `<div class="sheet-no-comp">이 종목은 이번 주 여러 방송에서 언급됐지만, 별도 내용 정리가 없어요.</div>`;
-        }
-
-        html += `<a class="sheet-history" href="/stock/${s.name}">방송 언급 히스토리 보기 →</a>`;
+        openStockModal(s);
       }
-
-      openModal(html);
     });
   });
 
