@@ -67,7 +67,13 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
               <span class="stock-name">{stock.name}</span>
             </div>
             <div class="stock-row-right">
-              <span class="stock-shows">{stock.days === 5 ? '5일 내내' : `${stock.days}일`}</span>
+              <span class="days-badge">{stock.days === 5 ? '5일 내내' : `${stock.days}일 언급`}</span>
+              {stock.notes?.[0]
+                ? <span class="stock-shows stock-flow-preview">{stock.notes[0].view}</span>
+                : stock.reason
+                  ? <span class="stock-shows stock-flow-preview">{stock.reason}</span>
+                  : null
+              }
               <span class="stock-row-chevron">›</span>
             </div>
           </button>
@@ -197,6 +203,18 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
     color: var(--text-3);
     line-height: 1;
     flex-shrink: 0;
+  }
+  .days-badge {
+    display: inline-flex;
+    align-items: center;
+    background: color-mix(in srgb, var(--blue) 12%, transparent);
+    color: var(--blue);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   /* ── 모달 ── */
