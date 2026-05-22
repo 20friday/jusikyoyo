@@ -200,6 +200,8 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
   .sheet-history {
     display: inline-block;
     margin-top: 16px;
+    margin-bottom: 8px;
+    padding: 10px 0;
     font-size: 14px;
     font-weight: 700;
     color: var(--blue);
@@ -250,7 +252,7 @@ const stocksJson = report ? JSON.stringify(report.data.stocks) : '[]';
       html += `<div class="sheet-no-comp">이 종목은 여러 방송에서 언급됐지만, 별도 내용 정리가 없어요.</div>`;
     }
 
-    html += `<a class="sheet-history" href="/stock/${encodeURIComponent(stockName)}">방송 언급 히스토리 보기 →</a>`;
+    html += `<a class="sheet-history" href="/stock/${stockName}">방송 언급 히스토리 보기 →</a>`;
     content.innerHTML = html;
     backdrop.classList.add('open');
     sheet.classList.add('open');
