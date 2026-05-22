@@ -1,0 +1,209 @@
+---
+import Base from '../layouts/Base.astro';
+export const prerender = true;
+---
+<Base title="개인정보처리방침 — 테드픽" description="TED PICK 개인정보처리방침">
+  <div class="policy-wrap">
+    <div class="policy-hero">
+      <a href="/" class="back-link">← 홈으로</a>
+      <h1 class="policy-title">개인정보처리방침</h1>
+      <p class="policy-date">시행일: 2026년 1월 1일</p>
+    </div>
+
+    <div class="policy-body">
+
+      <section class="policy-section">
+        <h2>제1조 (수집하는 개인정보 항목 및 수집 방법)</h2>
+        <p class="section-sub">① 수집 항목</p>
+        <ul>
+          <li>이메일 주소, 비밀번호 (이메일 가입 시)</li>
+          <li>소셜 계정 이름, 이메일 (구글·카카오 로그인 시)</li>
+          <li>서비스 이용 기록, 접속 로그</li>
+        </ul>
+        <p class="section-sub">② 수집 방법</p>
+        <p>회원가입 및 서비스 이용 과정에서 직접 수집합니다.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>제2조 (개인정보의 수집 및 이용 목적)</h2>
+        <ul>
+          <li>회원 가입 및 서비스 이용 관리</li>
+          <li>고객 문의 답변 및 서비스 공지 발송</li>
+          <li>유료 서비스(프리미엄) 제공 및 결제 처리</li>
+          <li>서비스 개선 및 이용 통계 분석</li>
+        </ul>
+      </section>
+
+      <section class="policy-section">
+        <h2>제3조 (개인정보의 보유 및 이용기간)</h2>
+        <p>회원 탈퇴 시까지 보유하며, 탈퇴 즉시 삭제합니다. 단, 관련 법령에 따라 일정 기간 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>제4조 (개인정보의 제3자 제공)</h2>
+        <p>서비스는 원칙적으로 회원의 개인정보를 제3자에게 제공하지 않습니다. 다만, 법령에 따른 요청이 있는 경우는 예외로 합니다.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>제5조 (개인정보 처리 위탁)</h2>
+        <p>서비스는 원활한 운영을 위해 일부 업무를 외부에 위탁합니다.</p>
+        <ul>
+          <li><strong>Supabase Inc.</strong> — 서버 및 데이터베이스 운영</li>
+          <li><strong>Resend Inc.</strong> — 이메일 발송</li>
+        </ul>
+      </section>
+
+      <section class="policy-section">
+        <h2>제6조 (정보주체의 권리)</h2>
+        <p>회원은 언제든지 자신의 개인정보 조회, 수정, 삭제, 처리정지를 요청할 수 있습니다. 요청은 <a href="/contact" class="inline-link">문의하기</a>를 이용해 주세요.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>제7조 (개인정보의 파기)</h2>
+        <p>보유기간이 경과하거나 수집 목적이 달성된 경우, 개인정보를 지체 없이 파기합니다. 전자적 파일 형태는 복원이 불가능한 방법으로 영구 삭제합니다.</p>
+      </section>
+
+      <section class="policy-section policy-section--card">
+        <h2>제8조 (개인정보 보호책임자)</h2>
+        <div class="contact-card">
+          <p class="contact-label">서비스명</p>
+          <p class="contact-value">TED PICK</p>
+          <p class="contact-label">이메일</p>
+          <p class="contact-value">20friday@gmail.com</p>
+          <p class="contact-label">문의</p>
+          <p class="contact-value"><a href="/contact" class="inline-link">문의하기 페이지</a></p>
+        </div>
+      </section>
+
+      <div class="policy-footer">
+        <p>부칙: 이 방침은 2026년 1월 1일부터 시행합니다.</p>
+        <a href="/terms" class="policy-link">← 이용약관 보기</a>
+      </div>
+
+    </div>
+  </div>
+</Base>
+
+<style>
+  .policy-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+
+  .back-link {
+    display: block;
+    font-size: 14px;
+    color: var(--text-3);
+    text-decoration: none;
+    margin-bottom: 24px;
+  }
+  .back-link:hover { color: var(--text-1); }
+
+  .policy-hero {
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+  .policy-title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text-1);
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+  .policy-date {
+    font-size: 13px;
+    color: var(--text-3);
+  }
+
+  .policy-body {
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+  }
+
+  .policy-section h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-1);
+    margin-bottom: 12px;
+    letter-spacing: -0.01em;
+  }
+  .policy-section p,
+  .policy-section ul {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-2);
+    margin: 0;
+    padding: 0;
+  }
+  .policy-section ul {
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .section-sub {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-3) !important;
+    margin-top: 12px !important;
+    margin-bottom: 6px !important;
+  }
+  .section-sub:first-of-type { margin-top: 0 !important; }
+
+  .inline-link {
+    color: var(--blue);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .inline-link:hover { opacity: 0.8; }
+
+  .policy-section--card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+
+  .contact-card {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 8px 12px;
+    align-items: baseline;
+  }
+  .contact-label {
+    font-size: 12px !important;
+    font-weight: 700;
+    color: var(--text-3) !important;
+    line-height: 1.6 !important;
+  }
+  .contact-value {
+    font-size: 14px !important;
+    color: var(--text-1) !important;
+    line-height: 1.6 !important;
+  }
+
+  .policy-footer {
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .policy-footer p {
+    font-size: 13px;
+    color: var(--text-3);
+  }
+  .policy-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--blue);
+    text-decoration: none;
+  }
+  .policy-link:hover { opacity: 0.8; }
+</style>
