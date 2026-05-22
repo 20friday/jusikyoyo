@@ -300,6 +300,19 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
     padding: 16px 0;
     text-align: center;
   }
+
+  /* 주간 요약 박스 */
+  .weekly-summary-box {
+    background: color-mix(in srgb, var(--blue) 8%, transparent);
+    border-left: 3px solid var(--blue);
+    border-radius: 0 10px 10px 0;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text-1);
+    font-weight: 500;
+  }
 </style>
 
 <script define:vars={{ sectorsJson, stocksJson, date, supabaseUrl, supabaseKey }}>
@@ -329,6 +342,53 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
   function formatDate(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
     return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`;
+  }
+
+  // 언급 내용에서 핵심 1~2문장 합성
+  function synthesize(mentions) {
+    const BULL = ['기회','저평가','매수','상승','개선','기대','상향','성장','매력','반등','긍정','호조','수혜','강세','회복'];
+    const RISK = ['리스크','부담','하락','우려','주의','악재','불확실','파업','단기 변동','과매수','조정','약세'];
+
+    const sentences = [];
+    const allShows  = new Set();
+
+    mentions.forEach(m => {
+      m.notes.forEach(n => {
+        allShows.add(n.show);
+        // 마침표 기준으로 문장 분리
+        n.view.split(/(?<=[.。!?])\s+|(?<=[가-힣])\.\s*/).forEach(s => {
+          const clean = s.replace(/[.。!?\s]+$/, '').trim();
+          if (clean.length < 8) return;
+          const bull = BULL.filter(w => clean.includes(w)).length;
+          const risk = RISK.filter(w => clean.includes(w)).length;
+          sentences.push({ text: clean, bull, risk, score: bull - risk });
+        });
+      });
+    });
+
+    if (sentences.length === 0) return null;
+
+    // 긍정 대표 / 부담 대표 문장 각각 선택 (짧고 점수 높은 것)
+    const bullSents = sentences.filter(s => s.bull > 0 && s.risk === 0)
+      .sort((a, b) => b.bull - a.bull || a.text.length - b.text.length);
+    const riskSents = sentences.filter(s => s.risk > 0 && s.bull === 0)
+      .sort((a, b) => b.risk - a.risk || a.text.length - b.text.length);
+
+    const showList = allShows.size <= 3
+      ? [...allShows].join(' · ')
+      : `${[...allShows].slice(0, 2).join(' · ')} 등`;
+
+    if (bullSents.length > 0 && riskSents.length > 0) {
+      return `${riskSents[0].text}. 반면 ${bullSents[0].text.charAt(0).toLowerCase() + bullSents[0].text.slice(1)}.`;
+    } else if (bullSents.length > 0) {
+      return `${showList}에서 긍정적으로 평가됐어요. ${bullSents[0].text}.`;
+    } else if (riskSents.length > 0) {
+      return `${showList}에서 부담 요인과 함께 언급됐어요. ${riskSents[0].text}.`;
+    } else {
+      // 그냥 첫 문장 사용
+      const first = sentences.sort((a, b) => a.text.length - b.text.length)[0];
+      return first?.text ? `${first.text}.` : null;
+    }
   }
 
   async function openStockModal(s) {
@@ -365,7 +425,16 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
       if (!area) return;
 
       if (mentions.length > 0) {
+        // 요약문 합성
+        const summary = synthesize(mentions);
+
         let dailyHtml = '';
+
+        if (summary) {
+          dailyHtml += `<div class="weekly-summary-box">${summary}</div>`;
+        }
+
+        // 일별 상세
         for (const m of mentions) {
           dailyHtml += `<div class="daily-block">`;
           dailyHtml += `<div class="daily-date-label">${formatDate(m.date)}</div>`;
@@ -381,7 +450,9 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
         area.innerHTML = dailyHtml;
       } else if (s.notes && s.notes.length > 0) {
         // daily 데이터 없으면 weekly notes로 fallback
-        let notesHtml = '';
+        const fallbackMentions = [{ date: date, notes: s.notes, shows: [] }];
+        const summary = synthesize(fallbackMentions);
+        let notesHtml = summary ? `<div class="weekly-summary-box">${summary}</div>` : '';
         s.notes.forEach(n => {
           notesHtml += `<div class="sheet-point"><span class="sheet-point-show">${n.show}</span><span class="sheet-point-body">${n.view}</span></div>`;
         });
