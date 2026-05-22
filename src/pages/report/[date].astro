@@ -293,10 +293,22 @@ const stocksJson = report ? JSON.stringify(report.stocks) : '[]';
   const hdrInner = document.querySelector('.hdr-inner') as HTMLElement;
 
   if (hero && hdrInner) {
+    const ctx = document.createElement('div');
+    ctx.className = 'hdr-ctx';
+
+    const backBtn = document.createElement('button');
+    backBtn.className = 'hdr-back-btn';
+    backBtn.setAttribute('aria-label', '뒤로');
+    backBtn.textContent = '←';
+    backBtn.addEventListener('click', () => history.back());
+
     const label = document.createElement('span');
     label.className = 'hdr-ctx-label';
     label.textContent = 'PICK 리포트';
-    hdrInner.appendChild(label);
+
+    ctx.appendChild(backBtn);
+    ctx.appendChild(label);
+    hdrInner.appendChild(ctx);
 
     const observer = new IntersectionObserver(
       ([entry]) => {

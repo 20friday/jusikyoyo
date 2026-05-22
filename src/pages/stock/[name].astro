@@ -239,19 +239,29 @@ const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
 
 <script>
   const hdrInner = document.querySelector('.hdr-inner') as HTMLElement;
-  if (hdrInner) {
+  const hero = document.querySelector('.stock-hero') as HTMLElement;
+  if (hdrInner && hero) {
+    const ctx = document.createElement('div');
+    ctx.className = 'hdr-ctx';
+
+    const backBtn = document.createElement('button');
+    backBtn.className = 'hdr-back-btn';
+    backBtn.setAttribute('aria-label', '뒤로');
+    backBtn.textContent = '←';
+    backBtn.addEventListener('click', () => history.back());
+
     const label = document.createElement('span');
     label.className = 'hdr-ctx-label';
     label.textContent = document.querySelector('.stock-title')?.textContent ?? '';
-    hdrInner.appendChild(label);
 
-    const hero = document.querySelector('.stock-hero') as HTMLElement;
-    if (hero) {
-      const observer = new IntersectionObserver(
-        ([entry]) => { hdrInner.classList.toggle('is-scrolled', !entry.isIntersecting); },
-        { threshold: 0, rootMargin: '-56px 0px 0px 0px' }
-      );
-      observer.observe(hero);
-    }
+    ctx.appendChild(backBtn);
+    ctx.appendChild(label);
+    hdrInner.appendChild(ctx);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => { hdrInner.classList.toggle('is-scrolled', !entry.isIntersecting); },
+      { threshold: 0, rootMargin: '-56px 0px 0px 0px' }
+    );
+    observer.observe(hero);
   }
 </script>

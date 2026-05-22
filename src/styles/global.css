@@ -107,11 +107,6 @@ ul, ol { margin: 0; padding-left: 1.4em; }
   opacity: 0;
   pointer-events: none;
 }
-.hdr-inner.is-scrolled .btn-pill {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms ease;
-}
 .hdr-inner.is-scrolled .hdr-ctx {
   opacity: 1;
   pointer-events: auto;
