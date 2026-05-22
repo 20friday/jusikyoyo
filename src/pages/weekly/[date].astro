@@ -12,6 +12,7 @@ const { data: report } = await Astro.locals.supabase
   .single();
 
 const sectorsJson = JSON.stringify(report?.sectors ?? []);
+const stocksJson  = JSON.stringify(report?.stocks  ?? []);
 ---
 <Base title="주간 PICK 리포트" description="이번 주 방송 종합 리포트">
   {!report ? (
@@ -44,12 +45,14 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
       <div class="report-section">
         <div class="report-section-label">이번 주 반복 언급 섹터</div>
         {report.sectors.map((sector: any, i: number) => (
-          <button class="sector-row sector-row--clickable" data-sector-index={i}>
-            <div class="sector-row-left">
-              <div class="sector-name">{sector.name}</div>
-              <div class="sector-flow">{sector.flow}</div>
+          <button class="stock-row stock-row--clickable" data-type="sector" data-index={i}>
+            <div class="stock-row-left">
+              <span class="stock-name">{sector.name}</span>
             </div>
-            <span class="sector-row-chevron">›</span>
+            <div class="stock-row-right">
+              <span class="stock-shows stock-flow-preview">{sector.flow}</span>
+              <span class="stock-row-chevron">›</span>
+            </div>
           </button>
         ))}
       </div>
@@ -58,13 +61,16 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
       <div class="report-section">
         <div class="report-section-label">이번 주 공통 언급 종목</div>
         {report.stocks.map((stock: any, i: number) => (
-          <div class="stock-row">
+          <button class="stock-row stock-row--clickable" data-type="stock" data-index={i}>
             <div class="stock-row-left">
               <span class="stock-rank">#{i + 1}</span>
               <span class="stock-name">{stock.name}</span>
             </div>
-            <span class="stock-shows">{stock.days === 5 ? '5일 내내' : `${stock.days}일`}</span>
-          </div>
+            <div class="stock-row-right">
+              <span class="stock-shows">{stock.days === 5 ? '5일 내내' : `${stock.days}일`}</span>
+              <span class="stock-row-chevron">›</span>
+            </div>
+          </button>
         ))}
       </div>
 
@@ -111,19 +117,18 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
     </div>
   )}
 
-  <!-- 섹터 모달 -->
-  <div id="sector-modal-backdrop" class="sector-modal-backdrop"></div>
-  <div id="sector-modal" class="sector-modal" aria-hidden="true" role="dialog">
-    <div class="sector-modal-inner">
-      <div id="sector-modal-content" class="sector-modal-content"></div>
-      <button id="sector-modal-close" class="sector-modal-close" aria-label="닫기">닫기</button>
+  <!-- 공용 모달 -->
+  <div id="weekly-modal-backdrop" class="weekly-modal-backdrop"></div>
+  <div id="weekly-modal" class="weekly-modal" aria-hidden="true" role="dialog">
+    <div class="weekly-modal-inner">
+      <div id="weekly-modal-content" class="weekly-modal-content"></div>
+      <button id="weekly-modal-close" class="weekly-modal-close" aria-label="닫기">닫기</button>
     </div>
   </div>
 </Base>
 
 <style>
-  /* 기존 report-* 클래스 재사용. 아래는 weekly 전용 최소 추가분 */
-
+  /* ── weekly 전용 ── */
   .weekly-insight-para {
     font-size: 17px;
     color: var(--text-2);
@@ -142,11 +147,7 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
   .weekly-gap:last-child { border-bottom: none; padding-bottom: 0; }
   .weekly-gap strong { color: var(--text-1); font-weight: 700; }
 
-  .weekly-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
+  .weekly-chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .weekly-chip {
     background: #fff3ea;
     border: 1.5px solid var(--blue);
@@ -165,42 +166,41 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
     border-bottom: 1px solid var(--border);
   }
   .weekly-checkpoint:last-child { border-bottom: none; padding-bottom: 0; }
-  .weekly-checkpoint-dot {
-    color: var(--blue);
-    font-weight: 700;
-    flex-shrink: 0;
-    line-height: 1.75;
-  }
-  .weekly-checkpoint-text {
-    font-size: 17px;
-    color: var(--text-2);
-    line-height: 1.75;
-  }
+  .weekly-checkpoint-dot { color: var(--blue); font-weight: 700; flex-shrink: 0; line-height: 1.75; }
+  .weekly-checkpoint-text { font-size: 17px; color: var(--text-2); line-height: 1.75; }
 
-  /* 클릭 가능한 섹터 행 */
-  .sector-row--clickable {
+  /* ── 클릭 가능한 행 ── */
+  .stock-row--clickable {
     width: 100%;
     background: none;
     border: none;
     text-align: left;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+  }
+  .stock-row--clickable:active { opacity: 0.7; }
+
+  .stock-row-right {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 0;
+    gap: 6px;
   }
-  .sector-row--clickable:active { opacity: 0.7; }
-  .sector-row-left { flex: 1; min-width: 0; }
-  .sector-row-chevron {
+  .stock-flow-preview {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+  .stock-row-chevron {
     font-size: 20px;
     color: var(--text-3);
     line-height: 1;
     flex-shrink: 0;
   }
 
-  /* 섹터 모달 */
-  .sector-modal-backdrop {
+  /* ── 모달 ── */
+  .weekly-modal-backdrop {
     display: none;
     position: fixed;
     inset: 0;
@@ -209,9 +209,9 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
     backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
   }
-  .sector-modal-backdrop.open { display: block; }
+  .weekly-modal-backdrop.open { display: block; }
 
-  .sector-modal {
+  .weekly-modal {
     display: none;
     position: fixed;
     inset: 0;
@@ -220,9 +220,9 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
     justify-content: center;
     padding: 24px 16px;
   }
-  .sector-modal.open { display: flex; }
+  .weekly-modal.open { display: flex; }
 
-  .sector-modal-inner {
+  .weekly-modal-inner {
     background: var(--card);
     border-radius: 20px;
     width: 100%;
@@ -231,16 +231,14 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    position: relative;
-    animation: modal-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
+    animation: wmodal-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
   }
-
-  @keyframes modal-in {
+  @keyframes wmodal-in {
     from { opacity: 0; transform: scale(0.95); }
     to   { opacity: 1; transform: scale(1); }
   }
 
-  .sector-modal-close {
+  .weekly-modal-close {
     display: block;
     flex-shrink: 0;
     width: calc(100% - 40px);
@@ -255,42 +253,26 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
     cursor: pointer;
     font-family: var(--font);
   }
-  .sector-modal-close:active { background: var(--divider); }
+  .weekly-modal-close:active { background: var(--divider); }
 
-  .sector-modal-content {
+  .weekly-modal-content {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 20px 20px 8px;
   }
-
-  .sector-modal-name {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--text-1);
-    letter-spacing: -0.02em;
-    margin-bottom: 16px;
-  }
-  .sector-modal-flow {
-    font-size: 16px;
-    line-height: 1.75;
-    color: var(--text-2);
-  }
 </style>
 
-<script define:vars={{ sectorsJson }}>
+<script define:vars={{ sectorsJson, stocksJson }}>
   const sectors = JSON.parse(sectorsJson);
-  const backdrop = document.getElementById('sector-modal-backdrop');
-  const sheet = document.getElementById('sector-modal');
-  const content = document.getElementById('sector-modal-content');
+  const stocks  = JSON.parse(stocksJson);
 
-  function openModal(index) {
-    const sector = sectors[index];
-    if (!sector) return;
-    content.innerHTML = `
-      <div class="sector-modal-name">${sector.name}</div>
-      <div class="sector-modal-flow">${sector.flow}</div>
-    `;
+  const backdrop = document.getElementById('weekly-modal-backdrop');
+  const sheet    = document.getElementById('weekly-modal');
+  const content  = document.getElementById('weekly-modal-content');
+
+  function openModal(html) {
+    content.innerHTML = html;
     backdrop.classList.add('open');
     sheet.classList.add('open');
     sheet.setAttribute('aria-hidden', 'false');
@@ -304,19 +286,39 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
     document.body.style.overflow = '';
   }
 
-  document.querySelectorAll('.sector-row--clickable').forEach(btn => {
+  document.querySelectorAll('.stock-row--clickable').forEach(btn => {
     btn.addEventListener('click', () => {
-      openModal(Number(btn.dataset.sectorIndex));
+      const type  = btn.dataset.type;
+      const index = Number(btn.dataset.index);
+      let html = '';
+
+      if (type === 'sector') {
+        const s = sectors[index];
+        if (!s) return;
+        html  = `<div class="sheet-stock-name">${s.name}</div>`;
+        html += `<div class="sheet-stock-shows">반복 언급 섹터</div>`;
+        html += `<div class="sheet-point"><span class="sheet-point-body">${s.flow}</span></div>`;
+
+      } else if (type === 'stock') {
+        const s = stocks[index];
+        if (!s) return;
+        const daysLabel = s.days === 5 ? '5일 내내' : `${s.days}일`;
+        html  = `<div class="sheet-stock-name">${s.name}</div>`;
+        html += `<div class="sheet-stock-shows">이번 주 ${daysLabel} 언급</div>`;
+        html += `<a class="sheet-history" href="/stock/${s.name}">방송 언급 히스토리 보기 →</a>`;
+      }
+
+      openModal(html);
     });
   });
 
   sheet.addEventListener('click', closeModal);
-  document.getElementById('sector-modal-close').addEventListener('click', closeModal);
-  document.querySelector('.sector-modal-inner').addEventListener('click', e => e.stopPropagation());
+  document.getElementById('weekly-modal-close').addEventListener('click', closeModal);
+  document.querySelector('.weekly-modal-inner').addEventListener('click', e => e.stopPropagation());
 </script>
 
 <script>
-  const hero = document.querySelector('.report-hero') as HTMLElement;
+  const hero    = document.querySelector('.report-hero') as HTMLElement;
   const hdrInner = document.querySelector('.hdr-inner') as HTMLElement;
 
   if (hero && hdrInner) {
@@ -338,9 +340,7 @@ const sectorsJson = JSON.stringify(report?.sectors ?? []);
     hdrInner.appendChild(ctx);
 
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        hdrInner.classList.toggle('is-scrolled', !entry.isIntersecting);
-      },
+      ([entry]) => { hdrInner.classList.toggle('is-scrolled', !entry.isIntersecting); },
       { threshold: 0, rootMargin: '-56px 0px 0px 0px' }
     );
     observer.observe(hero);
