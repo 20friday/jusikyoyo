@@ -78,6 +78,7 @@ const fmt = (v: any) => JSON.stringify(v ?? [], null, 2);
 
       <div class="form-section">
         <h2 class="section-title">공통 언급 종목 (JSON)</h2>
+        <p style="font-size:12px;color:#999;margin-bottom:4px;">형식: {`[{"name":"종목명","days":4,"notes":[{"show":"방송명","view":"내용"}]}]`}</p>
         <textarea class="form-textarea mono" name="stocks" rows="8">{fmt(r.stocks)}</textarea>
       </div>
 

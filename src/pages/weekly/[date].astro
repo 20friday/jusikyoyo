@@ -305,6 +305,17 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
         const daysLabel = s.days === 5 ? '5일 내내' : `${s.days}일`;
         html  = `<div class="sheet-stock-name">${s.name}</div>`;
         html += `<div class="sheet-stock-shows">이번 주 ${daysLabel} 언급</div>`;
+
+        if (s.notes && s.notes.length > 0) {
+          s.notes.forEach(n => {
+            html += `<div class="sheet-point"><span class="sheet-point-show">${n.show}</span><span class="sheet-point-body">${n.view}</span></div>`;
+          });
+        } else if (s.reason) {
+          html += `<div class="sheet-point"><span class="sheet-point-body">${s.reason}</span></div>`;
+        } else {
+          html += `<div class="sheet-no-comp">이 종목은 이번 주 여러 방송에서 언급됐지만, 별도 내용 정리가 없어요.</div>`;
+        }
+
         html += `<a class="sheet-history" href="/stock/${s.name}">방송 언급 히스토리 보기 →</a>`;
       }
 
