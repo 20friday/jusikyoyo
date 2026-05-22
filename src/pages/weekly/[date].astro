@@ -11,8 +11,7 @@ const { data: report } = await Astro.locals.supabase
   .eq('date', date)
   .single();
 
-const sectorsJson = JSON.stringify(report?.sectors ?? []);
-const stocksJson  = JSON.stringify(report?.stocks  ?? []);
+const stocksJson = JSON.stringify(report?.stocks ?? []);
 ---
 <Base title="주간 PICK 리포트" description="이번 주 방송 종합 리포트">
   {!report ? (
@@ -44,16 +43,11 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
       <!-- 3. 이번 주 반복 언급 섹터 -->
       <div class="report-section">
         <div class="report-section-label">이번 주 반복 언급 섹터</div>
-        {report.sectors.map((sector: any, i: number) => (
-          <button class="stock-row stock-row--clickable" data-type="sector" data-index={i}>
-            <div class="stock-row-left">
-              <span class="stock-name">{sector.name}</span>
-            </div>
-            <div class="stock-row-right">
-              <span class="stock-shows stock-flow-preview">{sector.flow}</span>
-              <span class="stock-row-chevron">›</span>
-            </div>
-          </button>
+        {report.sectors.map((sector: any) => (
+          <div class="sector-row">
+            <div class="sector-name">{sector.name}</div>
+            <div class="sector-flow">{sector.flow}</div>
+          </div>
         ))}
       </div>
 
@@ -282,9 +276,8 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
 
 </style>
 
-<script define:vars={{ sectorsJson, stocksJson, date, supabaseUrl, supabaseKey }}>
-  const sectors = JSON.parse(sectorsJson);
-  const stocks  = JSON.parse(stocksJson);
+<script define:vars={{ stocksJson, date, supabaseUrl, supabaseKey }}>
+  const stocks = JSON.parse(stocksJson);
   const DAYS = ['일','월','화','수','목','금','토'];
 
   const backdrop = document.getElementById('weekly-modal-backdrop');
@@ -435,22 +428,10 @@ const stocksJson  = JSON.stringify(report?.stocks  ?? []);
 
   document.querySelectorAll('.stock-row--clickable').forEach(btn => {
     btn.addEventListener('click', () => {
-      const type  = btn.dataset.type;
       const index = Number(btn.dataset.index);
-
-      if (type === 'sector') {
-        const s = sectors[index];
-        if (!s) return;
-        let html  = `<div class="sheet-stock-name">${s.name}</div>`;
-        html += `<div class="sheet-stock-shows">반복 언급 섹터</div>`;
-        html += `<div class="sheet-point"><span class="sheet-point-body">${s.flow}</span></div>`;
-        openModal(html);
-
-      } else if (type === 'stock') {
-        const s = stocks[index];
-        if (!s) return;
-        openStockModal(s);
-      }
+      const s = stocks[index];
+      if (!s) return;
+      openStockModal(s);
     });
   });
 
