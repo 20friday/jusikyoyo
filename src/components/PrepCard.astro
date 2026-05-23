@@ -11,7 +11,7 @@ const initialStatus = isMarketHoliday ? '오늘은 쉬는 날' : '오늘 업데�
 const initialEta   = isMarketHoliday ? '다음 거래일에 다시 확인' : '오전 중 다시 확인';
 ---
 
-<div class="prep" data-prep-card data-holiday={isMarketHoliday ? 'true' : 'false'} role="status" aria-live="polite">
+<div class="prep" data-prep-card data-holiday={isMarketHoliday ? 'true' : 'false'} data-band={isMarketHoliday ? 'holiday' : ''} role="status" aria-live="polite">
   <!-- Mascot slot -->
   <div class="prep-cow-slot">
     <div class="prep-cow-wrap" aria-hidden="true">
@@ -267,6 +267,17 @@ const initialEta   = isMarketHoliday ? '다음 거래일에 다시 확인' : '�
     0%   { box-shadow: 0 0 0 0   rgba(237, 120, 31, 0.45); }
     70%  { box-shadow: 0 0 0 7px rgba(237, 120, 31, 0); }
     100% { box-shadow: 0 0 0 0   rgba(237, 120, 31, 0); }
+  }
+
+  @keyframes prep-pulse-gray {
+    0%   { box-shadow: 0 0 0 0   rgba(148, 160, 173, 0.45); }
+    70%  { box-shadow: 0 0 0 7px rgba(148, 160, 173, 0); }
+    100% { box-shadow: 0 0 0 0   rgba(148, 160, 173, 0); }
+  }
+
+  [data-prep-card][data-band="holiday"] .prep-dot {
+    background: #94a0ad;
+    animation: prep-pulse-gray 1.8s ease-out infinite;
   }
 
   /* Body animations */
