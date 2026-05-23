@@ -1,11 +1,17 @@
 ---
 interface Props {
   latestSlug?: string;
+  isMarketHoliday?: boolean;
 }
-const { latestSlug } = Astro.props;
+const { latestSlug, isMarketHoliday = false } = Astro.props;
+
+const initialTitle = isMarketHoliday ? '오늘은 시장도 잠시 쉬어가요' : '오늘의 PICK은 잠시 쉬어가고 있어요';
+const initialDesc  = isMarketHoliday ? '국내 증시 휴장일이라 오늘의 PICK은 쉬어갑니다. 다음 거래일에 주요 방송과 시장 이슈를 정리해서 다시 전해드릴게요.' : '밤사이 주요 이슈를 정리해, 장이 시작되면 다시 시장 흐름을 확인할게요.';
+const initialStatus = isMarketHoliday ? '오늘은 쉬는 날' : '오늘 업데이트 예정';
+const initialEta   = isMarketHoliday ? '다음 거래일에 다시 확인' : '오전 중 다시 확인';
 ---
 
-<div class="prep" data-prep-card role="status" aria-live="polite">
+<div class="prep" data-prep-card data-holiday={isMarketHoliday ? 'true' : 'false'} role="status" aria-live="polite">
   <!-- Mascot slot -->
   <div class="prep-cow-slot">
     <div class="prep-cow-wrap" aria-hidden="true">
@@ -117,10 +123,10 @@ const { latestSlug } = Astro.props;
   <div class="prep-text">
     <div class="prep-status">
       <span class="prep-dot" aria-hidden="true"></span>
-      <span class="prep-status-text">오늘 업데이트 예정</span>
+      <span class="prep-status-text">{initialStatus}</span>
     </div>
-    <h3 class="prep-title">오늘의 PICK은 잠시 쉬어가고 있어요</h3>
-    <p class="prep-desc">밤사이 주요 이슈를 정리해, 장이 시작되면 다시 시장 흐름을 확인할게요.</p>
+    <h3 class="prep-title">{initialTitle}</h3>
+    <p class="prep-desc">{initialDesc}</p>
   </div>
 
 </div>
@@ -479,6 +485,7 @@ const { latestSlug } = Astro.props;
   function apply() {
     const root = document.querySelector<HTMLElement>('[data-prep-card]');
     if (!root) return;
+    if (root.dataset.holiday === 'true') return; // 휴장일: 서버 렌더 텍스트 유지
     const now  = new Date();
     const band = currentBand(now.getHours(), now.getMinutes());
     const b    = BANDS[band];

@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import PrepCard from '../components/PrepCard.astro';
+import { isKoreanMarketHoliday } from '../lib/marketHoliday';
 
 // 주간 픽 (최신 1개)
 const { data: weeklyList } = await Astro.locals.supabase
@@ -62,6 +63,7 @@ const todayKey = (() => {
   const d = new Date(Date.now() + 9 * 60 * 60 * 1000);
   return d.toISOString().slice(0, 10);
 })();
+const isMarketHoliday = isKoreanMarketHoliday(todayKey);
 
 // 포스트 날짜 + 리포트 날짜를 합쳐서 정렬 (오늘은 항상 맨 앞에 포함)
 const allDates = [...new Set([todayKey, ...Object.keys(groupedPosts), ...Object.keys(reportsByDate)])];
@@ -109,7 +111,7 @@ const sortedDates = allDates.sort((a, b) => b.localeCompare(a));
             <span class="date-divider-label">{formatDate(date)}</span>
           </div>
           {date === todayKey && !(groupedPosts[date]?.length) && (
-            <PrepCard latestSlug={posts[0]?.slug} />
+            <PrepCard latestSlug={posts[0]?.slug} isMarketHoliday={isMarketHoliday} />
           )}
           {reportsByDate[date] && (
             <a href={`/report/${date}`} class="report-card" data-date={date}>
