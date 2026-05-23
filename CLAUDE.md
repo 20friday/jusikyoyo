@@ -124,8 +124,24 @@ Ted가 방송 스크립트 요약을 주면 `/tmp/insert_post.mjs` 파일을 만
 
 ---
 
+## 디자인 원칙
+- 기준 파일: `src/pages/index.astro` (피드 페이지)
+- 폰트 크기: 본문·입력 17px / 보조 15px / 작은 라벨 14px / 버튼 17px / 제목 20px+
+- 모든 새 페이지는 이 기준 반영할 것
+
+---
+
 ## GA4 설정
 - Measurement ID: `G-XY9KNNSY9W`
 - `Base.astro`에 쿠키 없는 방식으로 삽입됨
 - 어드민 대시보드에 GA4 바로가기 버튼 있음
 - GA4 Data API 서비스 계정은 UI로 추가 불가 (플랫폼 제약)
+
+---
+
+## 앞으로 남은 작업 (우선순위 순)
+1. 토스페이먼츠 연동 (월정액 가격 미정)
+2. 유료 글 잠금 기능 — Ted가 시점 알려줄 예정
+3. GitHub 레포 Private 전환 (유료 잠금 전에)
+4. `/forgot-id` 페이지 미구현 (로그인 하단 링크에 있음)
+5. Supabase 이메일 템플릿 한국어화 (나중에 Resend 또는 Gmail SMTP)
