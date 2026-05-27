@@ -67,12 +67,12 @@ const stocksJson = report ? JSON.stringify(report.stocks) : '[]';
         {report.comparisons.map((comp: any) => (
           <div style="margin-bottom:32px;">
             <div class="comparison-stock-title">{comp.stock}</div>
+            <div class="comparison-pick">PICK: {comp.pick}</div>
             {comp.points.map(pt => (
               <div class="comparison-point">
                 <span class="comparison-point-show">{pt.show}:</span>{' '}{pt.view}
               </div>
             ))}
-            <div class="comparison-pick">PICK: {comp.pick}</div>
           </div>
         ))}
       </div>
