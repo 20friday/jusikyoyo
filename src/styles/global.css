@@ -513,24 +513,63 @@ ul, ol { margin: 0; padding-left: 1.4em; }
 .comparison-point {
   font-size: 17px;
   color: var(--text-2);
-  margin-bottom: 8px;
-  line-height: 1.75;
+  line-height: 1.8;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
 }
-.comparison-point-show { font-weight: 700; color: var(--text-1); }
+.comparison-point:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+.comparison-point-show {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-3);
+  letter-spacing: 0.03em;
+  margin-bottom: 5px;
+}
 .comparison-pick {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--blue);
-  margin-top: 10px;
-  line-height: 1.75;
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: rgba(59,130,246,0.07);
+  border-radius: 10px;
+  line-height: 1.8;
 }
 
-.sector-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
-.sector-row:last-of-type { border-bottom: none; }
-.sector-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
-.sector-flow { font-size: 17px; color: var(--text-2); line-height: 1.75; }
+.sector-row { padding: 20px 0; border-bottom: 1px solid var(--border); }
+.sector-row:last-of-type { border-bottom: none; padding-bottom: 4px; }
+.sector-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-1);
+  margin-bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sector-name::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: #ed781f;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.sector-flow { font-size: 17px; color: var(--text-2); }
+.sector-para { margin: 0 0 12px; line-height: 1.85; }
+.sector-para:last-child { margin-bottom: 0; }
 
-.report-insight { font-size: 17px; color: var(--text-2); line-height: 1.8; }
+.report-insight { }
+.insight-para { font-size: 17px; color: var(--text-2); line-height: 1.85; margin: 0 0 14px; }
+.insight-para:last-child { margin-bottom: 0; }
+.insight-para--lead { font-size: 17px; font-weight: 700; color: var(--text-1); }
 
 .report-lock-cta { text-align: center; margin-top: 12px; }
 .report-lock-btn {

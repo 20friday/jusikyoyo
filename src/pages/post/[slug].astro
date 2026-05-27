@@ -258,6 +258,16 @@ const stockInfoJson = JSON.stringify(stockInfo);
   document.querySelector('.stock-modal-inner').addEventListener('click', e => e.stopPropagation());
 </script>
 
+<script>
+  // 볼드 타이틀만 있는 단락의 아래 여백을 줄여 타이틀+설명이 묶여 보이도록
+  document.querySelectorAll('.prose p').forEach(p => {
+    const nodes = [...p.childNodes].filter(n => n.nodeType !== 3 || n.textContent.trim());
+    if (nodes.length === 1 && nodes[0].tagName === 'STRONG') {
+      p.style.marginBottom = '4px';
+    }
+  });
+</script>
+
 <script define:vars={{ slug, supabaseUrl, supabaseKey }}>
   fetch(`${supabaseUrl}/rest/v1/rpc/increment_post_view`, {
     method: 'POST',
