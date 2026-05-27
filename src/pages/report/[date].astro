@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import { renderMarkdown } from '../../lib/renderMarkdown';
 
 const { date } = Astro.params;
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
@@ -28,6 +29,7 @@ function toParas(text: string): string[] {
 
 const comparisonsJson = report ? JSON.stringify(report.comparisons) : '[]';
 const stocksJson = report ? JSON.stringify(report.stocks) : '[]';
+const bodyHtml = report?.body ? await renderMarkdown(report.body) : null;
 ---
 <Base title="PICK 일일 리포트" description="오늘 방송 교차분석 리포트">
   {!report ? (
@@ -44,63 +46,72 @@ const stocksJson = report ? JSON.stringify(report.stocks) : '[]';
         <div class="report-hero-headline">{report.headline}</div>
       </div>
 
-      <!-- 오늘의 투자 인사이트 -->
-      <div class="report-section">
-        <div class="report-section-label">오늘의 투자 인사이트</div>
-        <div class="report-insight">
-          {toParas(report.insight).map((para, i) => (
-            <p class={i === 0 ? 'insight-para insight-para--lead' : 'insight-para'}>{para}</p>
-          ))}
+      {bodyHtml ? (
+        <!-- body 본문 -->
+        <div class="report-section">
+          <div class="prose" set:html={bodyHtml} />
         </div>
-      </div>
-
-      <!-- 공통 언급 종목 -->
-      <div class="report-section">
-        <div class="report-section-label">공통 언급 종목</div>
-        {report.stocks.map((stock: any, i: number) => (
-          <button class="stock-row stock-row--clickable" data-stock={stock.name}>
-            <div class="stock-row-left">
-              <span class="stock-rank">#{i + 1}</span>
-              <span class="stock-name">{stock.name}</span>
-            </div>
-            <div class="stock-row-right">
-              <span class="stock-shows">{stock.shows.join(' · ')}</span>
-              <span class="stock-row-chevron">›</span>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      <!-- 방송 간 의견 차이 -->
-      <div class="report-section">
-        <div class="report-section-label">방송 간 의견 차이</div>
-        {report.comparisons.map((comp: any) => (
-          <div style="margin-bottom:32px;">
-            <div class="comparison-stock-title">{comp.stock}</div>
-            <div class="comparison-pick">PICK: {comp.pick}</div>
-            {comp.points.map(pt => (
-              <div class="comparison-point">
-                <span class="comparison-point-show">{pt.show}:</span>{' '}{pt.view}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <!-- 섹터 공통 흐름 -->
-      <div class="report-section">
-        <div class="report-section-label">섹터 공통 흐름</div>
-        {report.sectors.map((sector: any) => (
-          <div class="sector-row">
-            <div class="sector-name">{sector.name}</div>
-            <div class="sector-flow">
-              {toParas(sector.flow).map(para => (
-                <p class="sector-para">{para}</p>
+      ) : (
+        <>
+          <!-- 오늘의 투자 인사이트 -->
+          <div class="report-section">
+            <div class="report-section-label">오늘의 투자 인사이트</div>
+            <div class="report-insight">
+              {toParas(report.insight).map((para, i) => (
+                <p class={i === 0 ? 'insight-para insight-para--lead' : 'insight-para'}>{para}</p>
               ))}
             </div>
           </div>
-        ))}
-      </div>
+
+          <!-- 공통 언급 종목 -->
+          <div class="report-section">
+            <div class="report-section-label">공통 언급 종목</div>
+            {report.stocks.map((stock: any, i: number) => (
+              <button class="stock-row stock-row--clickable" data-stock={stock.name}>
+                <div class="stock-row-left">
+                  <span class="stock-rank">#{i + 1}</span>
+                  <span class="stock-name">{stock.name}</span>
+                </div>
+                <div class="stock-row-right">
+                  <span class="stock-shows">{stock.shows.join(' · ')}</span>
+                  <span class="stock-row-chevron">›</span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <!-- 방송 간 의견 차이 -->
+          <div class="report-section">
+            <div class="report-section-label">방송 간 의견 차이</div>
+            {report.comparisons.map((comp: any) => (
+              <div style="margin-bottom:32px;">
+                <div class="comparison-stock-title">{comp.stock}</div>
+                <div class="comparison-pick">PICK: {comp.pick}</div>
+                {comp.points.map(pt => (
+                  <div class="comparison-point">
+                    <span class="comparison-point-show">{pt.show}:</span>{' '}{pt.view}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <!-- 섹터 공통 흐름 -->
+          <div class="report-section">
+            <div class="report-section-label">섹터 공통 흐름</div>
+            {report.sectors.map((sector: any) => (
+              <div class="sector-row">
+                <div class="sector-name">{sector.name}</div>
+                <div class="sector-flow">
+                  {toParas(sector.flow).map(para => (
+                    <p class="sector-para">{para}</p>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
     </div>
   )}
