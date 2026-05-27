@@ -44,6 +44,16 @@ const stocksJson = report ? JSON.stringify(report.stocks) : '[]';
         <div class="report-hero-headline">{report.headline}</div>
       </div>
 
+      <!-- 오늘의 투자 인사이트 -->
+      <div class="report-section">
+        <div class="report-section-label">오늘의 투자 인사이트</div>
+        <div class="report-insight">
+          {toParas(report.insight).map((para, i) => (
+            <p class={i === 0 ? 'insight-para insight-para--lead' : 'insight-para'}>{para}</p>
+          ))}
+        </div>
+      </div>
+
       <!-- 공통 언급 종목 -->
       <div class="report-section">
         <div class="report-section-label">공통 언급 종목</div>
@@ -90,16 +100,6 @@ const stocksJson = report ? JSON.stringify(report.stocks) : '[]';
             </div>
           </div>
         ))}
-      </div>
-
-      <!-- 오늘의 투자 인사이트 -->
-      <div class="report-section">
-        <div class="report-section-label">오늘의 투자 인사이트</div>
-        <div class="report-insight">
-          {toParas(report.insight).map((para, i) => (
-            <p class={i === 0 ? 'insight-para insight-para--lead' : 'insight-para'}>{para}</p>
-          ))}
-        </div>
       </div>
 
     </div>
