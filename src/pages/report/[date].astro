@@ -48,7 +48,7 @@ const bodyHtml = report?.body ? await renderMarkdown(report.body) : null;
 
       {bodyHtml ? (
         <!-- body 본문 -->
-        <div class="report-section">
+        <div class="report-body">
           <div class="prose" set:html={bodyHtml} />
         </div>
       ) : (
