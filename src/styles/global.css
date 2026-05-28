@@ -452,6 +452,9 @@ ul, ol { margin: 0; padding-left: 1.4em; }
   font-weight: 600;
 }
 
+.report-body {
+  padding: 24px 16px 80px;
+}
 .report-section {
   background: var(--card);
   margin: 10px 12px;
