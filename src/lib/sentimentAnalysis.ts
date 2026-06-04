@@ -22,7 +22,7 @@ export async function analyzeStockSentiments(
   if (stocks.length === 0) return new Map();
 
   const apiKey = process.env.ANTHROPIC_API_KEY ?? import.meta.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return new Map();
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY 없음 - process:' + !!process.env.ANTHROPIC_API_KEY + ' meta:' + !!import.meta.env.ANTHROPIC_API_KEY);
 
   const client = new Anthropic({ apiKey });
 
