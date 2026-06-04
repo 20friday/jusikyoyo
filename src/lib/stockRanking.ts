@@ -270,7 +270,7 @@ export async function computeRanking(
       `${showCount}개 방송에서 언급됐어요`,
       ...s.latestShows.map((show: string) => {
         const note = s.latestNotes.find((n: any) => n.show === show);
-        return note ? `${show}: ${note.view.slice(0, 30)}…` : `${show}에서 언급`;
+        return note ? `<strong>${show}</strong>: ${note.view}` : `<strong>${show}</strong>에서 언급`;
       }),
     ];
 

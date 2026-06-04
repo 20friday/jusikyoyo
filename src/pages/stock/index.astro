@@ -220,10 +220,7 @@ const initialData = JSON.stringify(dayData);
   .rank-status--warn { background: var(--down-bg); color: var(--down); }
   .rank-status--loading { background: #f0f2f4; color: #94a0ad; }
   .rank-intensity {
-    font-size: 12px;
-    color: var(--text-3);
-    font-weight: 500;
-    margin-left: 2px;
+    display: none;
   }
 
   .rank-status-reason {
@@ -419,9 +416,9 @@ const initialData = JSON.stringify(dayData);
 
   /* 왜 순위에 올랐나요 */
   .basis-title {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
-    color: var(--text-3);
+    color: var(--text-2);
     margin-bottom: 8px;
   }
   .basis-list {
@@ -682,7 +679,9 @@ function detailHtml(stock) {
     </div>`;
   };
 
-  const statusReasonTitle = stock.status === 'pos' ? '긍정인 이유는!' : stock.status === 'warn' ? '주의해야 할 이유는!' : '분석 내용은!';
+  const statusReasonTitle = stock.statusReason === null
+    ? '방송 분석 내용'
+    : stock.status === 'pos' ? '긍정인 이유는!' : stock.status === 'warn' ? '주의해야 할 이유는!' : '분석 내용은!';
   const statusReasonHtml = stock.statusReason === null
     ? `<span style="color:#94a0ad">뉘앙스 분석 중이에요…</span>`
     : stock.statusReason
@@ -742,9 +741,6 @@ function cardHtml(stock) {
             <div class="rank-name-row">
               <span class="rank-name stock-tag" onclick="event.stopPropagation(); window.openStockPopup('${stock.name}')">${stock.name}</span>
               ${statusChip(stock.status, stock.statusReason !== null)}
-              ${stock.statusReason !== null && stock.intensity > 1
-                ? `<span class="rank-intensity">이슈 강도 ${stock.intensity}/5</span>`
-                : ''}
             </div>
             <div class="rank-stat-row">
               <span class="rank-change-pct rank-change-pct--${pcl}">${pct(stock.todayPct)}</span>
