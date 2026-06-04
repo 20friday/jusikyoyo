@@ -33,7 +33,8 @@ export const GET: APIRoute = async ({ url }) => {
       notes: s.notes ?? [],
     }));
 
-    const sentimentMap = await analyzeStockSentiments(stocks);
+    const anthropicKey = import.meta.env.ANTHROPIC_API_KEY;
+    const sentimentMap = await analyzeStockSentiments(stocks, anthropicKey);
     const result = Object.fromEntries(
       [...sentimentMap.entries()].map(([name, s]) => [name, { status: s.status, reason: s.reason }])
     );

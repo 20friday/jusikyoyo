@@ -16,13 +16,13 @@ export interface SentimentResult {
  * 여러 종목의 방송 코멘트를 한 번에 분석 (비용 절감)
  */
 export async function analyzeStockSentiments(
-  stocks: Array<{ name: string; notes: Array<{ show: string; view: string }> }>
+  stocks: Array<{ name: string; notes: Array<{ show: string; view: string }> }>,
+  apiKey?: string
 ): Promise<Map<string, SentimentResult>> {
 
   if (stocks.length === 0) return new Map();
+  if (!apiKey) apiKey = import.meta.env.ANTHROPIC_API_KEY;
 
-  // Vite의 정적 치환을 피하기 위해 process['env'] 사용
-  const apiKey = (process['env'] as any)['ANTHROPIC_API_KEY'] ?? import.meta.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY 없음');
 
   const client = new Anthropic({ apiKey });
