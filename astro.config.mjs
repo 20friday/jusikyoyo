@@ -7,7 +7,10 @@ import { remarkBlocks } from './src/lib/remarkBlocks.mjs';
 
 export default defineConfig({
   output: 'server',
-  adapter: vercel(),
+  adapter: vercel({
+    edgeMiddleware: false,
+    functionPerRoute: false,
+  }),
   integrations: [react()],
   markdown: {
     remarkPlugins: [remarkDirective, remarkBlocks],
