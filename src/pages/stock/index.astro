@@ -837,7 +837,7 @@ document.getElementById('periodTabs').addEventListener('click', async e => {
     try {
       const res = await fetch(`/api/stock-ranking?period=${period}`);
       const data = await res.json();
-      RANK_DATA[period] = data;
+      RANK_DATA[period] = Array.isArray(data) ? data : [];
     } catch {
       RANK_DATA[period] = [];
     }
