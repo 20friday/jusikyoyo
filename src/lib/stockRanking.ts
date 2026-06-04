@@ -11,6 +11,7 @@
 
 import { getStockCode } from './stockCodes';
 import { fetchStockPrices } from './yahooFinance';
+import { analyzeStockSentiments } from './sentimentAnalysis';
 
 export interface RankedStock {
   rank: number;
@@ -169,9 +170,15 @@ export async function computeRanking(
     dailyRankings.set(date, rankMap);
   }
 
-  // ── 주가 데이터 조회 ─────────────────────────────────────────
+  // ── 주가 데이터 조회 + 뉘앙스 분석 (병렬) ──────────────────────
   const codes = top10.map(s => getStockCode(s.name)).filter(Boolean) as string[];
-  const priceMap = await fetchStockPrices(codes);
+  const [priceMap, sentimentMap] = await Promise.all([
+    fetchStockPrices(codes),
+    analyzeStockSentiments(top10.map(s => ({
+      name: s.name,
+      notes: s.latestNotes,
+    }))),
+  ]);
 
   // 이름 → 코드 반대 맵핑
   const nameToCode = new Map<string, string>();
@@ -234,16 +241,11 @@ export async function computeRanking(
       }),
     ];
 
-    // status: 기본 중립, 주가 기반으로 추정
-    let status: 'pos' | 'neu' | 'warn' = 'neu';
-    if (prices) {
+    // status: AI 뉘앙스 분석 우선, 없으면 주가 기반 fallback
+    let status: 'pos' | 'neu' | 'warn' = sentimentMap.get(s.name) ?? 'neu';
+    if (!sentimentMap.has(s.name) && prices) {
       if (prices.todayPct >= 1.5) status = 'pos';
       else if (prices.todayPct <= -1.5) status = 'warn';
-    } else {
-      // 방송 코멘트 텍스트에서 추정
-      const allText = s.latestNotes.map((n: any) => n.view).join(' ');
-      if (allText.includes('급등') || allText.includes('강세') || allText.includes('상승')) status = 'pos';
-      else if (allText.includes('급락') || allText.includes('하락') || allText.includes('주의')) status = 'warn';
     }
 
     return {
