@@ -7,15 +7,34 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
   // 디버그: 키움 API 직접 테스트
   if (period === 'debug') {
+    let result = null;
+    let err = null;
     try {
-      const result = await fetchStockPrice('005930');
-      return new Response(JSON.stringify({
-        envKey: !!import.meta.env.KIWOOM_APP_KEY,
-        result,
-      }), { headers: { 'Content-Type': 'application/json' } });
+      result = await fetchStockPrice('005930');
     } catch (e: any) {
-      return new Response(JSON.stringify({ error: e?.message }), { headers: { 'Content-Type': 'application/json' } });
+      err = e?.message ?? String(e);
     }
+    // kiwoom.ts 내부 catch에서 null 반환하므로 토큰 직접 테스트
+    let tokenTest = null;
+    try {
+      const appKey = import.meta.env.KIWOOM_APP_KEY;
+      const appSecret = import.meta.env.KIWOOM_APP_SECRET;
+      const res = await fetch('https://api.kiwoom.com/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grant_type: 'client_credentials', appkey: appKey, secretkey: appSecret }),
+      });
+      const data = await res.json();
+      tokenTest = { code: data.return_code, msg: data.return_msg };
+    } catch (e: any) {
+      tokenTest = { error: e?.message };
+    }
+    return new Response(JSON.stringify({
+      envKey: !!import.meta.env.KIWOOM_APP_KEY,
+      tokenTest,
+      result,
+      err,
+    }), { headers: { 'Content-Type': 'application/json' } });
   }
 
   if (!['day', 'week', 'month'].includes(period)) {
