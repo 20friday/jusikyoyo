@@ -1,12 +1,18 @@
 import type { APIRoute } from 'astro';
 import { analyzeStockSentiments } from '../../lib/sentimentAnalysis';
+import { createClient } from '@supabase/supabase-js';
 
 // GET: 날짜 기반으로 Supabase에서 직접 notes 가져와서 분석
-export const GET: APIRoute = async ({ url, locals }) => {
+export const GET: APIRoute = async ({ url }) => {
   try {
     const date = url.searchParams.get('date') ?? new Date(Date.now() + 9*3600*1000).toISOString().slice(0, 10);
 
-    const { data: report } = await (locals as any).supabase
+    const sb = createClient(
+      import.meta.env.PUBLIC_SUPABASE_URL,
+      import.meta.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+    );
+
+    const { data: report } = await sb
       .from('daily_reports')
       .select('stocks')
       .eq('published', true)
