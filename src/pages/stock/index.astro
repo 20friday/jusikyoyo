@@ -781,7 +781,11 @@ function render() {
   list.hidden = false;
   empty.hidden = true;
 
-  list.innerHTML = data.map(cardHtml).join('');
+  try {
+    list.innerHTML = data.map(cardHtml).join('');
+  } catch(e: any) {
+    list.innerHTML = `<li style="padding:20px;color:#e55;font-size:14px">렌더 오류: ${e?.message}</li>`;
+  }
 }
 
 // ── 메타 날짜 ─────────────────────────────────────────────────
