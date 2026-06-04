@@ -11,7 +11,6 @@
 
 import { getStockCode } from './stockCodes';
 import { fetchStockPrices } from './yahooFinance';
-import { analyzeStockSentiments } from './sentimentAnalysis';
 
 export interface RankedStock {
   rank: number;
@@ -172,14 +171,9 @@ export async function computeRanking(
 
   // ── 주가 데이터 조회 + 뉘앙스 분석 (병렬) ──────────────────────
   const codes = top10.map(s => getStockCode(s.name)).filter(Boolean) as string[];
-  // 주가 + 뉘앙스 분석 병렬 (뉘앙스는 실패해도 계속)
-  const [priceMap, sentimentMap] = await Promise.all([
-    fetchStockPrices(codes),
-    analyzeStockSentiments(top10.map(s => ({
-      name: s.name,
-      notes: s.latestNotes,
-    }))).catch(() => new Map()),
-  ]);
+  // 주가만 서버에서 조회 (뉘앙스는 클라이언트에서 비동기로)
+  const priceMap = await fetchStockPrices(codes);
+  const sentimentMap = new Map();
 
   // 이름 → 코드 반대 맵핑
   const nameToCode = new Map<string, string>();
