@@ -7,8 +7,9 @@ export const GET: APIRoute = async ({ url }) => {
   try {
     const date = url.searchParams.get('date') ?? new Date(Date.now() + 9*3600*1000).toISOString().slice(0, 10);
 
-    const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL ?? process.env.PUBLIC_SUPABASE_URL ?? '';
-    const serviceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+    const env = process['env'] as any;
+    const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL ?? env['PUBLIC_SUPABASE_URL'] ?? '';
+    const serviceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY ?? env['SUPABASE_SERVICE_ROLE_KEY'] ?? '';
 
     if (!supabaseUrl || !serviceKey) {
       return new Response(JSON.stringify({ _debug: 'no supabase config', url: !!supabaseUrl, key: !!serviceKey }), { headers: { 'Content-Type': 'application/json' } });

@@ -21,8 +21,9 @@ export async function analyzeStockSentiments(
 
   if (stocks.length === 0) return new Map();
 
-  const apiKey = process.env.ANTHROPIC_API_KEY ?? import.meta.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY 없음 - process:' + !!process.env.ANTHROPIC_API_KEY + ' meta:' + !!import.meta.env.ANTHROPIC_API_KEY);
+  // Vite의 정적 치환을 피하기 위해 process['env'] 사용
+  const apiKey = (process['env'] as any)['ANTHROPIC_API_KEY'] ?? import.meta.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY 없음');
 
   const client = new Anthropic({ apiKey });
 
