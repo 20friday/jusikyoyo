@@ -832,22 +832,17 @@ render();
 async function loadSentiment(data) {
   if (!data || !data.length) return;
   try {
-    const res = await fetch('/api/stock-sentiment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        stocks: data.map(s => ({ name: s.name, notes: s.latestNotes ?? [] })),
-      }),
-    });
+    const today = new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10);
+    const res = await fetch(`/api/stock-sentiment?date=${today}`);
     const sentiment = await res.json();
+    if (!sentiment || typeof sentiment !== 'object') return;
 
-    // 각 종목에 sentiment 반영
     let changed = false;
     for (const stock of data) {
       const s = sentiment[stock.name];
-      if (s && (s.status !== stock.status || s.reason !== stock.statusReason)) {
+      if (s?.status) {
         stock.status = s.status;
-        stock.statusReason = s.reason;
+        stock.statusReason = s.reason ?? '';
         changed = true;
       }
     }
@@ -857,7 +852,6 @@ async function loadSentiment(data) {
   }
 }
 
-// 일간 데이터에 대해서만 sentiment 로드
 if (RANK_DATA.day?.length) {
   loadSentiment(RANK_DATA.day);
 }
