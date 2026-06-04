@@ -46,14 +46,6 @@ const initialData = JSON.stringify(dayData);
       <p>해당 기간의 데이터가 없어요.</p>
     </div>
 
-    <!-- 전체 보기 버튼 -->
-    <button class="show-all-btn" id="showAllBtn" hidden>
-      <span class="show-all-label">전체 10위 보기</span>
-      <svg class="show-all-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
-
     <!-- 고지문 -->
     <div class="rank-disclaimer">
       이 랭킹은 방송 언급 빈도·이슈 강도·주가 변동·지속성을 기반으로 AI가 자동 집계한 정보예요. 종목 추천이나 투자 권유가 아니에요. 투자 판단과 책임은 본인에게 있어요.
@@ -431,27 +423,6 @@ const initialData = JSON.stringify(dayData);
     background: #ed781f;
   }
 
-  /* ── 전체 보기 버튼 ── */
-  .show-all-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    margin-top: 10px;
-    padding: 13px 0;
-    border: 1px solid var(--divider);
-    border-radius: 12px;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text-2);
-    background: var(--card);
-    transition: color 160ms ease, border-color 160ms ease;
-  }
-  .show-all-btn:hover { color: var(--text-1); border-color: var(--text-3); }
-  .show-all-chevron { transition: transform 240ms cubic-bezier(0.2,0.7,0.3,1); }
-  .show-all-btn.is-expanded .show-all-chevron { transform: rotate(180deg); }
-
   /* ── 비어있을 때 ── */
   .rank-empty {
     text-align: center;
@@ -585,7 +556,7 @@ const RANK_DATA = {
 };
 
 // ── 상태 ─────────────────────────────────────────────────────
-const state = { period: 'day', expanded: false, open: {} };
+const state = { period: 'day', open: {} };
 
 // ── 유틸 ─────────────────────────────────────────────────────
 function pct(v) {
@@ -782,22 +753,7 @@ function render() {
   list.hidden = false;
   empty.hidden = true;
 
-  const visible = state.expanded ? data : data.slice(0, 5);
-  list.innerHTML = visible.map(cardHtml).join('');
-
-  if (data.length > 5) {
-    btn.hidden = false;
-    const label = btn.querySelector('.show-all-label');
-    if (state.expanded) {
-      label.textContent = '접기';
-      btn.classList.add('is-expanded');
-    } else {
-      label.textContent = `전체 ${data.length}위 보기`;
-      btn.classList.remove('is-expanded');
-    }
-  } else {
-    btn.hidden = true;
-  }
+  list.innerHTML = data.map(cardHtml).join('');
 }
 
 // ── 메타 날짜 ─────────────────────────────────────────────────
@@ -827,7 +783,6 @@ document.getElementById('periodTabs').addEventListener('click', async e => {
   const period = tab.dataset.period;
   if (state.period === period) return;
   state.period = period;
-  state.expanded = false;
   state.open = {};
   document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
   tab.classList.add('active');
@@ -849,11 +804,6 @@ document.getElementById('periodTabs').addEventListener('click', async e => {
     }
   }
 
-  render();
-});
-
-document.getElementById('showAllBtn').addEventListener('click', () => {
-  state.expanded = !state.expanded;
   render();
 });
 
