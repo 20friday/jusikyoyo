@@ -1,0 +1,820 @@
+---
+import Base from '../../layouts/Base.astro';
+import { computeRanking } from '../../lib/stockRanking';
+
+// 일간 데이터 서버사이드 로드 (주간·월간은 클라이언트 요청 시 API로)
+let dayData: any[] = [];
+let loadError = false;
+
+try {
+  dayData = await computeRanking(Astro.locals.supabase, 'day');
+} catch (e) {
+  console.error('[stock/index] 랭킹 로드 실패:', e);
+  loadError = true;
+}
+
+const initialData = JSON.stringify(dayData);
+---
+
+<Base title="종목 랭킹">
+  <div class="feed-wrap">
+
+    <!-- 페이지 인트로 -->
+    <div class="rank-header">
+      <h1 class="rank-h1">🔥 오늘의 PICK 종목</h1>
+      <p class="rank-sub">오늘 시장에서 반복적으로 언급된 종목을 순위로 정리했어요.</p>
+    </div>
+
+    <!-- 기간 탭 -->
+    <div class="period-tabs" id="periodTabs">
+      <button class="period-tab active" data-period="day">일간</button>
+      <button class="period-tab" data-period="week">주간</button>
+      <button class="period-tab" data-period="month">월간</button>
+    </div>
+
+    <!-- 메타 행 -->
+    <div class="rank-meta-row">
+      <span class="rank-meta-date" id="metaDate"></span>
+      <span class="rank-meta-ai"><span class="rank-meta-dot"></span>AI 자동 집계</span>
+    </div>
+
+    <!-- 랭킹 리스트 -->
+    <ul class="rank-list" id="rankList"></ul>
+
+    <!-- 비어있을 때 -->
+    <div class="rank-empty" id="rankEmpty" hidden>
+      <p>해당 기간의 데이터가 없어요.</p>
+    </div>
+
+    <!-- 전체 보기 버튼 -->
+    <button class="show-all-btn" id="showAllBtn" hidden>
+      <span class="show-all-label">전체 10위 보기</span>
+      <svg class="show-all-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    <!-- 고지문 -->
+    <div class="rank-disclaimer">
+      이 랭킹은 방송 언급 빈도·이슈 강도·주가 변동·지속성을 기반으로 AI가 자동 집계한 정보예요. 종목 추천이나 투자 권유가 아니에요. 투자 판단과 책임은 본인에게 있어요.
+    </div>
+
+  </div>
+</Base>
+
+<style is:global>
+  .feed-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+
+  /* ── 페이지 인트로 ── */
+  .rank-header { margin-bottom: 20px; }
+  .rank-h1 {
+    font-size: 23px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: var(--text-1);
+    margin-bottom: 6px;
+  }
+  .rank-sub {
+    font-size: 15px;
+    color: var(--text-3);
+    line-height: 1.5;
+  }
+
+  /* ── 기간 탭 ── */
+  .period-tabs {
+    display: flex;
+    background: var(--border);
+    border-radius: 11px;
+    padding: 3px;
+    gap: 0;
+    margin-bottom: 14px;
+  }
+  .period-tab {
+    flex: 1;
+    padding: 8px 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-3);
+    border-radius: 8px;
+    transition: color 160ms ease;
+    letter-spacing: -0.01em;
+  }
+  .period-tab.active {
+    background: #fff;
+    color: var(--text-1);
+    font-weight: 800;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0px 1px rgba(0,0,0,0.06);
+  }
+
+  /* ── 메타 행 ── */
+  .rank-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .rank-meta-date { color: var(--text-2); font-weight: 700; }
+  .rank-meta-ai { display: flex; align-items: center; gap: 5px; color: var(--text-3); font-weight: 600; }
+  .rank-meta-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--blue); display: inline-block;
+  }
+
+  /* ── 랭킹 리스트 ── */
+  .rank-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 9px; }
+
+  /* ── 랭킹 카드 ── */
+  .rank-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    overflow: hidden;
+    transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
+    width: 100%;
+  }
+  .rank-card--open {
+    box-shadow: 0 14px 36px -14px rgba(0,0,0,0.20), 0 2px 6px -2px rgba(0,0,0,0.05);
+    border-color: var(--divider);
+  }
+
+  /* 카드 버튼 (헤더 부분) */
+  .rank-card-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    text-align: left;
+    border-radius: 0;
+  }
+
+  /* 좌측 레일 */
+  .rank-rail {
+    width: 50px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 0 15px 6px;
+    gap: 4px;
+  }
+  .rank-num {
+    font-size: 23px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-1);
+  }
+  .rank-card--top3 .rank-num { color: #ed781f; }
+
+  /* 이동 배지 */
+  .rank-move {
+    font-size: 14px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .rank-move--up { color: var(--up); }
+  .rank-move--down { color: var(--down); }
+  .rank-move--same { color: var(--text-3); }
+  .rank-move--new, .rank-move--re {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 6px;
+    border-radius: 5px;
+  }
+  .rank-move--new { background: #ed781f; color: #fff; }
+  .rank-move--re { background: rgba(124,92,255,0.12); color: #7c5cff; }
+
+  /* 카드 바디 */
+  .rank-body {
+    flex: 1;
+    padding: 14px 14px 14px 9px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .rank-info { flex: 1; min-width: 0; }
+  .rank-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+    flex-wrap: wrap;
+  }
+  .rank-name {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-1);
+  }
+  .rank-status {
+    font-size: 14px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 6px;
+  }
+  .rank-status--pos { background: var(--up-bg); color: var(--up); }
+  .rank-status--neu { background: var(--flat-bg); color: var(--text-3); }
+  .rank-status--warn { background: var(--down-bg); color: var(--down); }
+
+  .rank-stat-row {
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .rank-change-pct { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .rank-change-pct--up { color: var(--up); }
+  .rank-change-pct--down { color: var(--down); }
+  .rank-change-pct--flat { color: var(--flat); }
+  .rank-sep { width: 2.5px; height: 2.5px; border-radius: 50%; background: var(--text-3); flex-shrink: 0; }
+  .rank-hold { color: var(--text-3); font-size: 14px; }
+
+  /* 관심 강도 점수 */
+  .rank-score {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+    gap: 2px;
+  }
+  .rank-score-num {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-1);
+  }
+  .rank-score-suffix { font-size: 14px; font-weight: 400; color: var(--text-3); }
+  .rank-score-label {
+    font-size: 14px;
+    color: var(--text-3);
+  }
+  @media (max-width: 380px) { .rank-score-label { display: none; } }
+
+  /* 셰브론 */
+  .rank-chevron {
+    flex-shrink: 0;
+    color: var(--text-3);
+    opacity: 0.6;
+    transition: transform 240ms cubic-bezier(0.2,0.7,0.3,1);
+  }
+  .rank-card--open .rank-chevron { transform: rotate(180deg); }
+
+  /* ── 카드 펼침 상세 ── */
+  .rank-detail { border-top: 1px solid var(--border); }
+  .rank-detail-inner { padding: 0 16px; }
+  .detail-sec {
+    padding: 17px 0;
+    border-top: 1px solid var(--border);
+  }
+  .detail-sec:first-child { border-top: none; }
+
+  .rank-detail-lead {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.6;
+    color: var(--text-1);
+  }
+
+  .detail-block-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-3);
+    margin-bottom: 6px;
+  }
+  .rank-chart-caption {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-1);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .rank-chart-caption b { color: #ed781f; }
+  .rank-chart { width: 100%; display: block; }
+
+  /* 주가 흐름 */
+  .price-flow {
+    display: flex;
+    gap: 0;
+  }
+  .price-col {
+    flex: 1;
+    padding: 0 12px;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .price-col:first-child { padding-left: 0; border-left: none; }
+  .price-col-label { font-size: 14px; color: var(--text-3); }
+  .price-val {
+    font-size: 18px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .price-val--up { color: var(--up); }
+  .price-val--down { color: var(--down); }
+  .price-val--flat { color: var(--flat); }
+
+  /* 요인 */
+  .factor-group { display: flex; flex-direction: column; gap: 14px; }
+  .factor-block { }
+  .factor-head {
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .factor-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .factor-block--pos .factor-head { color: var(--up); }
+  .factor-block--pos .factor-dot { background: var(--up); }
+  .factor-block--warn .factor-head { color: var(--down); }
+  .factor-block--warn .factor-dot { background: var(--down); }
+  .factor-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .factor-list li {
+    font-size: 15px;
+    color: var(--text-2);
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .factor-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--text-3);
+  }
+
+  /* 왜 순위에 올랐나요 */
+  .basis-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-3);
+    margin-bottom: 8px;
+  }
+  .basis-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .basis-list li {
+    font-size: 15px;
+    color: var(--text-2);
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .basis-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #ed781f;
+  }
+
+  /* ── 전체 보기 버튼 ── */
+  .show-all-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 13px 0;
+    border: 1px solid var(--divider);
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-2);
+    background: var(--card);
+    transition: color 160ms ease, border-color 160ms ease;
+  }
+  .show-all-btn:hover { color: var(--text-1); border-color: var(--text-3); }
+  .show-all-chevron { transition: transform 240ms cubic-bezier(0.2,0.7,0.3,1); }
+  .show-all-btn.is-expanded .show-all-chevron { transform: rotate(180deg); }
+
+  /* ── 비어있을 때 ── */
+  .rank-empty {
+    text-align: center;
+    padding: 40px 0;
+    color: var(--text-3);
+    font-size: 15px;
+  }
+
+  /* ── 고지문 ── */
+  .rank-disclaimer {
+    margin-top: 24px;
+    padding: 14px 16px;
+    background: var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+    color: var(--text-3);
+    line-height: 1.6;
+  }
+</style>
+
+<script define:vars={{ initialData, loadError }}>
+// ── 실제 데이터 (서버에서 주입) ──────────────────────────────
+const DAY_DATA = initialData ? JSON.parse(initialData) : [
+  {
+    rank: 1, name: '삼성전자', cap: 'large', status: 'pos',
+    move: { type: 'up', n: 2 }, score: 92, todayPct: 2.1, hold: '5일째 TOP 10',
+    reason: '반도체 업황 회복 기대와 <b>외국인 수급</b>이 함께 언급되며 시장 관심이 가장 높아요.',
+    rankTrail: [8, 5, 4, 3, 3, 2, 1],
+    price: { today: 2.1, d5: 6.4, m1: 12.3 },
+    factorsPos: ['HBM·AI 반도체 수요 기대', '외국인 7일 연속 순매수', '반도체 업황 바닥 통과 신호'],
+    factorsWarn: ['단기 상승에 따른 피로감', '미국 반도체주 변동성 확대'],
+    basis: ['4개 방송 중 3곳에서 반복 언급', 'AI 반도체 이슈와 함께 등장', '외국인 수급 코멘트 반복'],
+  },
+  {
+    rank: 2, name: 'SK하이닉스', cap: 'large', status: 'pos',
+    move: { type: 'down', n: 1 }, score: 88, todayPct: 1.4, hold: '12일째 TOP 10',
+    reason: 'HBM 공급 우위가 계속 부각되며 <b>2주째</b> 상위권을 지키고 있어요.',
+    rankTrail: [1, 1, 2, 2, 1, 1, 2],
+    price: { today: 1.4, d5: 4.2, m1: 18.7 },
+    factorsPos: ['HBM3E 양산 본격화', '엔비디아 공급망 핵심', '실적 컨센서스 상향'],
+    factorsWarn: ['단기 과열 구간 진입', '환율 변동에 따른 외국인 차익실현 가능성'],
+    basis: ['4개 방송 모두 언급', 'HBM 테마 중심 종목으로 반복 등장', '목표주가 상향 코멘트 다수'],
+  },
+  {
+    rank: 3, name: '한화에어로스페이스', cap: 'large', status: 'pos',
+    move: { type: 'new', n: 0 }, score: 81, todayPct: 5.2, hold: '오늘 신규 진입',
+    reason: '유럽 방산 수주 기대가 새로 부각되며 <b>오늘 급등</b>, 처음으로 TOP 10에 들어왔어요.',
+    rankTrail: [null, null, null, null, null, null, 3],
+    price: { today: 5.2, d5: 9.8, m1: 24.1 },
+    factorsPos: ['유럽 방산 수출 모멘텀', 'K방산 수주 잔고 사상 최대', '실적 종목으로 재평가'],
+    factorsWarn: ['단기 급등에 따른 변동성', '수주 일정 지연 리스크'],
+    basis: ['오늘 3개 방송에서 새롭게 부각', '조선·방산 테마와 함께 등장', '수주 잔고 코멘트 반복'],
+  },
+  {
+    rank: 4, name: 'HD현대중공업', cap: 'large', status: 'pos',
+    move: { type: 'up', n: 3 }, score: 76, todayPct: 3.8, hold: '3일 연속 TOP 10',
+    reason: '조선 슈퍼사이클 기대와 <b>수주 잔고</b> 갱신이 함께 언급됐어요.',
+    rankTrail: [9, 8, 7, 6, 5, 7, 4],
+    price: { today: 3.8, d5: 7.1, m1: 15.6 },
+    factorsPos: ['조선 발주 사이클 회복', '고부가 선박 수주 증가', '잔고 기준 사상 최대'],
+    factorsWarn: ['후판 가격 상승 부담', '환율 하락 시 수익성 영향'],
+    basis: ['3개 방송에서 반복 언급', '조선 슈퍼사이클 테마 중심', '수주 모멘텀 코멘트 반복'],
+  },
+  {
+    rank: 5, name: '레인보우로보틱스', cap: 'small', status: 'neu',
+    move: { type: 'same', n: 0 }, score: 72, todayPct: 0.9, hold: '4일 연속 TOP 10',
+    reason: '휴머노이드 테마가 꾸준히 언급되지만 <b>방향성은 중립</b>이에요.',
+    rankTrail: [6, 5, 5, 4, 5, 5, 5],
+    price: { today: 0.9, d5: 2.3, m1: -3.4 },
+    factorsPos: ['휴머노이드 로봇 테마 지속', '삼성전자 지분 투자 모멘텀'],
+    factorsWarn: ['실적 대비 높은 밸류에이션', '테마성 변동 큼', '단기 수급 쏠림'],
+    basis: ['2개 방송에서 반복 언급', '로봇·AI 테마와 함께 등장', '중장기 관점 코멘트 위주'],
+  },
+  {
+    rank: 6, name: 'LG에너지솔루션', cap: 'large', status: 'warn',
+    move: { type: 'down', n: 2 }, score: 68, todayPct: -1.8, hold: '2일 연속 TOP 10',
+    reason: '전기차 수요 둔화 우려로 <b>하락 이슈</b>와 함께 자주 언급됐어요.',
+    rankTrail: [3, 4, 4, 5, 4, 4, 6],
+    price: { today: -1.8, d5: -4.6, m1: -8.2 },
+    factorsPos: ['ESS·전력망 수요 기대', '북미 IRA 보조금 수혜'],
+    factorsWarn: ['전기차 수요 둔화', '메탈 가격 약세', '중국 배터리 경쟁 심화'],
+    basis: ['3개 방송에서 우려와 함께 언급', '2차전지 업황 코멘트 반복', '저점 매수 논쟁 등장'],
+  },
+  {
+    rank: 7, name: '두산로보틱스', cap: 'small', status: 'pos',
+    move: { type: 'up', n: 1 }, score: 64, todayPct: 2.6, hold: '6일 연속 TOP 10',
+    reason: '협동로봇 수요 확대 기대가 <b>꾸준히</b> 언급되고 있어요.',
+    rankTrail: [10, 9, 8, 8, 7, 8, 7],
+    price: { today: 2.6, d5: 5.1, m1: 7.8 },
+    factorsPos: ['협동로봇 글로벌 점유율 확대', '북미 시장 진출 가속', '로봇 테마 수급 유입'],
+    factorsWarn: ['아직 적자 구간', '밸류에이션 부담'],
+    basis: ['2개 방송에서 반복 언급', '로봇 테마 핵심 종목', '레인보우로보틱스와 함께 등장'],
+  },
+  {
+    rank: 8, name: '한미반도체', cap: 'small', status: 'neu',
+    move: { type: 're', n: 0 }, score: 61, todayPct: 1.1, hold: '오늘 재진입',
+    reason: 'HBM 본더 장비 기대로 <b>일주일 만에</b> 다시 TOP 10에 들어왔어요.',
+    rankTrail: [5, 7, null, null, null, null, 8],
+    price: { today: 1.1, d5: 3.7, m1: 9.2 },
+    factorsPos: ['TC본더 독점 공급 지위', 'HBM 설비 투자 확대 수혜'],
+    factorsWarn: ['SK하이닉스 의존도 높음', '주가 변동성 큼'],
+    basis: ['2개 방송에서 재차 언급', 'HBM 장비 테마로 재등장', '삼성전자·SK하이닉스와 함께 언급'],
+  },
+  {
+    rank: 9, name: '에코프로비엠', cap: 'small', status: 'warn',
+    move: { type: 'down', n: 3 }, score: 55, todayPct: -2.4, hold: '오늘 진입',
+    reason: '양극재 업황 부진 우려로 <b>관심이 약해지는</b> 흐름이에요.',
+    rankTrail: [4, 6, 6, 6, 8, 6, 9],
+    price: { today: -2.4, d5: -6.8, m1: -14.3 },
+    factorsPos: ['2차전지 반등 시 탄력 기대'],
+    factorsWarn: ['양극재 가동률 하락', '전기차 수요 둔화 직격', '재고 부담 지속'],
+    basis: ['2개 방송에서 우려와 함께 언급', '2차전지 약세 흐름 코멘트', '저점 논쟁 등장'],
+  },
+  {
+    rank: 10, name: '현대차', cap: 'large', status: 'neu',
+    move: { type: 'new', n: 0 }, score: 52, todayPct: 0.7, hold: '오늘 신규 진입',
+    reason: '밸류업·배당 기대가 새로 부각되며 <b>TOP 10에 진입</b>했어요.',
+    rankTrail: [null, null, null, null, null, null, 10],
+    price: { today: 0.7, d5: 1.9, m1: 4.5 },
+    factorsPos: ['주주환원·밸류업 기대', '하이브리드 판매 호조'],
+    factorsWarn: ['미국 관세 불확실성', '전기차 전환 속도 둔화'],
+    basis: ['2개 방송에서 새롭게 언급', '밸류업 테마와 함께 등장', '배당 매력 코멘트 반복'],
+  },
+]; // ← initialData가 있으면 위 배열은 무시됨 (define:vars로 덮어쓰기)
+
+// 실데이터가 있으면 사용, 없으면 mock
+const RANK_DATA = {
+  day: DAY_DATA,
+  week: null,   // API 호출 시 채워짐
+  month: null,
+};
+
+// ── 상태 ─────────────────────────────────────────────────────
+const state = { period: 'day', expanded: false, open: {} };
+
+// ── 유틸 ─────────────────────────────────────────────────────
+function pct(v) {
+  const sign = v > 0 ? '+' : '';
+  return `${sign}${v.toFixed(1)}%`;
+}
+function pctClass(v) {
+  if (v > 0) return 'up'; if (v < 0) return 'down'; return 'flat';
+}
+
+function moveBadge(move) {
+  if (move.type === 'up') return `<span class="rank-move rank-move--up">▲${move.n}</span>`;
+  if (move.type === 'down') return `<span class="rank-move rank-move--down">▼${move.n}</span>`;
+  if (move.type === 'same') return `<span class="rank-move rank-move--same">—</span>`;
+  if (move.type === 'new') return `<span class="rank-move rank-move--new">NEW</span>`;
+  if (move.type === 're') return `<span class="rank-move rank-move--re">RE</span>`;
+  return '';
+}
+
+function statusChip(status) {
+  const map = { pos: ['pos','긍정'], neu: ['neu','중립'], warn: ['warn','주의'] };
+  const [cls, label] = map[status] || ['neu','중립'];
+  return `<span class="rank-status rank-status--${cls}">${label}</span>`;
+}
+
+// ── 순위 차트 SVG ─────────────────────────────────────────────
+function rankChart(trail) {
+  const valid = trail.filter(v => v !== null);
+  if (valid.length < 2) return '';
+
+  const W = 320, H = 78, PAD = { t: 18, b: 14, l: 24, r: 24 };
+  const cw = W - PAD.l - PAD.r;
+  const ch = H - PAD.t - PAD.b;
+
+  // 점 좌표 (null 건너뜀)
+  const pts = [];
+  trail.forEach((v, i) => {
+    if (v === null) return;
+    const x = PAD.l + (i / (trail.length - 1)) * cw;
+    const y = PAD.t + ((v - 1) / 9) * ch; // 1위=top
+    pts.push({ x, y, v, i });
+  });
+
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaPath = linePath + ` L${pts[pts.length-1].x.toFixed(1)},${(H - PAD.b).toFixed(1)} L${pts[0].x.toFixed(1)},${(H - PAD.b).toFixed(1)} Z`;
+
+  const first = pts[0], last = pts[pts.length - 1];
+  const dots = pts.slice(0, -1).map(p =>
+    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.6" fill="#d4d8df"/>`
+  ).join('');
+
+  return `<svg class="rank-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="rcfill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ed781f" stop-opacity="0.16"/>
+        <stop offset="100%" stop-color="#ed781f" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="${areaPath}" fill="url(#rcfill)"/>
+    <path d="${linePath}" fill="none" stroke="#ed781f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}
+    <circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="4" fill="#ed781f" stroke="#fff" stroke-width="1.6"/>
+    <text x="${first.x.toFixed(1)}" y="${(PAD.t - 4).toFixed(1)}" font-size="14" font-weight="800" fill="var(--text-3)" text-anchor="start">${first.v}위</text>
+    <text x="${last.x.toFixed(1)}" y="${(PAD.t - 4).toFixed(1)}" font-size="14" font-weight="800" fill="#ed781f" text-anchor="end">${last.v}위</text>
+  </svg>`;
+}
+
+// 차트 캡션
+function chartCaption(stock) {
+  const trail = stock.rankTrail;
+  const valid = trail.filter(v => v !== null);
+  if (valid.length < 2) return `오늘 처음 TOP 10에 진입했어요.`;
+  const first = valid[0], last = valid[valid.length - 1];
+  if (first === last) return `최근 7일 동안 <b>${last}위</b>를 유지하고 있어요.`;
+  if (last < first) return `최근 일주일 <b>${first}위 → ${last}위</b>로 올라왔어요.`;
+  return `최근 일주일 <b>${first}위 → ${last}위</b>로 내려왔어요.`;
+}
+
+// ── 상세 패널 HTML ────────────────────────────────────────────
+function detailHtml(stock) {
+  const priceCol = (label, val) => {
+    const cls = pctClass(val);
+    return `<div class="price-col">
+      <span class="price-col-label">${label}</span>
+      <span class="price-val price-val--${cls}">${pct(val)}</span>
+    </div>`;
+  };
+
+  const factorBlock = (items, type) => {
+    if (!items || !items.length) return '';
+    const label = type === 'pos' ? '상승 요인' : '주의 요인';
+    return `<div class="factor-block factor-block--${type}">
+      <div class="factor-head"><span class="factor-dot"></span>${label}</div>
+      <ul class="factor-list">${items.map(t => `<li>${t}</li>`).join('')}</ul>
+    </div>`;
+  };
+
+  return `<div class="rank-detail-inner">
+    <div class="detail-sec">
+      <p class="rank-detail-lead">${stock.reason}</p>
+    </div>
+    <div class="detail-sec">
+      <div class="detail-block-label">최근 7일 순위 변화</div>
+      <div class="rank-chart-caption">${chartCaption(stock)}</div>
+      ${rankChart(stock.rankTrail)}
+    </div>
+    <div class="detail-sec">
+      <div class="detail-block-label">실제 주가 흐름</div>
+      <div class="price-flow">
+        ${priceCol('오늘', stock.price.today)}
+        ${priceCol('5거래일', stock.price.d5)}
+        ${priceCol('1개월', stock.price.m1)}
+      </div>
+    </div>
+    <div class="detail-sec">
+      <div class="factor-group">
+        ${factorBlock(stock.factorsPos, 'pos')}
+        ${factorBlock(stock.factorsWarn, 'warn')}
+      </div>
+    </div>
+    <div class="detail-sec">
+      <div class="basis-title">왜 순위에 올랐나요</div>
+      <ul class="basis-list">${stock.basis.map(t => `<li>${t}</li>`).join('')}</ul>
+    </div>
+  </div>`;
+}
+
+// ── 카드 HTML ─────────────────────────────────────────────────
+function cardHtml(stock) {
+  const isTop3 = stock.rank <= 3;
+  const pcl = pctClass(stock.todayPct);
+  const isOpen = !!state.open[stock.name];
+
+  return `<li>
+    <div class="rank-card${isTop3 ? ' rank-card--top3' : ''}${isOpen ? ' rank-card--open' : ''}" data-name="${stock.name}">
+      <button class="rank-card-btn" aria-expanded="${isOpen}" onclick="toggleCard('${stock.name}')">
+        <div class="rank-rail">
+          <span class="rank-num">${stock.rank}</span>
+          ${moveBadge(stock.move)}
+        </div>
+        <div class="rank-body">
+          <div class="rank-info">
+            <div class="rank-name-row">
+              <span class="rank-name">${stock.name}</span>
+              ${statusChip(stock.status)}
+            </div>
+            <div class="rank-stat-row">
+              <span class="rank-change-pct rank-change-pct--${pcl}">${pct(stock.todayPct)}</span>
+              <span class="rank-sep"></span>
+              <span class="rank-hold">${stock.hold}</span>
+            </div>
+          </div>
+          <div class="rank-score">
+            <span class="rank-score-num">${stock.score}<span class="rank-score-suffix">점</span></span>
+            <span class="rank-score-label">관심 강도</span>
+          </div>
+          <svg class="rank-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M5 7l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </button>
+      ${isOpen ? `<div class="rank-detail">${detailHtml(stock)}</div>` : ''}
+    </div>
+  </li>`;
+}
+
+// ── 렌더 ──────────────────────────────────────────────────────
+function render() {
+  const list = document.getElementById('rankList');
+  const empty = document.getElementById('rankEmpty');
+  const btn = document.getElementById('showAllBtn');
+
+  const data = RANK_DATA[state.period] || [];
+
+  if (!data.length) {
+    list.innerHTML = '';
+    list.hidden = true;
+    empty.hidden = false;
+    btn.hidden = true;
+    return;
+  }
+
+  list.hidden = false;
+  empty.hidden = true;
+
+  const visible = state.expanded ? data : data.slice(0, 5);
+  list.innerHTML = visible.map(cardHtml).join('');
+
+  if (data.length > 5) {
+    btn.hidden = false;
+    const label = btn.querySelector('.show-all-label');
+    if (state.expanded) {
+      label.textContent = '접기';
+      btn.classList.add('is-expanded');
+    } else {
+      label.textContent = `전체 ${data.length}위 보기`;
+      btn.classList.remove('is-expanded');
+    }
+  } else {
+    btn.hidden = true;
+  }
+}
+
+// ── 메타 날짜 ─────────────────────────────────────────────────
+function setMetaDate() {
+  const el = document.getElementById('metaDate');
+  const now = new Date(Date.now() + 9 * 60 * 60 * 1000); // KST
+  const days = ['일','월','화','수','목','금','토'];
+  const mm = now.getUTCMonth() + 1;
+  const dd = now.getUTCDate();
+  const dow = days[now.getUTCDay()];
+  const hh = now.getUTCHours();
+  const min = String(now.getUTCMinutes()).padStart(2, '0');
+  const ampm = hh < 12 ? '오전' : '오후';
+  const h12 = hh % 12 || 12;
+  el.textContent = `${mm}월 ${dd}일 (${dow}) ${ampm} ${h12}:${min} 기준`;
+}
+
+// ── 이벤트 ────────────────────────────────────────────────────
+window.toggleCard = function(name) {
+  state.open[name] = !state.open[name];
+  render();
+};
+
+document.getElementById('periodTabs').addEventListener('click', async e => {
+  const tab = e.target.closest('.period-tab');
+  if (!tab) return;
+  const period = tab.dataset.period;
+  if (state.period === period) return;
+  state.period = period;
+  state.expanded = false;
+  state.open = {};
+  document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+
+  // 주간·월간은 API로 가져오기
+  if (!RANK_DATA[period]) {
+    const list = document.getElementById('rankList');
+    list.innerHTML = '<li style="text-align:center;padding:30px;color:var(--text-3);font-size:15px;">불러오는 중…</li>';
+    list.hidden = false;
+    document.getElementById('rankEmpty').hidden = true;
+    document.getElementById('showAllBtn').hidden = true;
+
+    try {
+      const res = await fetch(`/api/stock-ranking?period=${period}`);
+      const data = await res.json();
+      RANK_DATA[period] = data;
+    } catch {
+      RANK_DATA[period] = [];
+    }
+  }
+
+  render();
+});
+
+document.getElementById('showAllBtn').addEventListener('click', () => {
+  state.expanded = !state.expanded;
+  render();
+});
+
+// ── 초기화 ────────────────────────────────────────────────────
+setMetaDate();
+render();
+</script>

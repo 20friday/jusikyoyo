@@ -37,6 +37,10 @@ const { user } = Astro.locals;
           <a href="/login" class="btn-pill ghost">로그인</a>
         )}
       </div>
+      <nav class="hdr-tabs" style="border-top: none;">
+        <a href="/" class:list={['hdr-tab', { active: Astro.url.pathname === '/' }]}>피드</a>
+        <a href="/stock" class:list={['hdr-tab', { active: Astro.url.pathname.startsWith('/stock') }]}>종목</a>
+      </nav>
     </header>
     <main>
       <slot />
@@ -53,6 +57,31 @@ const { user } = Astro.locals;
 </style>
 
 <style>
+  /* ── 헤더 탭 ── */
+  .hdr-tabs {
+    display: flex;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 8px;
+    gap: 0;
+  }
+  .hdr-tab {
+    padding: 10px 16px 9px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-3);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: color 160ms ease, border-color 160ms ease;
+    letter-spacing: -0.01em;
+  }
+  .hdr-tab:hover { color: var(--text-2); }
+  .hdr-tab.active {
+    color: var(--text-1);
+    border-bottom-color: var(--text-1);
+    font-weight: 800;
+  }
+
   /* ── 햄버거 버튼 ── */
   .hamburger-btn {
     display: flex;
