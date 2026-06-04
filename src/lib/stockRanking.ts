@@ -25,6 +25,7 @@ export interface RankedStock {
   rankTrail: (number | null)[];
   price: { today: number; d5: number; m1: number };
   statusReason: string;
+  latestNotes: Array<{ show: string; view: string }>;
   factorsPos: string[];
   factorsWarn: string[];
   basis: string[];
@@ -146,39 +147,38 @@ export async function computeRanking(
   // 상위 10개만
   const top10 = scored.slice(0, 10);
 
-  // ── 7일 순위 추적 (rankTrail) ────────────────────────────────
+  // ── 7일 순위 추적 (rankTrail) — 한 번에 조회 ───────────────────
   const last7 = recentTradingDates(7);
+  const last7From = last7[last7.length - 1];
 
-  // 날짜별 랭킹 계산
-  const dailyRankings = new Map<string, Map<string, number>>(); // date → name → rank
-  for (const date of last7) {
-    const { data: dayReport } = await supabase
-      .from('daily_reports')
-      .select('stocks')
-      .eq('published', true)
-      .eq('date', date)
-      .single();
+  const { data: last7Reports } = await supabase
+    .from('daily_reports')
+    .select('date, stocks')
+    .eq('published', true)
+    .gte('date', last7From)
+    .lte('date', last7[0])
+    .order('date', { ascending: false });
 
-    if (!dayReport?.stocks) continue;
-
-    const dayStocks = dayReport.stocks as any[];
-    // 해당 날짜 순위: shows 수 기준
+  const dailyRankings = new Map<string, Map<string, number>>();
+  for (const report of last7Reports ?? []) {
+    const dayStocks = report.stocks as any[];
     const sorted = [...dayStocks].sort((a, b) =>
       (b.shows?.length ?? 0) - (a.shows?.length ?? 0)
     );
     const rankMap = new Map<string, number>();
-    sorted.forEach((s, i) => rankMap.set(s.name, i + 1));
-    dailyRankings.set(date, rankMap);
+    sorted.forEach((s: any, i: number) => rankMap.set(s.name, i + 1));
+    dailyRankings.set(report.date, rankMap);
   }
 
   // ── 주가 데이터 조회 + 뉘앙스 분석 (병렬) ──────────────────────
   const codes = top10.map(s => getStockCode(s.name)).filter(Boolean) as string[];
+  // 주가 + 뉘앙스 분석 병렬 (뉘앙스는 실패해도 계속)
   const [priceMap, sentimentMap] = await Promise.all([
     fetchStockPrices(codes),
     analyzeStockSentiments(top10.map(s => ({
       name: s.name,
       notes: s.latestNotes,
-    }))),
+    }))).catch(() => new Map()),
   ]);
 
   // 이름 → 코드 반대 맵핑
@@ -267,6 +267,7 @@ export async function computeRanking(
         m1: prices?.m1Pct ?? 0,
       },
       statusReason,
+      latestNotes: s.latestNotes,
       factorsPos: [],
       factorsWarn: [],
       basis,

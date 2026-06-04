@@ -827,4 +827,38 @@ document.getElementById('showAllBtn').addEventListener('click', () => {
 // ── 초기화 ────────────────────────────────────────────────────
 setMetaDate();
 render();
+
+// ── 뉘앙스 분석 비동기 로드 (초기 렌더 후) ──────────────────
+async function loadSentiment(data) {
+  if (!data || !data.length) return;
+  try {
+    const res = await fetch('/api/stock-sentiment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stocks: data.map(s => ({ name: s.name, notes: s.latestNotes ?? [] })),
+      }),
+    });
+    const sentiment = await res.json();
+
+    // 각 종목에 sentiment 반영
+    let changed = false;
+    for (const stock of data) {
+      const s = sentiment[stock.name];
+      if (s && (s.status !== stock.status || s.reason !== stock.statusReason)) {
+        stock.status = s.status;
+        stock.statusReason = s.reason;
+        changed = true;
+      }
+    }
+    if (changed) render();
+  } catch (e) {
+    // 실패해도 무시
+  }
+}
+
+// 일간 데이터에 대해서만 sentiment 로드
+if (RANK_DATA.day?.length) {
+  loadSentiment(RANK_DATA.day);
+}
 </script>
