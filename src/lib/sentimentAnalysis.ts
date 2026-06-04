@@ -69,7 +69,8 @@ ${stockTexts}
     }
     return map;
   } catch (e: any) {
-    console.warn('[sentiment] 분석 실패, 기본값 사용:', e?.message);
-    return new Map<string, SentimentResult>();
+    console.error('[sentiment] 분석 실패:', e?.message ?? String(e));
+    // 에러를 다시 던져서 호출자가 처리하도록
+    throw e;
   }
 }

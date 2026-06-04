@@ -41,6 +41,9 @@ export const GET: APIRoute = async ({ url }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e?.message ?? String(e) }), { status: 500 });
+    return new Response(JSON.stringify({ _error: e?.message ?? String(e) }), {
+      status: 200, // 에러도 200으로 반환해서 브라우저에서 볼 수 있게
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 };
