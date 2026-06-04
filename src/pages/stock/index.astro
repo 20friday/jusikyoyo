@@ -2,28 +2,22 @@
 import Base from '../../layouts/Base.astro';
 import { computeRanking } from '../../lib/stockRanking';
 
-// 세 기간 모두 서버사이드 로드
+// 일간 데이터 서버사이드 로드
 let dayData: any[] = [];
-let weekData: any[] = [];
-let monthData: any[] = [];
 
-const [dayResult, weekResult, monthResult] = await Promise.allSettled([
-  computeRanking(Astro.locals.supabase, 'day'),
-  computeRanking(Astro.locals.supabase, 'week'),
-  computeRanking(Astro.locals.supabase, 'month'),
-]);
-
-if (dayResult.status === 'fulfilled') dayData = dayResult.value;
-if (weekResult.status === 'fulfilled') weekData = weekResult.value;
-if (monthResult.status === 'fulfilled') monthData = monthResult.value;
+try {
+  dayData = await computeRanking(Astro.locals.supabase, 'day');
+} catch (e) {
+  console.error('[stock/index] 랭킹 로드 실패:', e);
+}
 
 const todayKST = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 const dataDate = dayData[0]?.date ?? null;
 const isToday = dataDate === todayKST;
 
 const initialData = JSON.stringify(dayData);
-const initialWeekData = JSON.stringify(weekData);
-const initialMonthData = JSON.stringify(monthData);
+const initialWeekData = '[]';
+const initialMonthData = '[]';
 ---
 
 <Base title="종목 랭킹">
@@ -835,6 +829,21 @@ document.getElementById('periodTabs').addEventListener('click', async e => {
   state.open = {};
   document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
   tab.classList.add('active');
+
+  // 주간·월간 데이터가 없으면 API로 가져오기
+  if (!RANK_DATA[period]?.length && period !== 'day') {
+    const list = document.getElementById('rankList');
+    list.innerHTML = '<li style="text-align:center;padding:30px;color:var(--text-3);font-size:15px;">불러오는 중…</li>';
+    list.hidden = false;
+    document.getElementById('rankEmpty').hidden = true;
+    try {
+      const res = await fetch(`/api/stock-ranking?period=${period}`);
+      const data = await res.json();
+      RANK_DATA[period] = Array.isArray(data) ? data : [];
+    } catch {
+      RANK_DATA[period] = [];
+    }
+  }
 
   render();
 });

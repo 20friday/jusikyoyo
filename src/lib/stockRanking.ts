@@ -210,10 +210,13 @@ export async function computeRanking(
   // ── 주가 데이터 조회 + 뉘앙스 분석 (병렬) ──────────────────────
   const codes = top10.map(s => getStockCode(s.name)).filter(Boolean) as string[];
   // 주가만 서버에서 조회 (뉘앙스는 클라이언트에서 비동기로)
-  const priceMap = await Promise.race([
-    fetchStockPrices(codes),
-    new Promise<Map<string, any>>(resolve => setTimeout(() => resolve(new Map()), 7000)),
-  ]);
+  // 일간만 주가 조회 (주간·월간은 Yahoo Finance 타임아웃 방지를 위해 생략)
+  const priceMap = period === 'day'
+    ? await Promise.race([
+        fetchStockPrices(codes),
+        new Promise<Map<string, any>>(resolve => setTimeout(() => resolve(new Map()), 5000)),
+      ])
+    : new Map();
   const sentimentMap = new Map();
 
   // 이름 → 코드 반대 맵핑
