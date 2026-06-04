@@ -390,6 +390,26 @@ const initialData = JSON.stringify(dayData);
     background: var(--surface-3, rgba(255,255,255,0.10));
   }
 
+  /* 긍정/주의 이유 섹션 */
+  .detail-sec--reason {
+    background: var(--surface-2, rgba(0,0,0,0.03));
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 4px;
+  }
+  .detail-reason-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--accent, #e86c2c);
+    margin-bottom: 6px;
+  }
+  .detail-reason-body {
+    font-size: 15px;
+    color: var(--text-1);
+    line-height: 1.55;
+    margin: 0;
+  }
+
   /* 왜 순위에 올랐나요 */
   .basis-title {
     font-size: 14px;
@@ -655,7 +675,18 @@ function detailHtml(stock) {
     </div>`;
   };
 
+  const statusReasonTitle = stock.status === 'pos' ? '긍정인 이유는!' : stock.status === 'warn' ? '주의해야 할 이유는!' : '분석 내용은!';
+  const statusReasonHtml = stock.statusReason === null
+    ? `<span style="color:#94a0ad">뉘앙스 분석 중이에요…</span>`
+    : stock.statusReason
+      ? stock.statusReason
+      : '';
+
   return `<div class="rank-detail-inner">
+    ${statusReasonHtml ? `<div class="detail-sec detail-sec--reason">
+      <div class="detail-reason-title">${statusReasonTitle}</div>
+      <p class="detail-reason-body">${statusReasonHtml}</p>
+    </div>` : ''}
     <div class="detail-sec">
       <p class="rank-detail-lead">${stock.reason}</p>
     </div>
@@ -708,12 +739,6 @@ function cardHtml(stock) {
                 ? `<span class="rank-intensity">이슈 강도 ${stock.intensity}/5</span>`
                 : ''}
             </div>
-            ${stock.statusReason === null
-              ? `<span class="rank-status-reason" style="color:#94a0ad">뉘앙스 분석 중이에요…</span>`
-              : stock.statusReason
-                ? `<span class="rank-status-reason">${stock.statusReason}</span>`
-                : ''
-            }
             <div class="rank-stat-row">
               <span class="rank-change-pct rank-change-pct--${pcl}">${pct(stock.todayPct)}</span>
               <span class="rank-sep"></span>
