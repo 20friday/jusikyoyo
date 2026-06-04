@@ -24,6 +24,7 @@ export interface RankedStock {
   reason: string;
   rankTrail: (number | null)[];
   price: { today: number; d5: number; m1: number };
+  statusReason: string;
   factorsPos: string[];
   factorsWarn: string[];
   basis: string[];
@@ -242,11 +243,13 @@ export async function computeRanking(
     ];
 
     // status: AI 뉘앙스 분석 우선, 없으면 주가 기반 fallback
-    let status: 'pos' | 'neu' | 'warn' = sentimentMap.get(s.name) ?? 'neu';
-    if (!sentimentMap.has(s.name) && prices) {
+    const sentiment = sentimentMap.get(s.name);
+    let status: 'pos' | 'neu' | 'warn' = sentiment?.status ?? 'neu';
+    if (!sentiment && prices) {
       if (prices.todayPct >= 1.5) status = 'pos';
       else if (prices.todayPct <= -1.5) status = 'warn';
     }
+    const statusReason = sentiment?.reason ?? '';
 
     return {
       rank,
@@ -263,7 +266,8 @@ export async function computeRanking(
         d5: prices?.d5Pct ?? 0,
         m1: prices?.m1Pct ?? 0,
       },
-      factorsPos: [],   // 현재 DB에 별도 없음 — 추후 AI 추가 예정
+      statusReason,
+      factorsPos: [],
       factorsWarn: [],
       basis,
       shows: s.latestShows,

@@ -13,6 +13,7 @@ export type Status = 'pos' | 'neu' | 'warn';
 export interface SentimentResult {
   name: string;
   status: Status;
+  reason: string; // 한 줄 이유
 }
 
 /**
@@ -20,7 +21,7 @@ export interface SentimentResult {
  */
 export async function analyzeStockSentiments(
   stocks: Array<{ name: string; notes: Array<{ show: string; view: string }> }>
-): Promise<Map<string, Status>> {
+): Promise<Map<string, SentimentResult>> {
 
   if (stocks.length === 0) return new Map();
 
@@ -45,7 +46,7 @@ export async function analyzeStockSentiments(
 ${stockTexts}
 
 반드시 아래 JSON 형식으로만 답변하세요. 다른 텍스트 없이:
-[{"name":"종목명","status":"pos|neu|warn"},...]`;
+[{"name":"종목명","status":"pos|neu|warn","reason":"판단 이유를 ~해요 체로 15자 이내 한 줄"},...]`;
 
   try {
     const message = await client.messages.create({
@@ -57,15 +58,15 @@ ${stockTexts}
     const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]';
     const results: SentimentResult[] = JSON.parse(text);
 
-    const map = new Map<string, Status>();
+    const map = new Map<string, SentimentResult>();
     for (const r of results) {
       if (r.name && ['pos', 'neu', 'warn'].includes(r.status)) {
-        map.set(r.name, r.status);
+        map.set(r.name, { name: r.name, status: r.status, reason: r.reason ?? '' });
       }
     }
     return map;
   } catch (e: any) {
     console.warn('[sentiment] 분석 실패, 기본값 사용:', e?.message);
-    return new Map();
+    return new Map<string, SentimentResult>();
   }
 }
