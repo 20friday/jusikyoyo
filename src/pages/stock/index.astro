@@ -221,6 +221,12 @@ const initialData = JSON.stringify(dayData);
   .rank-status--neu { background: var(--flat-bg); color: var(--text-3); }
   .rank-status--warn { background: var(--down-bg); color: var(--down); }
   .rank-status--loading { background: #f0f2f4; color: #94a0ad; }
+  .rank-intensity {
+    font-size: 12px;
+    color: var(--text-3);
+    font-weight: 500;
+    margin-left: 2px;
+  }
 
   .rank-status-reason {
     font-size: 13px;
@@ -709,6 +715,9 @@ function cardHtml(stock) {
             <div class="rank-name-row">
               <span class="rank-name">${stock.name}</span>
               ${statusChip(stock.status, stock.statusReason !== null)}
+              ${stock.statusReason !== null && stock.intensity > 1
+                ? `<span class="rank-intensity">이슈 강도 ${stock.intensity}/5</span>`
+                : ''}
             </div>
             ${stock.statusReason === null
               ? `<span class="rank-status-reason" style="color:#94a0ad">뉘앙스 분석 중이에요…</span>`
@@ -844,16 +853,32 @@ async function loadSentiment(data) {
     const sentiment = await res.json();
     if (!sentiment || typeof sentiment !== 'object') return;
 
+    const STATUS_MULTIPLIER = { pos: 1, neu: 0, warn: -1 };
     let changed = false;
     for (const stock of data) {
       const s = sentiment[stock.name];
       if (s?.status) {
         stock.status = s.status;
+        stock.intensity = Math.min(Math.max(Math.round(Number(s.intensity) || 1), 1), 5);
         stock.statusReason = s.reason ?? '';
+        const nuanceScore = (STATUS_MULTIPLIER[s.status] ?? 0) * stock.intensity * 4;
+        stock.rawScore = (stock.rawScore ?? 0) + nuanceScore;
+        stock.score = Math.max(0, Math.round((stock.rawScore / 155) * 100));
         changed = true;
       }
     }
-    if (changed) render();
+    if (changed) {
+      // nuanceScore 반영 후 재정렬
+      data.sort((a, b) =>
+        (b.rawScore - a.rawScore) ||
+        (b.mentionScore - a.mentionScore) ||
+        (b.intensity - a.intensity) ||
+        (b.tagScore - a.tagScore) ||
+        (b.continuityScore - a.continuityScore)
+      );
+      data.forEach((s, i) => s.rank = i + 1);
+      render();
+    }
   } catch (e) {
     // 실패해도 무시
   }

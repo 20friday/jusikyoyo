@@ -1,12 +1,14 @@
 /**
  * DB 기반 종목 랭킹 엔진
  *
- * 점수 계산 방식:
- * - 일간: 오늘 daily_report의 shows 수 (최대 4) × 25점 기본
- *         + posts.tags에서 오늘 등장 횟수 보정
- *         + 이전 날짜 연속 등장 시 hold 보너스
- * - 주간: 최근 5거래일 daily_reports 합산 mentions
- * - 월간: 최근 22거래일 daily_reports 합산 mentions
+ * 점수 계산 방식 (일간 기준):
+ * - mentionScore  = 언급 방송 수 × 25 (max 100)
+ * - tagScore      = posts.tags 등장 횟수 × 5 (max 20)
+ * - continuityScore = 연속 등장일 × 3 (max 15)
+ * - nuanceScore   = statusMultiplier × intensity × 4 (-20 ~ +20), 클라이언트에서 반영
+ * - rawScore      = mentionScore + tagScore + continuityScore (+ nuanceScore)
+ * - displayScore  = clamp(round(rawScore / 155 * 100), 0, 100)
+ * 주간/월간: 기간 내 누적 방송 수 기반
  */
 
 import { getStockCode } from './stockCodes';
@@ -18,13 +20,18 @@ export interface RankedStock {
   name: string;
   status: 'pos' | 'neu' | 'warn';
   move: { type: 'up' | 'down' | 'same' | 'new' | 're'; n: number };
-  score: number;
+  score: number;        // displayScore (0~100)
+  rawScore: number;     // 서버 계산 기본 점수 (nuanceScore 제외)
+  mentionScore: number;
+  tagScore: number;
+  continuityScore: number;
+  intensity: number;    // 1~5, 클라이언트에서 sentiment 로드 후 채워짐
   todayPct: number;
   hold: string;
   reason: string;
   rankTrail: (number | null)[];
   price: { today: number; d5: number; m1: number };
-  statusReason: string;
+  statusReason: string | null;
   latestNotes: Array<{ show: string; view: string }>;
   factorsPos: string[];
   factorsWarn: string[];
@@ -114,35 +121,65 @@ export async function computeRanking(
 
   if (stockMap.size === 0) return [];
 
+  // ── posts.tags 집계 (tagScore용) ────────────────────────────
+  const { data: postsData } = await supabase
+    .from('posts')
+    .select('tags, date')
+    .gte('date', fromDate)
+    .lte('date', toDate);
+
+  const tagCountMap = new Map<string, number>();
+  for (const post of postsData ?? []) {
+    const tags: string[] = Array.isArray(post.tags)
+      ? post.tags
+      : typeof post.tags === 'string'
+        ? post.tags.split(',').map((t: string) => t.trim())
+        : [];
+    for (const tag of tags) {
+      tagCountMap.set(tag, (tagCountMap.get(tag) ?? 0) + 1);
+    }
+  }
+
   // ── 점수 계산 ───────────────────────────────────────────────
   interface ScoredStock {
     name: string;
     score: number;
+    rawScore: number;
+    mentionScore: number;
+    tagScore: number;
+    continuityScore: number;
     latestNotes: any[];
     latestShows: string[];
-    days: number;  // 등장 날짜 수
+    days: number;
   }
 
   const scored: ScoredStock[] = [];
   for (const [name, entry] of stockMap) {
-    // 기본 점수: 총 방송 언급 수 × 20, 최대 80점
-    let score = Math.min(entry.totalShows * 20, 80);
-    // 지속성 보너스: 등장 날짜 수 × 5 (최대 20점)
-    score += Math.min(entry.dates.size * 5, 20);
-    // 100점 만점으로 정규화
-    score = Math.min(Math.round(score), 100);
+    const mentionScore = Math.min(entry.latestShows.length * 25, 100);
+    const tagScore = Math.min((tagCountMap.get(name) ?? 0) * 5, 20);
+    const continuityScore = Math.min(entry.dates.size * 3, 15);
+    const rawScore = mentionScore + tagScore + continuityScore;
+    const score = Math.max(0, Math.round((rawScore / 155) * 100));
 
     scored.push({
       name,
       score,
+      rawScore,
+      mentionScore,
+      tagScore,
+      continuityScore,
       latestNotes: entry.latestNotes,
       latestShows: entry.latestShows,
       days: entry.dates.size,
     });
   }
 
-  // 점수 내림차순 정렬
-  scored.sort((a, b) => b.score - a.score);
+  // rawScore 내림차순, 동점 시 mentionScore → 연속일수 순
+  scored.sort((a, b) =>
+    b.rawScore - a.rawScore ||
+    b.mentionScore - a.mentionScore ||
+    b.continuityScore - a.continuityScore
+  );
 
   // 상위 10개만
   const top10 = scored.slice(0, 10);
@@ -253,6 +290,11 @@ export async function computeRanking(
       status,
       move,
       score: s.score,
+      rawScore: s.rawScore,
+      mentionScore: s.mentionScore,
+      tagScore: s.tagScore,
+      continuityScore: s.continuityScore,
+      intensity: 1, // 클라이언트에서 sentiment 로드 후 업데이트
       todayPct: prices?.todayPct ?? 0,
       hold,
       reason,
