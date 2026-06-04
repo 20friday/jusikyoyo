@@ -244,7 +244,7 @@ export async function computeRanking(
       if (prices.todayPct >= 1.5) status = 'pos';
       else if (prices.todayPct <= -1.5) status = 'warn';
     }
-    const statusReason = sentiment?.reason ?? '';
+    const statusReason = sentiment ? (sentiment.reason ?? '') : null;
 
     return {
       rank,

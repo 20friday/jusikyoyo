@@ -220,6 +220,7 @@ const initialData = JSON.stringify(dayData);
   .rank-status--pos { background: var(--up-bg); color: var(--up); }
   .rank-status--neu { background: var(--flat-bg); color: var(--text-3); }
   .rank-status--warn { background: var(--down-bg); color: var(--down); }
+  .rank-status--loading { background: #f0f2f4; color: #94a0ad; }
 
   .rank-status-reason {
     font-size: 13px;
@@ -581,7 +582,8 @@ function moveBadge(move) {
   return '';
 }
 
-function statusChip(status) {
+function statusChip(status, hasReason) {
+  if (!hasReason) return `<span class="rank-status rank-status--loading">분석 중</span>`;
   const map = { pos: ['pos','긍정'], neu: ['neu','중립'], warn: ['warn','주의'] };
   const [cls, label] = map[status] || ['neu','중립'];
   return `<span class="rank-status rank-status--${cls}">${label}</span>`;
@@ -706,9 +708,14 @@ function cardHtml(stock) {
           <div class="rank-info">
             <div class="rank-name-row">
               <span class="rank-name">${stock.name}</span>
-              ${statusChip(stock.status)}
+              ${statusChip(stock.status, stock.statusReason !== null)}
             </div>
-            ${stock.statusReason ? `<span class="rank-status-reason">${stock.statusReason}</span>` : ''}
+            ${stock.statusReason === null
+              ? `<span class="rank-status-reason" style="color:#94a0ad">뉘앙스 분석 중이에요…</span>`
+              : stock.statusReason
+                ? `<span class="rank-status-reason">${stock.statusReason}</span>`
+                : ''
+            }
             <div class="rank-stat-row">
               <span class="rank-change-pct rank-change-pct--${pcl}">${pct(stock.todayPct)}</span>
               <span class="rank-sep"></span>
