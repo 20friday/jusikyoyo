@@ -55,7 +55,9 @@ ${stockTexts}
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]';
+    let text = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]';
+    // 마크다운 코드블록 제거
+    text = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
     const results: SentimentResult[] = JSON.parse(text);
 
     const map = new Map<string, SentimentResult>();
