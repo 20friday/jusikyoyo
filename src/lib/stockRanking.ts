@@ -14,6 +14,7 @@ import { fetchStockPrices } from './yahooFinance';
 
 export interface RankedStock {
   rank: number;
+  date: string;
   name: string;
   status: 'pos' | 'neu' | 'warn';
   move: { type: 'up' | 'down' | 'same' | 'new' | 're'; n: number };
@@ -247,6 +248,7 @@ export async function computeRanking(
 
     return {
       rank,
+      date: reports[0]?.date ?? tradingDates[0],
       name: s.name,
       status,
       move,
