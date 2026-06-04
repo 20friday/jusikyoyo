@@ -70,7 +70,7 @@ const bodyHtml = report?.body ? await renderMarkdown(report.body) : null;
               <button class="stock-row stock-row--clickable" data-stock={stock.name}>
                 <div class="stock-row-left">
                   <span class="stock-rank">#{i + 1}</span>
-                  <span class="stock-name">{stock.name}</span>
+                  <span class="stock-name stock-tag">{stock.name}</span>
                 </div>
                 <div class="stock-row-right">
                   <span class="stock-shows">{stock.shows.join(' · ')}</span>

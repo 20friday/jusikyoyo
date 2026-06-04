@@ -381,6 +381,23 @@ const initialData = JSON.stringify(dayData);
     background: var(--text-3);
   }
 
+  /* 방송 언급 히스토리 버튼 */
+  .stock-history-btn {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    background: var(--surface-2, rgba(255,255,255,0.06));
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+  }
+  .stock-history-btn:hover {
+    background: var(--surface-3, rgba(255,255,255,0.10));
+  }
+
   /* 왜 순위에 올랐나요 */
   .basis-title {
     font-size: 14px;
@@ -693,6 +710,7 @@ function detailHtml(stock) {
     <div class="detail-sec">
       <div class="basis-title">왜 순위에 올랐나요</div>
       <ul class="basis-list">${stock.basis.map(t => `<li>${t}</li>`).join('')}</ul>
+      <a class="stock-history-btn" href="/stock/${encodeURIComponent(stock.name)}">방송 언급 히스토리 보기 →</a>
     </div>
   </div>`;
 }
@@ -713,7 +731,7 @@ function cardHtml(stock) {
         <div class="rank-body">
           <div class="rank-info">
             <div class="rank-name-row">
-              <span class="rank-name">${stock.name}</span>
+              <span class="rank-name stock-tag" onclick="event.stopPropagation(); window.openStockPopup('${stock.name}')">${stock.name}</span>
               ${statusChip(stock.status, stock.statusReason !== null)}
               ${stock.statusReason !== null && stock.intensity > 1
                 ? `<span class="rank-intensity">이슈 강도 ${stock.intensity}/5</span>`

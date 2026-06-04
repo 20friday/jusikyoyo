@@ -58,7 +58,7 @@ const stocksJson = JSON.stringify(report?.stocks ?? []);
           <button class="stock-row stock-row--clickable" data-type="stock" data-index={i}>
             <div class="stock-row-left">
               <span class="stock-rank">#{i + 1}</span>
-              <span class="stock-name">{stock.name}</span>
+              <span class="stock-name stock-tag">{stock.name}</span>
             </div>
             <div class="stock-row-right">
               <span class="days-badge">{stock.days === 5 ? '5일 내내' : `${stock.days}일 언급`}</span>
@@ -98,7 +98,7 @@ const stocksJson = JSON.stringify(report?.stocks ?? []);
         <div class="report-section-label">다음 주까지 이어서 봐야 할 종목</div>
         <div class="weekly-chips">
           {report.watchlist.map((item: any) => (
-            <span class="weekly-chip">{item.name}</span>
+            <span class="weekly-chip stock-tag" onclick={`window.openStockPopup('${item.name}')`}>{item.name}</span>
           ))}
         </div>
       </div>
