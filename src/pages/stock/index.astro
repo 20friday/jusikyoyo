@@ -178,10 +178,11 @@ const initialData = JSON.stringify(dayData);
   .rank-move--down { color: var(--down); }
   .rank-move--same { color: var(--text-3); }
   .rank-move--new, .rank-move--re {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     padding: 3px 6px;
     border-radius: 5px;
+    white-space: nowrap;
   }
   .rank-move--new { background: #ed781f; color: #fff; }
   .rank-move--re { background: rgba(124,92,255,0.12); color: #7c5cff; }
@@ -597,8 +598,8 @@ function moveBadge(move) {
   if (move.type === 'up') return `<span class="rank-move rank-move--up">▲${move.n}</span>`;
   if (move.type === 'down') return `<span class="rank-move rank-move--down">▼${move.n}</span>`;
   if (move.type === 'same') return `<span class="rank-move rank-move--same">—</span>`;
-  if (move.type === 'new') return `<span class="rank-move rank-move--new">NEW</span>`;
-  if (move.type === 're') return `<span class="rank-move rank-move--re">RE</span>`;
+  if (move.type === 'new') return `<span class="rank-move rank-move--new">신규진입</span>`;
+  if (move.type === 're') return `<span class="rank-move rank-move--re">재진입</span>`;
   return '';
 }
 
