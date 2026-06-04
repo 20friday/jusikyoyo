@@ -21,10 +21,10 @@ export async function analyzeStockSentiments(
 
   if (stocks.length === 0) return new Map();
 
-  // 클라이언트를 함수 내부에서 생성 (import.meta.env 런타임 접근 보장)
-  const client = new Anthropic({
-    apiKey: import.meta.env.ANTHROPIC_API_KEY,
-  });
+  const apiKey = process.env.ANTHROPIC_API_KEY ?? import.meta.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return new Map();
+
+  const client = new Anthropic({ apiKey });
 
   // 종목별 코멘트 정리
   const stockTexts = stocks.map(s => {
