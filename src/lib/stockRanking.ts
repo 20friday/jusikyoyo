@@ -10,7 +10,7 @@
  */
 
 import { getStockCode } from './stockCodes';
-import { fetchStockPrices } from './kiwoom';
+import { fetchStockPrices } from './yahooFinance';
 
 export interface RankedStock {
   rank: number;
