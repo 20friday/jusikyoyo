@@ -7,20 +7,24 @@ export const GET: APIRoute = async ({ url }) => {
   try {
     const date = url.searchParams.get('date') ?? new Date(Date.now() + 9*3600*1000).toISOString().slice(0, 10);
 
-    const sb = createClient(
-      import.meta.env.PUBLIC_SUPABASE_URL,
-      import.meta.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
-    );
+    const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL ?? process.env.PUBLIC_SUPABASE_URL ?? '';
+    const serviceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
-    const { data: report } = await sb
+    if (!supabaseUrl || !serviceKey) {
+      return new Response(JSON.stringify({ _debug: 'no supabase config', url: !!supabaseUrl, key: !!serviceKey }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    const sb = createClient(supabaseUrl, serviceKey);
+
+    const { data: report, error: dbErr } = await sb
       .from('daily_reports')
       .select('stocks')
       .eq('published', true)
       .eq('date', date)
       .single();
 
-    if (!report?.stocks?.length) {
-      return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });
+    if (dbErr || !report?.stocks?.length) {
+      return new Response(JSON.stringify({ _debug: 'no data', date, err: dbErr?.message }), { headers: { 'Content-Type': 'application/json' } });
     }
 
     const stocks = report.stocks.map((s: any) => ({
