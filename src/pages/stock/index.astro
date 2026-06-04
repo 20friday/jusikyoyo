@@ -783,8 +783,8 @@ function render() {
 
   try {
     list.innerHTML = data.map(cardHtml).join('');
-  } catch(e: any) {
-    list.innerHTML = `<li style="padding:20px;color:#e55;font-size:14px">렌더 오류: ${e?.message}</li>`;
+  } catch(e) {
+    list.innerHTML = `<li style="padding:20px;color:#e55;font-size:14px">렌더 오류: ${e instanceof Error ? e.message : String(e)}</li>`;
   }
 }
 
