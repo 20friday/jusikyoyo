@@ -34,6 +34,10 @@ export const GET: APIRoute = async ({ url }) => {
       notes: s.notes ?? [],
     }));
 
+    // 디버그: 키 확인 (앞 10자만)
+    if (!ANTHROPIC_API_KEY) {
+      return new Response(JSON.stringify({ _debug: 'key empty', key_prefix: String(ANTHROPIC_API_KEY).slice(0,10) }), { headers: { 'Content-Type': 'application/json' } });
+    }
     const sentimentMap = await analyzeStockSentiments(stocks, ANTHROPIC_API_KEY);
     const result = Object.fromEntries(
       [...sentimentMap.entries()].map(([name, s]) => [name, { status: s.status, reason: s.reason }])
