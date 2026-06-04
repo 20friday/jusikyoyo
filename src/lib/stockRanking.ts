@@ -210,7 +210,10 @@ export async function computeRanking(
   // ── 주가 데이터 조회 + 뉘앙스 분석 (병렬) ──────────────────────
   const codes = top10.map(s => getStockCode(s.name)).filter(Boolean) as string[];
   // 주가만 서버에서 조회 (뉘앙스는 클라이언트에서 비동기로)
-  const priceMap = await fetchStockPrices(codes);
+  const priceMap = await Promise.race([
+    fetchStockPrices(codes),
+    new Promise<Map<string, any>>(resolve => setTimeout(() => resolve(new Map()), 7000)),
+  ]);
   const sentimentMap = new Map();
 
   // 이름 → 코드 반대 맵핑

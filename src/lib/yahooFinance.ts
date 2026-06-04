@@ -40,14 +40,21 @@ function toYahooSymbol(code: string): string {
 
 async function fetchQuote(symbol: string): Promise<any> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2mo`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0',
-      'Accept': 'application/json',
-    },
-  });
-  if (!res.ok) throw new Error(`Yahoo Finance HTTP ${res.status}`);
-  return res.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'application/json',
+      },
+    });
+    if (!res.ok) throw new Error(`Yahoo Finance HTTP ${res.status}`);
+    return res.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function calcPct(current: number, base: number): number {
