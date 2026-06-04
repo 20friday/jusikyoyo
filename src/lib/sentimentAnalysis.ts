@@ -2,7 +2,7 @@
  * 방송 코멘트 뉘앙스 분석 (Claude API)
  * 종목별 방송 notes를 읽고 긍정/중립/주의 판단
  */
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic, { type ClientOptions } from '@anthropic-ai/sdk';
 
 export type Status = 'pos' | 'neu' | 'warn';
 

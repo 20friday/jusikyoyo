@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { analyzeStockSentiments } from '../../lib/sentimentAnalysis';
 import { createClient } from '@supabase/supabase-js';
+import { ANTHROPIC_API_KEY } from 'astro:env/server';
 
 // GET: 날짜 기반으로 Supabase에서 직접 notes 가져와서 분석
 export const GET: APIRoute = async ({ url }) => {
@@ -33,8 +34,7 @@ export const GET: APIRoute = async ({ url }) => {
       notes: s.notes ?? [],
     }));
 
-    const anthropicKey = import.meta.env.ANTHROPIC_API_KEY;
-    const sentimentMap = await analyzeStockSentiments(stocks, anthropicKey);
+    const sentimentMap = await analyzeStockSentiments(stocks, ANTHROPIC_API_KEY);
     const result = Object.fromEntries(
       [...sentimentMap.entries()].map(([name, s]) => [name, { status: s.status, reason: s.reason }])
     );

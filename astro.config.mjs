@@ -1,5 +1,5 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
+import { defineConfig, envField } from 'astro/config';
 import react from '@astrojs/react';
 import vercel from '@astrojs/vercel';
 import remarkDirective from 'remark-directive';
@@ -13,11 +13,9 @@ export default defineConfig({
     remarkPlugins: [remarkDirective, remarkBlocks],
     shikiConfig: { theme: 'github-light' },
   },
-  vite: {
-    define: {
-      // 서버 전용 시크릿 빌드 시점 주입
-      'import.meta.env.ANTHROPIC_API_KEY': JSON.stringify(process.env.ANTHROPIC_API_KEY ?? ''),
-      'import.meta.env.SUPABASE_SERVICE_ROLE_KEY': JSON.stringify(process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''),
+  env: {
+    schema: {
+      ANTHROPIC_API_KEY: envField.string({ context: 'server', access: 'secret' }),
     },
   },
 });
