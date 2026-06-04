@@ -225,10 +225,9 @@ const initialData = JSON.stringify(dayData);
     font-size: 13px;
     color: var(--text-3);
     font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 140px;
+    line-height: 1.4;
+    margin-top: 3px;
+    display: block;
   }
   .rank-stat-row {
     font-size: 15px;
@@ -582,11 +581,10 @@ function moveBadge(move) {
   return '';
 }
 
-function statusChip(status, reason) {
+function statusChip(status) {
   const map = { pos: ['pos','긍정'], neu: ['neu','중립'], warn: ['warn','주의'] };
   const [cls, label] = map[status] || ['neu','중립'];
-  const tip = reason ? ` title="${reason}"` : '';
-  return `<span class="rank-status rank-status--${cls}"${tip}>${label}</span>${reason ? `<span class="rank-status-reason">${reason}</span>` : ''}`;
+  return `<span class="rank-status rank-status--${cls}">${label}</span>`;
 }
 
 // ── 순위 차트 SVG ─────────────────────────────────────────────
@@ -708,8 +706,9 @@ function cardHtml(stock) {
           <div class="rank-info">
             <div class="rank-name-row">
               <span class="rank-name">${stock.name}</span>
-              ${statusChip(stock.status, stock.statusReason)}
+              ${statusChip(stock.status)}
             </div>
+            ${stock.statusReason ? `<span class="rank-status-reason">${stock.statusReason}</span>` : ''}
             <div class="rank-stat-row">
               <span class="rank-change-pct rank-change-pct--${pcl}">${pct(stock.todayPct)}</span>
               <span class="rank-sep"></span>
