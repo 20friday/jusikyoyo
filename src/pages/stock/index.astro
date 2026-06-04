@@ -13,6 +13,10 @@ try {
   loadError = true;
 }
 
+const todayKST = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+const dataDate = dayData[0]?.date ?? null;
+const isToday = dataDate === todayKST;
+
 const initialData = JSON.stringify(dayData);
 ---
 
@@ -37,6 +41,17 @@ const initialData = JSON.stringify(dayData);
       <span class="rank-meta-date" id="metaDate"></span>
       <span class="rank-meta-ai"><span class="rank-meta-dot"></span>AI 자동 집계</span>
     </div>
+
+    <!-- 전일 기준 안내 배너 -->
+    {!isToday && dataDate && (
+      <div class="rank-prev-notice" id="rankPrevNotice">
+        <span class="rank-prev-icon">📋</span>
+        <div class="rank-prev-text">
+          <strong>오늘의 픽이 아직 등록되지 않았어요</strong>
+          <span>지금은 {new Date(dataDate + 'T00:00:00+09:00').toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 기준 순위예요. 오늘의 픽이 등록되면 자동으로 업데이트돼요.</span>
+        </div>
+      </div>
+    )}
 
     <!-- 랭킹 리스트 -->
     <ul class="rank-list" id="rankList"></ul>
@@ -443,6 +458,38 @@ const initialData = JSON.stringify(dayData);
     background: #ed781f;
   }
 
+  /* ── 전일 기준 안내 배너 ── */
+  .rank-prev-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    background: rgba(232, 108, 44, 0.07);
+    border: 1px solid rgba(232, 108, 44, 0.2);
+    border-radius: 12px;
+  }
+  .rank-prev-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .rank-prev-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .rank-prev-text strong {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-1);
+  }
+  .rank-prev-text span {
+    font-size: 13px;
+    color: var(--text-3);
+    line-height: 1.5;
+  }
+
   /* ── 비어있을 때 ── */
   .rank-empty {
     text-align: center;
@@ -784,16 +831,27 @@ function render() {
 // ── 메타 날짜 ─────────────────────────────────────────────────
 function setMetaDate() {
   const el = document.getElementById('metaDate');
-  const now = new Date(Date.now() + 9 * 60 * 60 * 1000); // KST
+  // 실제 데이터 날짜 기준 (오늘 픽 없으면 전일 기준)
+  const dataDate = DAY_DATA[0]?.date;
+  const todayKST = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const isToday = !dataDate || dataDate === todayKST;
+  const base = isToday
+    ? new Date(Date.now() + 9 * 60 * 60 * 1000)
+    : new Date(dataDate + 'T00:00:00+09:00');
+  const now = base;
   const days = ['일','월','화','수','목','금','토'];
   const mm = now.getUTCMonth() + 1;
   const dd = now.getUTCDate();
   const dow = days[now.getUTCDay()];
-  const hh = now.getUTCHours();
-  const min = String(now.getUTCMinutes()).padStart(2, '0');
-  const ampm = hh < 12 ? '오전' : '오후';
-  const h12 = hh % 12 || 12;
-  el.textContent = `${mm}월 ${dd}일 (${dow}) ${ampm} ${h12}:${min} 기준`;
+  if (isToday) {
+    const hh = now.getUTCHours();
+    const min = String(now.getUTCMinutes()).padStart(2, '0');
+    const ampm = hh < 12 ? '오전' : '오후';
+    const h12 = hh % 12 || 12;
+    el.textContent = `${mm}월 ${dd}일 (${dow}) ${ampm} ${h12}:${min} 기준`;
+  } else {
+    el.textContent = `${mm}월 ${dd}일 (${dow}) 기준`;
+  }
 }
 
 // ── 이벤트 ────────────────────────────────────────────────────
