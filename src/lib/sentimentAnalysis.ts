@@ -4,10 +4,6 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = new Anthropic({
-  apiKey: import.meta.env.ANTHROPIC_API_KEY,
-});
-
 export type Status = 'pos' | 'neu' | 'warn';
 
 export interface SentimentResult {
@@ -24,6 +20,11 @@ export async function analyzeStockSentiments(
 ): Promise<Map<string, SentimentResult>> {
 
   if (stocks.length === 0) return new Map();
+
+  // 클라이언트를 함수 내부에서 생성 (import.meta.env 런타임 접근 보장)
+  const client = new Anthropic({
+    apiKey: import.meta.env.ANTHROPIC_API_KEY,
+  });
 
   // 종목별 코멘트 정리
   const stockTexts = stocks.map(s => {
