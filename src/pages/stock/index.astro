@@ -2,6 +2,9 @@
 import Base from '../../layouts/Base.astro';
 import { computeRanking } from '../../lib/stockRanking';
 
+// 캐시 비활성화 (항상 최신 데이터)
+Astro.response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+
 // 일간 데이터 서버사이드 로드
 let dayData: any[] = [];
 
