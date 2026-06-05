@@ -779,7 +779,7 @@ function render() {
 function setMetaDate() {
   const el = document.getElementById('metaDate');
   // 실제 데이터 날짜 기준 (오늘 픽 없으면 전일 기준)
-  const dataDate = DAY_DATA[0]?.date;
+  const dataDate = RANK_DATA.day[0]?.date;
   const todayKST = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const isToday = !dataDate || dataDate === todayKST;
   const base = isToday
