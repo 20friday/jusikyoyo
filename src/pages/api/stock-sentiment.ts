@@ -89,7 +89,7 @@ export const GET: APIRoute = async ({ url }) => {
         .order('date', { ascending: false })
         .limit(days + 3);
 
-      // 종목별 notes 합산 (최신 날짜 우선, 중복 show 제거)
+      // 종목별 notes 합산 (최신 날짜 우선, 방송당 1개만 유지)
       for (const report of reports ?? []) {
         for (const s of (report.stocks ?? [])) {
           if (!s.name || !s.notes?.length) continue;
@@ -98,8 +98,8 @@ export const GET: APIRoute = async ({ url }) => {
           }
           const existing = stockNotesMap.get(s.name)!;
           for (const note of s.notes) {
-            // 같은 방송 코멘트가 이미 있으면 추가 안 함 (최신 날짜 우선)
-            if (!existing.some(n => n.show === note.show && n.view === note.view)) {
+            // 같은 방송 코멘트는 최신 1개만 (최신 날짜 우선이므로 이미 있으면 스킵)
+            if (!existing.some(n => n.show === note.show)) {
               existing.push(note);
             }
           }
