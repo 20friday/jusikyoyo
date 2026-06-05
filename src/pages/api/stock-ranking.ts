@@ -20,7 +20,10 @@ export const GET: APIRoute = async ({ url, locals }) => {
   try {
     const data = await computeRanking((locals as any).supabase, period);
     return new Response(JSON.stringify(data), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache',
+      },
     });
   } catch (e: any) {
     console.error('[api/stock-ranking]', e);
