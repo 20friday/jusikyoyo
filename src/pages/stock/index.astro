@@ -1,24 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { computeRanking } from '../../lib/stockRanking';
 
-// 캐시 비활성화 (항상 최신 데이터)
-Astro.response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-
-// 일간 데이터 서버사이드 로드
-let dayData: any[] = [];
-
-try {
-  dayData = await computeRanking(Astro.locals.supabase, 'day');
-} catch (e) {
-  console.error('[stock/index] 랭킹 로드 실패:', e);
-}
-
-const todayKST = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-const dataDate = dayData[0]?.date ?? null;
-const isToday = dataDate === todayKST;
-
-const initialData = JSON.stringify(dayData);
+// 모든 데이터를 클라이언트에서 API로 로드 (Vercel CDN 캐시 우회)
+const initialData = '[]';
 const initialWeekData = '[]';
 const initialMonthData = '[]';
 ---
@@ -857,9 +841,25 @@ document.getElementById('periodTabs').addEventListener('click', async e => {
   }
 });
 
-// ── 초기화 ────────────────────────────────────────────────────
-setMetaDate();
-render();
+// ── 초기화 (일간 데이터 API로 로드) ──────────────────────────
+(async () => {
+  const list = document.getElementById('rankList');
+  list.innerHTML = '<li style="text-align:center;padding:40px;color:var(--text-3);font-size:15px;">불러오는 중…</li>';
+  list.hidden = false;
+  try {
+    const res = await fetch('/api/stock-ranking?period=day');
+    const data = await res.json();
+    RANK_DATA.day = Array.isArray(data) ? data : [];
+  } catch {
+    RANK_DATA.day = [];
+  }
+  setMetaDate();
+  render();
+  if (RANK_DATA.day?.length) {
+    loadSentiment(RANK_DATA.day, 'day');
+    loadPrices(RANK_DATA.day);
+  }
+})();
 
 // ── 뉘앙스 분석 비동기 로드 (초기 렌더 후) ──────────────────
 async function loadSentiment(data, period = 'day') {
@@ -901,10 +901,7 @@ async function loadSentiment(data, period = 'day') {
   }
 }
 
-if (RANK_DATA.day?.length) {
-  loadSentiment(RANK_DATA.day, 'day');
-  loadPrices(RANK_DATA.day);
-}
+// (초기화는 위 IIFE에서 처리)
 
 // ── 주가 비동기 로드 ──────────────────────────────────────────
 async function loadPrices(data) {
