@@ -46,14 +46,6 @@ const stockInfoJson = JSON.stringify(stockInfo);
     </div>
   </div>
 
-  <!-- 종목 모달 -->
-  <div id="stock-modal-backdrop" class="stock-modal-backdrop"></div>
-  <div id="stock-modal" class="stock-modal" aria-hidden="true" role="dialog">
-    <div class="stock-modal-inner">
-      <div id="stock-modal-content" class="stock-modal-content"></div>
-      <button id="stock-modal-close" class="stock-modal-close" aria-label="닫기">닫기</button>
-    </div>
-  </div>
 </Base>
 
 <style>
@@ -76,69 +68,6 @@ const stockInfoJson = JSON.stringify(stockInfo);
     opacity: 0.65;
   }
 
-  .stock-modal-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 100;
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
-  }
-  .stock-modal-backdrop.open { display: block; }
-
-  .stock-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 101;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 16px;
-  }
-  .stock-modal.open { display: flex; }
-
-  .stock-modal-inner {
-    background: var(--card);
-    border-radius: 20px;
-    width: 100%;
-    max-width: 480px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-    animation: modal-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  @keyframes modal-in {
-    from { opacity: 0; transform: scale(0.95); }
-    to   { opacity: 1; transform: scale(1); }
-  }
-
-  .stock-modal-close {
-    display: block;
-    flex-shrink: 0;
-    width: calc(100% - 40px);
-    margin: 8px 20px 20px;
-    padding: 16px;
-    border-radius: 14px;
-    background: var(--border);
-    border: none;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text-2);
-    cursor: pointer;
-    font-family: var(--font);
-  }
-  .stock-modal-close:active { background: var(--divider); }
-
-  .stock-modal-content {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 24px 20px 8px;
-  }
 
   :global(.smi-sector) {
     display: inline-block;
@@ -210,52 +139,13 @@ const stockInfoJson = JSON.stringify(stockInfo);
   }
 </script>
 
-<script define:vars={{ stockInfoJson }}>
-  const stockInfo = JSON.parse(stockInfoJson);
-  const backdrop = document.getElementById('stock-modal-backdrop');
-  const sheet = document.getElementById('stock-modal');
-  const content = document.getElementById('stock-modal-content');
-
-  function openModal(stockName) {
-    const info = stockInfo.find(s => s.name === stockName);
-    const historyLink = `<a class="smi-history" href="/stock/${encodeURIComponent(stockName)}">방송 언급 히스토리 보기 →</a>`;
-    if (info) {
-      content.innerHTML = `
-        <div class="smi-sector">${info.sector}</div>
-        <div class="smi-name">${info.name}</div>
-        <div class="smi-desc">${info.desc}</div>
-        ${historyLink}
-      `;
-    } else {
-      content.innerHTML = `
-        <div class="smi-name">${stockName}</div>
-        <div class="smi-unknown">이 종목에 대한 설명이 아직 준비되지 않았어요.</div>
-        ${historyLink}
-      `;
-    }
-    backdrop.classList.add('open');
-    sheet.classList.add('open');
-    sheet.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeModal() {
-    backdrop.classList.remove('open');
-    sheet.classList.remove('open');
-    sheet.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-  }
-
+<script>
   document.querySelectorAll('.block-stock').forEach(el => {
     el.addEventListener('click', () => {
       const name = el.querySelector('.block-stock-name')?.textContent?.trim() ?? '';
-      if (name) openModal(name);
+      if (name) window.openStockPopup(name);
     });
   });
-
-  sheet.addEventListener('click', closeModal);
-  document.getElementById('stock-modal-close').addEventListener('click', closeModal);
-  document.querySelector('.stock-modal-inner').addEventListener('click', e => e.stopPropagation());
 </script>
 
 <script>

@@ -117,14 +117,6 @@ const stocksJson = JSON.stringify(report?.stocks ?? []);
     </div>
   )}
 
-  <!-- 공용 모달 -->
-  <div id="weekly-modal-backdrop" class="weekly-modal-backdrop"></div>
-  <div id="weekly-modal" class="weekly-modal" aria-hidden="true" role="dialog">
-    <div class="weekly-modal-inner">
-      <div id="weekly-modal-content" class="weekly-modal-content"></div>
-      <button id="weekly-modal-close" class="weekly-modal-close" aria-label="닫기">닫기</button>
-    </div>
-  </div>
 </Base>
 
 <style>
@@ -212,232 +204,20 @@ const stocksJson = JSON.stringify(report?.stocks ?? []);
   }
 
   /* ── 모달 ── */
-  .weekly-modal-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 100;
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
-  }
-  .weekly-modal-backdrop.open { display: block; }
-
-  .weekly-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 101;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 16px;
-  }
-  .weekly-modal.open { display: flex; }
-
-  .weekly-modal-inner {
-    background: var(--card);
-    border-radius: 20px;
-    width: 100%;
-    max-width: 480px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: wmodal-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  @keyframes wmodal-in {
-    from { opacity: 0; transform: scale(0.95); }
-    to   { opacity: 1; transform: scale(1); }
-  }
-
-  .weekly-modal-close {
-    display: block;
-    flex-shrink: 0;
-    width: calc(100% - 40px);
-    margin: 8px 20px 20px;
-    padding: 16px;
-    border-radius: 14px;
-    background: var(--border);
-    border: none;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text-2);
-    cursor: pointer;
-    font-family: var(--font);
-  }
-  .weekly-modal-close:active { background: var(--divider); }
-
-  .weekly-modal-content {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 20px 20px 8px;
-  }
 
 </style>
 
-<script define:vars={{ stocksJson, date, supabaseUrl, supabaseKey }}>
+<script define:vars={{ stocksJson }}>
   const stocks = JSON.parse(stocksJson);
-  const DAYS = ['일','월','화','수','목','금','토'];
-
-  const backdrop = document.getElementById('weekly-modal-backdrop');
-  const sheet    = document.getElementById('weekly-modal');
-  const content  = document.getElementById('weekly-modal-content');
-
-  function openModal(html) {
-    content.innerHTML = html;
-    backdrop.classList.add('open');
-    sheet.classList.add('open');
-    sheet.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeModal() {
-    backdrop.classList.remove('open');
-    sheet.classList.remove('open');
-    sheet.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-  }
-
-  function formatDate(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`;
-  }
-
-  // 언급 내용에서 핵심 1~2문장 합성
-  function synthesize(mentions) {
-    const BULL = ['기회','저평가','매수','상승','개선','기대','상향','성장','매력','반등','긍정','호조','수혜','강세','회복'];
-    const RISK = ['리스크','부담','하락','우려','주의','악재','불확실','파업','단기 변동','과매수','조정','약세'];
-
-    const sentences = [];
-    const allShows  = new Set();
-
-    mentions.forEach(m => {
-      m.notes.forEach(n => {
-        allShows.add(n.show);
-        // 마침표 기준으로 문장 분리
-        n.view.split(/(?<=[.。!?])\s+|(?<=[가-힣])\.\s*/).forEach(s => {
-          const clean = s.replace(/[.。!?\s]+$/, '').trim();
-          if (clean.length < 8) return;
-          const bull = BULL.filter(w => clean.includes(w)).length;
-          const risk = RISK.filter(w => clean.includes(w)).length;
-          sentences.push({ text: clean, bull, risk, score: bull - risk });
-        });
-      });
-    });
-
-    if (sentences.length === 0) return null;
-
-    // 긍정 대표 / 부담 대표 문장 각각 선택 (짧고 점수 높은 것)
-    const bullSents = sentences.filter(s => s.bull > 0 && s.risk === 0)
-      .sort((a, b) => b.bull - a.bull || a.text.length - b.text.length);
-    const riskSents = sentences.filter(s => s.risk > 0 && s.bull === 0)
-      .sort((a, b) => b.risk - a.risk || a.text.length - b.text.length);
-
-    const showList = allShows.size <= 3
-      ? [...allShows].join(' · ')
-      : `${[...allShows].slice(0, 2).join(' · ')} 등`;
-
-    if (bullSents.length > 0 && riskSents.length > 0) {
-      return `${riskSents[0].text}. 반면 ${bullSents[0].text.charAt(0).toLowerCase() + bullSents[0].text.slice(1)}.`;
-    } else if (bullSents.length > 0) {
-      return `${showList}에서 긍정적으로 평가됐어요. ${bullSents[0].text}.`;
-    } else if (riskSents.length > 0) {
-      return `${showList}에서 부담 요인과 함께 언급됐어요. ${riskSents[0].text}.`;
-    } else {
-      // 그냥 첫 문장 사용
-      const first = sentences.sort((a, b) => a.text.length - b.text.length)[0];
-      return first?.text ? `${first.text}.` : null;
-    }
-  }
-
-  async function openStockModal(s) {
-    const daysLabel = s.days === 5 ? '5일 내내' : `${s.days}일`;
-    // 즉시 로딩 상태 표시
-    let html = `<div class="sheet-stock-name">${s.name}</div>`;
-    html += `<div class="sheet-stock-shows">이번 주 ${daysLabel} 언급</div>`;
-    html += `<div id="modal-daily-area"><div class="modal-loading">불러오는 중…</div></div>`;
-    html += `<a class="sheet-history" href="/stock/${s.name}">방송 언급 히스토리 보기 →</a>`;
-    openModal(html);
-
-    // 이번 주 날짜 범위 계산 (weekly report date 기준 -6일)
-    const endDate = new Date(date + 'T00:00:00');
-    const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - 6);
-    const startStr = startDate.toISOString().slice(0, 10);
-
-    try {
-      const res = await fetch(
-        `${supabaseUrl}/rest/v1/daily_reports?date=gte.${startStr}&date=lte.${date}&select=date,stocks&order=date.desc`,
-        { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
-      );
-      const reports = await res.json();
-
-      // 이 종목이 언급된 날만 추출
-      const mentions = reports
-        .map(r => {
-          const st = r.stocks?.find(st => st.name === s.name);
-          return st ? { date: r.date, notes: st.notes ?? [], shows: st.shows ?? [] } : null;
-        })
-        .filter(Boolean);
-
-      const area = document.getElementById('modal-daily-area');
-      if (!area) return;
-
-      if (mentions.length > 0) {
-        // 요약문 합성
-        const summary = synthesize(mentions);
-
-        let dailyHtml = '';
-
-        if (summary) {
-          dailyHtml += `<div style="background:#fff3ea;border-left:3px solid #ed781f;border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:20px;font-size:14px;line-height:1.75;color:#1a1a1a;font-weight:500;">${summary}</div>`;
-        }
-
-        // 일별 상세
-        for (const m of mentions) {
-          dailyHtml += `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee;">`;
-          dailyHtml += `<div style="font-size:12px;font-weight:700;color:#ed781f;margin-bottom:8px;">${formatDate(m.date)}</div>`;
-          if (m.notes.length > 0) {
-            m.notes.forEach(n => {
-              dailyHtml += `<div class="sheet-point"><span class="sheet-point-show">${n.show}</span><span class="sheet-point-body">${n.view}</span></div>`;
-            });
-          } else if (m.shows.length > 0) {
-            dailyHtml += `<div class="sheet-point"><span class="sheet-point-body">${m.shows.join(' · ')} 에서 언급</span></div>`;
-          }
-          dailyHtml += `</div>`;
-        }
-        area.innerHTML = dailyHtml;
-      } else if (s.notes && s.notes.length > 0) {
-        // daily 데이터 없으면 weekly notes로 fallback
-        const fallbackMentions = [{ date: date, notes: s.notes, shows: [] }];
-        const summary = synthesize(fallbackMentions);
-        let notesHtml = summary ? `<div style="background:#fff3ea;border-left:3px solid #ed781f;border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:20px;font-size:14px;line-height:1.75;color:#1a1a1a;font-weight:500;">${summary}</div>` : '';
-        s.notes.forEach(n => {
-          notesHtml += `<div class="sheet-point"><span class="sheet-point-show">${n.show}</span><span class="sheet-point-body">${n.view}</span></div>`;
-        });
-        area.innerHTML = notesHtml;
-      } else {
-        area.innerHTML = `<div class="sheet-no-comp">이번 주 상세 내용이 없어요.</div>`;
-      }
-    } catch {
-      const area = document.getElementById('modal-daily-area');
-      if (area) area.innerHTML = `<div class="sheet-no-comp">내용을 불러올 수 없어요.</div>`;
-    }
-  }
 
   document.querySelectorAll('.stock-row--clickable').forEach(btn => {
     btn.addEventListener('click', () => {
       const index = Number(btn.dataset.index);
       const s = stocks[index];
       if (!s) return;
-      openStockModal(s);
+      window.openStockPopup(s.name);
     });
   });
-
-  sheet.addEventListener('click', closeModal);
-  document.getElementById('weekly-modal-close').addEventListener('click', closeModal);
-  document.querySelector('.weekly-modal-inner').addEventListener('click', e => e.stopPropagation());
 </script>
 
 <script>

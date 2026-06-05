@@ -116,14 +116,6 @@ const bodyHtml = report?.body ? await renderMarkdown(report.body) : null;
     </div>
   )}
 
-  <!-- 종목 모달 -->
-  <div id="stock-modal-backdrop" class="stock-modal-backdrop"></div>
-  <div id="stock-modal" class="stock-modal" aria-hidden="true" role="dialog">
-    <div class="stock-modal-inner">
-      <div id="stock-modal-content" class="stock-modal-content"></div>
-      <button id="stock-modal-close" class="stock-modal-close" aria-label="닫기">닫기</button>
-    </div>
-  </div>
 </Base>
 
 <style>
@@ -160,152 +152,16 @@ const bodyHtml = report?.body ? await renderMarkdown(report.body) : null;
     flex-shrink: 0;
   }
 
-  /* 모달 */
-  .stock-modal-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 100;
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
-  }
-  .stock-modal-backdrop.open { display: block; }
-
-  .stock-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 101;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 16px;
-  }
-  .stock-modal.open { display: flex; }
-
-  .stock-modal-inner {
-    background: var(--card);
-    border-radius: 20px;
-    width: 100%;
-    max-width: 480px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-    animation: modal-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  @keyframes modal-in {
-    from { opacity: 0; transform: scale(0.95); }
-    to   { opacity: 1; transform: scale(1); }
-  }
-
-  .stock-modal-close {
-    display: block;
-    flex-shrink: 0;
-    width: calc(100% - 40px);
-    margin: 8px 20px 20px;
-    padding: 16px;
-    border-radius: 14px;
-    background: var(--border);
-    border: none;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text-2);
-    cursor: pointer;
-    font-family: var(--font);
-  }
-  .stock-modal-close:active { background: var(--divider); }
-
-  .stock-modal-content {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 20px 20px 8px;
-  }
-
-  .sheet-history {
-    display: inline-block;
-    margin-top: 16px;
-    margin-bottom: 8px;
-    padding: 10px 0;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--blue);
-    text-decoration: none;
-  }
-  .sheet-history:hover { text-decoration: underline; }
 
 </style>
 
-<script define:vars={{ comparisonsJson, stocksJson }}>
-  const comparisons = JSON.parse(comparisonsJson);
-  const stocks = JSON.parse(stocksJson);
-  const backdrop = document.getElementById('stock-modal-backdrop');
-  const sheet = document.getElementById('stock-modal');
-  const content = document.getElementById('stock-modal-content');
-
-  function openSheet(stockName, shows) {
-    const stockData = stocks.find(s => s.name === stockName);
-    const notes = stockData?.notes ?? [];
-
-    // 관련 comparison 찾기
-    const related = comparisons.filter(c =>
-      c.stock.includes(stockName) || stockName.includes(c.stock.split(' ')[0])
-    );
-
-    let html = `<div class="sheet-stock-name">${stockName}</div>`;
-    html += `<div class="sheet-stock-shows">${shows} 언급</div>`;
-
-    if (notes.length > 0) {
-      // notes 우선 표시
-      notes.forEach(pt => {
-        html += `<div class="sheet-point"><span class="sheet-point-show">${pt.show}</span><span class="sheet-point-body">${pt.view}</span></div>`;
-      });
-      // 관련 comparison의 PICK이 있으면 추가
-      related.forEach(comp => {
-        html += `<div class="sheet-pick"><div class="sheet-pick-label">PICK</div>${comp.pick}</div>`;
-      });
-    } else if (related.length > 0) {
-      // notes 없으면 comparisons fallback
-      related.forEach(comp => {
-        html += `<div class="sheet-comp-title">${comp.stock}</div>`;
-        comp.points.forEach(pt => {
-          html += `<div class="sheet-point"><span class="sheet-point-show">${pt.show}</span><span class="sheet-point-body">${pt.view}</span></div>`;
-        });
-        html += `<div class="sheet-pick"><div class="sheet-pick-label">PICK</div>${comp.pick}</div>`;
-      });
-    } else {
-      html += `<div class="sheet-no-comp">이 종목은 여러 방송에서 언급됐지만, 별도 내용 정리가 없어요.</div>`;
-    }
-
-    html += `<a class="sheet-history" href="/stock/${stockName}">방송 언급 히스토리 보기 →</a>`;
-    content.innerHTML = html;
-    backdrop.classList.add('open');
-    sheet.classList.add('open');
-    sheet.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeModal() {
-    backdrop.classList.remove('open');
-    sheet.classList.remove('open');
-    sheet.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-  }
-
+<script>
   document.querySelectorAll('.stock-row--clickable').forEach(btn => {
     btn.addEventListener('click', () => {
       const stockName = btn.dataset.stock;
-      const shows = btn.querySelector('.stock-shows')?.textContent ?? '';
-      openSheet(stockName, shows);
+      if (stockName) window.openStockPopup(stockName);
     });
   });
-
-  sheet.addEventListener('click', closeModal);
-  document.getElementById('stock-modal-close').addEventListener('click', closeModal);
-  document.querySelector('.stock-modal-inner').addEventListener('click', e => e.stopPropagation());
 </script>
 
 <script define:vars={{ date, supabaseUrl, supabaseKey }}>
