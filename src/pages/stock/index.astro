@@ -846,6 +846,11 @@ document.getElementById('periodTabs').addEventListener('click', async e => {
   }
 
   render();
+
+  // 주가 비동기 로드 (렌더 후 백그라운드)
+  if (RANK_DATA[period]?.length) {
+    loadPrices(RANK_DATA[period]);
+  }
 });
 
 // ── 초기화 ────────────────────────────────────────────────────
@@ -895,5 +900,36 @@ async function loadSentiment(data) {
 
 if (RANK_DATA.day?.length) {
   loadSentiment(RANK_DATA.day);
+  loadPrices(RANK_DATA.day);
+}
+
+// ── 주가 비동기 로드 ──────────────────────────────────────────
+async function loadPrices(data) {
+  if (!data?.length) return;
+  // 이미 가격 데이터가 있으면 스킵
+  if (data.some(s => s.price?.today !== 0 || s.price?.d5 !== 0)) return;
+  try {
+    const names = data.map(s => s.name).join(',');
+    const res = await fetch(`/api/stock-prices?names=${encodeURIComponent(names)}`);
+    const prices = await res.json();
+    if (!prices || !Object.keys(prices).length) return;
+
+    let changed = false;
+    for (const stock of data) {
+      const p = prices[stock.name];
+      if (p) {
+        stock.todayPct = p.today;
+        stock.price = { today: p.today, d5: p.d5, m1: p.m1 };
+        changed = true;
+      }
+    }
+    if (changed) {
+      // 현재 보고 있는 탭의 데이터면 다시 렌더
+      const currentData = RANK_DATA[state.period];
+      if (currentData === data) render();
+    }
+  } catch {
+    // 실패해도 무시
+  }
 }
 </script>
