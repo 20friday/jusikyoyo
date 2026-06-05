@@ -847,9 +847,10 @@ document.getElementById('periodTabs').addEventListener('click', async e => {
 
   render();
 
-  // 주가 비동기 로드 (렌더 후 백그라운드)
+  // 주가 + sentiment 비동기 로드 (렌더 후 백그라운드)
   if (RANK_DATA[period]?.length) {
     loadPrices(RANK_DATA[period]);
+    loadSentiment(RANK_DATA[period], period);
   }
 });
 
@@ -858,12 +859,11 @@ setMetaDate();
 render();
 
 // ── 뉘앙스 분석 비동기 로드 (초기 렌더 후) ──────────────────
-async function loadSentiment(data) {
+async function loadSentiment(data, period = 'day') {
   if (!data || !data.length) return;
   try {
-    // 실제 랭킹 데이터의 날짜 사용 (최신 daily_report 날짜)
     const date = data[0]?.date ?? new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10);
-    const res = await fetch(`/api/stock-sentiment?date=${date}`);
+    const res = await fetch(`/api/stock-sentiment?date=${date}&period=${period}`);
     const sentiment = await res.json();
     if (!sentiment || typeof sentiment !== 'object') return;
 
@@ -899,7 +899,7 @@ async function loadSentiment(data) {
 }
 
 if (RANK_DATA.day?.length) {
-  loadSentiment(RANK_DATA.day);
+  loadSentiment(RANK_DATA.day, 'day');
   loadPrices(RANK_DATA.day);
 }
 
