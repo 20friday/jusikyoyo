@@ -12,6 +12,16 @@ const SENTIMENT_COL: Record<Period, string> = {
   month: 'month_sentiment',
 };
 
+// 날짜를 "6월 2일 (월)" 형식으로 변환
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00+09:00');
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+  const weekday = weekdays[d.getDay()];
+  return `${month}월 ${day}일 (${weekday})`;
+}
+
 export const GET: APIRoute = async ({ url }) => {
   try {
     const dateParam = url.searchParams.get('date') ?? new Date(Date.now() + 9*3600*1000).toISOString().slice(0, 10);
@@ -63,65 +73,70 @@ export const GET: APIRoute = async ({ url }) => {
       });
     }
 
-    // ── 기간별 notes 수집 ──────────────────────────────────────
-    let stockNotesMap: Map<string, Array<{ show: string; view: string }>> = new Map();
-
-    if (period === 'day') {
-      // 일간: 오늘 리포트의 notes만
-      for (const s of todayReport.stocks) {
-        if (s.name && s.notes?.length) {
-          stockNotesMap.set(s.name, s.notes);
-        }
-      }
-    } else {
-      // 주간/월간: 기간 내 모든 daily_report의 notes 수집
-      const days = PERIOD_DAYS[period];
-      const fromDate = new Date(Date.now() + 9*3600*1000);
-      fromDate.setDate(fromDate.getDate() - days * 2); // 거래일 여유 있게
-      const fromStr = fromDate.toISOString().slice(0, 10);
-
-      const { data: reports } = await sb
-        .from('daily_reports')
-        .select('date, stocks')
-        .eq('published', true)
-        .gte('date', fromStr)
-        .lte('date', dateParam)
-        .order('date', { ascending: false })
-        .limit(days + 3);
-
-      // 종목별 notes 합산 (최신 날짜 우선, 방송당 1개만 유지)
-      for (const report of reports ?? []) {
-        for (const s of (report.stocks ?? [])) {
-          if (!s.name || !s.notes?.length) continue;
-          if (!stockNotesMap.has(s.name)) {
-            stockNotesMap.set(s.name, []);
-          }
-          const existing = stockNotesMap.get(s.name)!;
-          for (const note of s.notes) {
-            // 같은 방송 코멘트는 최신 1개만 (최신 날짜 우선이므로 이미 있으면 스킵)
-            if (!existing.some(n => n.show === note.show)) {
-              existing.push(note);
-            }
-          }
-        }
-      }
-    }
-
-    if (stockNotesMap.size === 0) {
-      return new Response(JSON.stringify({ _debug: 'no notes' }), {
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
     if (!ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ _debug: 'key empty' }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    // ── Haiku 분석 ─────────────────────────────────────────────
+    // ── 기간별 분석 데이터 수집 ────────────────────────────────
+    let stockNotesMap: Map<string, Array<{ show: string; view: string }>> = new Map();
+
+    if (period === 'day') {
+      // 일간: 오늘 방송 notes 그대로 사용
+      for (const s of todayReport.stocks) {
+        if (s.name && s.notes?.length) {
+          stockNotesMap.set(s.name, s.notes);
+        }
+      }
+    } else {
+      // 주간/월간: 기간 내 이미 분석된 일간 sentiment 결과를 수집
+      const days = PERIOD_DAYS[period];
+      const fromDate = new Date(Date.now() + 9*3600*1000);
+      fromDate.setDate(fromDate.getDate() - days * 2);
+      const fromStr = fromDate.toISOString().slice(0, 10);
+
+      // 각 날짜의 일간 sentiment 캐시 가져오기
+      const { data: reports } = await sb
+        .from('daily_reports')
+        .select('date, sentiment')
+        .eq('published', true)
+        .gte('date', fromStr)
+        .lte('date', dateParam)
+        .not('sentiment', 'is', null)
+        .order('date', { ascending: false })
+        .limit(days + 3);
+
+      // 종목별로 날짜별 일간 sentiment 결과를 정리
+      // format: { show: "6월 2일 (월)", view: "긍정 — 메모리 공급 부족 지속 전망이에요." }
+      for (const report of reports ?? []) {
+        const dateLabel = formatDate(report.date);
+        const sentiment = report.sentiment as Record<string, { status: string; reason: string }>;
+        if (!sentiment) continue;
+
+        for (const [name, s] of Object.entries(sentiment)) {
+          if (!s?.status) continue;
+          if (!stockNotesMap.has(name)) {
+            stockNotesMap.set(name, []);
+          }
+          const statusLabel = s.status === 'pos' ? '긍정' : s.status === 'warn' ? '주의' : '중립';
+          stockNotesMap.get(name)!.push({
+            show: dateLabel,
+            view: `${statusLabel} — ${s.reason ?? ''}`,
+          });
+        }
+      }
+    }
+
+    if (stockNotesMap.size === 0) {
+      return new Response(JSON.stringify({ _debug: 'no data for period' }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── Haiku 종합 분석 ────────────────────────────────────────
     const stocks = [...stockNotesMap.entries()].map(([name, notes]) => ({ name, notes }));
-    const sentimentMap = await analyzeStockSentiments(stocks, ANTHROPIC_API_KEY);
+    const sentimentMap = await analyzeStockSentiments(stocks, ANTHROPIC_API_KEY, period);
     const result = Object.fromEntries(
       [...sentimentMap.entries()].map(([name, s]) => [name, { status: s.status, intensity: s.intensity, reason: s.reason }])
     );

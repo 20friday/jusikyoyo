@@ -18,7 +18,8 @@ export interface SentimentResult {
  */
 export async function analyzeStockSentiments(
   stocks: Array<{ name: string; notes: Array<{ show: string; view: string }> }>,
-  apiKey?: string
+  apiKey?: string,
+  context: 'day' | 'week' | 'month' = 'day'
 ): Promise<Map<string, SentimentResult>> {
 
   if (stocks.length === 0) return new Map();
@@ -34,21 +35,31 @@ export async function analyzeStockSentiments(
     return `종목: ${s.name}\n${comments}`;
   }).join('\n\n---\n\n');
 
-  const prompt = `다음은 오늘 주식 방송에서 각 종목에 대해 한 코멘트예요.
-각 종목의 방송 뉘앙스를 분석해서 아래 기준으로 판단해주세요.
-
-status 기준:
-- pos: 긍정적 재료, 상승 기대, 실적 개선, 수급 개선, 정책 수혜 등이 중심인 경우
-- neu: 단순 언급, 방향성이 불분명하거나 관망 필요한 경우
-- warn: 악재, 단기 과열, 차익실현, 실적 부진, 수급 이탈, 리스크가 중심인 경우
-주의: 단순히 "급등"이라는 단어가 있어도 문맥이 긍정적이면 pos로 판단하세요.
-
-intensity 기준 (1~5):
+  const contextLabel = context === 'week' ? '이번 주 일별 분석 결과' : context === 'month' ? '이번 달 일별 분석 결과' : '오늘 방송 코멘트';
+  const intensityDesc = context === 'day'
+    ? `intensity 기준 (1~5):
 - 1: 단순 언급 (종목명이 지나가듯 언급됨)
 - 2: 섹터 흐름 안에서 짧게 언급
 - 3: 개별 종목 이슈나 수급 설명이 있음
 - 4: 주가 변동 원인, 기대감, 리스크가 명확히 설명됨
-- 5: 오늘 시장의 핵심 종목으로 반복 분석됨
+- 5: 오늘 시장의 핵심 종목으로 반복 분석됨`
+    : `intensity 기준 (1~5):
+- 1: 기간 내 1일만 언급됨
+- 2: 기간 내 일부 날짜에만 언급
+- 3: 기간 내 절반 이상 날짜에 언급
+- 4: 기간 내 대부분 날짜에 일관된 방향으로 언급됨
+- 5: 기간 내 매일 핵심 종목으로 반복 분석됨`;
+
+  const prompt = `다음은 ${contextLabel}예요.
+각 종목의 전체 흐름을 종합해서 아래 기준으로 판단해주세요.
+
+status 기준:
+- pos: 긍정적 재료, 상승 기대, 실적 개선, 수급 개선, 정책 수혜 등이 중심인 경우
+- neu: 방향성이 불분명하거나 긍정/주의가 혼재하는 경우
+- warn: 악재, 단기 과열, 차익실현, 실적 부진, 수급 이탈, 리스크가 중심인 경우
+주의: 단순히 "급등"이라는 단어가 있어도 문맥이 긍정적이면 pos로 판단하세요.
+
+${intensityDesc}
 
 아래 종목들을 분석해주세요:
 
