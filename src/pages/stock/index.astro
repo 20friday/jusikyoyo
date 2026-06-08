@@ -894,6 +894,12 @@ async function loadSentiment(data, period = 'day') {
         (b.continuityScore - a.continuityScore)
       );
       data.forEach((s, i) => s.rank = i + 1);
+      // 뉘앙스 반영으로 순위가 바뀌면 7일 차트의 오늘 점도 최종 순위로 맞춤
+      data.forEach((s) => {
+        if (Array.isArray(s.rankTrail) && s.rankTrail.length) {
+          s.rankTrail[s.rankTrail.length - 1] = s.rank;
+        }
+      });
       render();
     }
   } catch (e) {

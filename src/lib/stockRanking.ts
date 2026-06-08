@@ -9,6 +9,9 @@
  * - rawScore      = mentionScore + tagScore + continuityScore (+ nuanceScore)
  * - displayScore  = clamp(round(rawScore / 155 * 100), 0, 100)
  * 주간/월간: 기간 내 누적 방송 수 기반
+ *
+ * 7일 순위 변화 차트(rankTrail)도 헤더 순위와 동일한 윈도우 종합 점수로 계산해,
+ * 차트 마지막 점 = 헤더 순위가 항상 일치하도록 한다.
  */
 
 import { getStockCode } from './stockCodes';
@@ -67,80 +70,33 @@ export async function computeRanking(
   period: 'day' | 'week' | 'month'
 ): Promise<RankedStock[]> {
 
-  // 기간별 거래일 수
+  // 기간별 윈도우 크기 (거래일)
   const days = period === 'day' ? 1 : period === 'week' ? 5 : 22;
-  const tradingDates = recentTradingDates(days + 10).slice(0, days + 5);
-  const fromDate = tradingDates[tradingDates.length - 1];
-  const toDate = tradingDates[0];
+  const spanCount = days + 5;   // 헤더 순위가 보는 윈도우 (거래일 수)
+  const trailLen = 7;           // 7일 순위 변화 차트 길이
 
-  // ── daily_reports 조회 ──────────────────────────────────────
-  const { data: reports } = await supabase
+  // 트레일 7일 + 각 날짜의 윈도우를 모두 덮는 거래일 목록
+  const allTradingDates = recentTradingDates(trailLen + spanCount + 5);
+  const today = allTradingDates[0];
+  const oldestNeeded = allTradingDates[Math.min(trailLen + spanCount - 1, allTradingDates.length - 1)];
+
+  // ── 데이터 한 번에 조회 ─────────────────────────────────────
+  const { data: allReports } = await supabase
     .from('daily_reports')
     .select('date, stocks')
     .eq('published', true)
-    .gte('date', fromDate)
-    .lte('date', toDate)
+    .gte('date', oldestNeeded)
+    .lte('date', today)
     .order('date', { ascending: false });
 
-  if (!reports || reports.length === 0) return [];
+  if (!allReports || allReports.length === 0) return [];
 
-  // ── 종목별 집계 ─────────────────────────────────────────────
-  // stockMap: name → { dates: Set, totalShows: number, latestReport }
-  const stockMap = new Map<string, {
-    dates: Set<string>;
-    totalShows: number;
-    latestNotes: any[];
-    latestShows: string[];
-    allDates: string[];  // 등장한 날짜들 (최신 순)
-  }>();
-
-  for (const report of reports) {
-    for (const stock of (report.stocks ?? [])) {
-      if (!stock.name) continue;
-      if (!stockMap.has(stock.name)) {
-        stockMap.set(stock.name, {
-          dates: new Set(),
-          totalShows: 0,
-          latestNotes: [],
-          latestShows: [],
-          allDates: [],
-        });
-      }
-      const entry = stockMap.get(stock.name)!;
-      entry.dates.add(report.date);
-      entry.totalShows += (stock.shows?.length ?? 1);
-      entry.allDates.push(report.date);
-
-      // 가장 최신 날짜의 notes/shows만 저장
-      if (entry.latestNotes.length === 0) {
-        entry.latestNotes = stock.notes ?? [];
-        entry.latestShows = stock.shows ?? [];
-      }
-    }
-  }
-
-  if (stockMap.size === 0) return [];
-
-  // ── posts.tags 집계 (tagScore용) ────────────────────────────
-  const { data: postsData } = await supabase
+  const { data: allPosts } = await supabase
     .from('posts')
     .select('tags, date')
-    .gte('date', fromDate)
-    .lte('date', toDate);
+    .gte('date', oldestNeeded)
+    .lte('date', today);
 
-  const tagCountMap = new Map<string, number>();
-  for (const post of postsData ?? []) {
-    const tags: string[] = Array.isArray(post.tags)
-      ? post.tags
-      : typeof post.tags === 'string'
-        ? post.tags.split(',').map((t: string) => t.trim())
-        : [];
-    for (const tag of tags) {
-      tagCountMap.set(tag, (tagCountMap.get(tag) ?? 0) + 1);
-    }
-  }
-
-  // ── 점수 계산 ───────────────────────────────────────────────
   interface ScoredStock {
     name: string;
     score: number;
@@ -153,95 +109,99 @@ export async function computeRanking(
     days: number;
   }
 
-  const scored: ScoredStock[] = [];
-  for (const [name, entry] of stockMap) {
-    const mentionScore = Math.min(entry.latestShows.length * 25, 100);
-    const tagScore = Math.min((tagCountMap.get(name) ?? 0) * 5, 20);
-    const continuityScore = Math.min(entry.dates.size * 3, 15);
-    const rawScore = mentionScore + tagScore + continuityScore;
-    const score = Math.max(0, Math.round((rawScore / 155) * 100));
+  // refDate 기준 윈도우의 종목 점수를 계산해 정렬된 목록 반환
+  // (헤더 순위와 완전히 동일한 계산식)
+  function computeScored(refDate: string): ScoredStock[] {
+    const idx = allTradingDates.indexOf(refDate);
+    if (idx < 0) return [];
+    const windowDates = allTradingDates.slice(idx, idx + spanCount);
+    const toD = refDate;
+    const fromD = windowDates[windowDates.length - 1];
 
-    scored.push({
-      name,
-      score,
-      rawScore,
-      mentionScore,
-      tagScore,
-      continuityScore,
-      latestNotes: entry.latestNotes,
-      latestShows: entry.latestShows,
-      days: entry.dates.size,
-    });
-  }
+    const reps = (allReports as any[])
+      .filter((r) => r.date >= fromD && r.date <= toD)
+      .sort((a, b) => b.date.localeCompare(a.date)); // 최신 순
 
-  // rawScore 내림차순, 동점 시 mentionScore → 연속일수 순
-  scored.sort((a, b) =>
-    b.rawScore - a.rawScore ||
-    b.mentionScore - a.mentionScore ||
-    b.continuityScore - a.continuityScore
-  );
+    const stockMap = new Map<string, {
+      dates: Set<string>;
+      latestNotes: any[];
+      latestShows: string[];
+    }>();
 
-  // 상위 10개만
-  const top10 = scored.slice(0, 10);
+    for (const report of reps) {
+      for (const stock of (report.stocks ?? [])) {
+        if (!stock.name) continue;
+        if (!stockMap.has(stock.name)) {
+          stockMap.set(stock.name, { dates: new Set(), latestNotes: [], latestShows: [] });
+        }
+        const e = stockMap.get(stock.name)!;
+        e.dates.add(report.date);
+        // reps가 최신 순이므로 첫 등장이 가장 최근 데이터
+        if (e.latestShows.length === 0 && e.latestNotes.length === 0) {
+          e.latestNotes = stock.notes ?? [];
+          e.latestShows = stock.shows ?? [];
+        }
+      }
+    }
 
-  // ── 7일 순위 추적 (rankTrail) — 한 번에 조회 ───────────────────
-  const last7 = recentTradingDates(7);
-  const last7From = last7[last7.length - 1];
+    const tagCount = new Map<string, number>();
+    for (const post of (allPosts ?? [])) {
+      if (!(post.date >= fromD && post.date <= toD)) continue;
+      const tags: string[] = Array.isArray(post.tags)
+        ? post.tags
+        : typeof post.tags === 'string'
+          ? post.tags.split(',').map((t: string) => t.trim())
+          : [];
+      for (const tag of tags) tagCount.set(tag, (tagCount.get(tag) ?? 0) + 1);
+    }
 
-  const { data: last7Reports } = await supabase
-    .from('daily_reports')
-    .select('date, stocks')
-    .eq('published', true)
-    .gte('date', last7From)
-    .lte('date', last7[0])
-    .order('date', { ascending: false });
+    const scored: ScoredStock[] = [];
+    for (const [name, e] of stockMap) {
+      const mentionScore = Math.min(e.latestShows.length * 25, 100);
+      const tagScore = Math.min((tagCount.get(name) ?? 0) * 5, 20);
+      const continuityScore = Math.min(e.dates.size * 3, 15);
+      const rawScore = mentionScore + tagScore + continuityScore;
+      const score = Math.max(0, Math.round((rawScore / 155) * 100));
+      scored.push({
+        name, score, rawScore, mentionScore, tagScore, continuityScore,
+        latestNotes: e.latestNotes, latestShows: e.latestShows, days: e.dates.size,
+      });
+    }
 
-  const dailyRankings = new Map<string, Map<string, number>>();
-  for (const report of last7Reports ?? []) {
-    const dayStocks = report.stocks as any[];
-    const sorted = [...dayStocks].sort((a, b) =>
-      (b.shows?.length ?? 0) - (a.shows?.length ?? 0)
+    scored.sort((a, b) =>
+      b.rawScore - a.rawScore ||
+      b.mentionScore - a.mentionScore ||
+      b.continuityScore - a.continuityScore
     );
-    const rankMap = new Map<string, number>();
-    sorted.forEach((s: any, i: number) => rankMap.set(s.name, i + 1));
-    dailyRankings.set(report.date, rankMap);
+    return scored;
   }
 
-  // ── 주가 데이터 조회 + 뉘앙스 분석 (병렬) ──────────────────────
-  const codes = top10.map(s => getStockCode(s.name)).filter(Boolean) as string[];
-  // 주가만 서버에서 조회 (뉘앙스는 클라이언트에서 비동기로)
-  // 주가 조회 (SSR 컨텍스트에서는 skipPrices=true로 호출 가능)
-  const priceMap = new Map();
-  const sentimentMap = new Map();
+  // ── 오늘 기준 랭킹 (= 헤더 순위) ────────────────────────────
+  const scoredToday = computeScored(today);
+  if (scoredToday.length === 0) return [];
+  const top10 = scoredToday.slice(0, 10);
 
-  // 이름 → 코드 반대 맵핑
-  const nameToCode = new Map<string, string>();
-  for (const s of top10) {
-    const code = getStockCode(s.name);
-    if (code) nameToCode.set(s.name, code);
-  }
-
-  // ── 이전 랭킹 (어제 기준) move 계산 ────────────────────────
-  const yesterday = last7[1]; // last7[0]이 오늘
-  const yesterdayRanks = dailyRankings.get(yesterday ?? '') ?? new Map();
+  // ── 최근 7거래일 각 날짜의 순위 맵 (트레일·move 공용) ───────
+  const last7 = allTradingDates.slice(0, trailLen);
+  const dayRankMaps = last7.map(d => {
+    const sc = computeScored(d);
+    const m = new Map<string, number>();
+    sc.forEach((s, i) => m.set(s.name, i + 1));
+    return m;
+  });
+  // dayRankMaps[0] = 오늘, [1] = 어제 ...
+  const yesterdayRanks = dayRankMaps[1] ?? new Map<string, number>();
 
   // ── 최종 결과 조합 ───────────────────────────────────────────
   const results: RankedStock[] = top10.map((s, idx) => {
     const rank = idx + 1;
-    const code = nameToCode.get(s.name);
-    const prices = code ? priceMap.get(code) : null;
 
-    // move 계산
+    // move 계산 (어제 윈도우 순위 대비)
     const prevRank = yesterdayRanks.get(s.name);
     let move: RankedStock['move'];
     if (!prevRank) {
-      // 어제 TOP에 없었는지, 아니면 며칠 전부터 없었는지 확인
-      const wasInLast7 = last7.slice(2).some(d =>
-        dailyRankings.get(d)?.has(s.name)
-      );
-      move = wasInLast7
-        ? { type: 're', n: 0 }
-        : { type: 'new', n: 0 };
+      const wasInLast7 = dayRankMaps.slice(2).some(m => m.has(s.name));
+      move = wasInLast7 ? { type: 're', n: 0 } : { type: 'new', n: 0 };
     } else {
       const diff = prevRank - rank;
       if (diff > 0) move = { type: 'up', n: diff };
@@ -249,17 +209,15 @@ export async function computeRanking(
       else move = { type: 'same', n: 0 };
     }
 
-    // rankTrail: 최근 7일 순위
-    const rankTrail: (number | null)[] = last7.slice().reverse().map(date => {
-      const rankMap = dailyRankings.get(date);
-      return rankMap?.get(s.name) ?? null;
-    });
+    // rankTrail: 오래된→최신 순 (마지막 = 오늘 = 헤더 순위와 동일)
+    const rankTrail: (number | null)[] = dayRankMaps
+      .slice()
+      .reverse()
+      .map(m => m.get(s.name) ?? null);
 
     // hold: 연속 등장일
     const holdDays = s.days;
-    const hold = holdDays === 1
-      ? '오늘 진입'
-      : `${holdDays}일 연속 TOP`;
+    const hold = holdDays === 1 ? '오늘 진입' : `${holdDays}일 연속 TOP`;
 
     // reason: 최신 방송 코멘트에서 뽑기 (첫 번째 note)
     const firstNote = s.latestNotes[0];
@@ -275,20 +233,12 @@ export async function computeRanking(
       }),
     ];
 
-    // status: AI 뉘앙스 분석 우선, 없으면 주가 기반 fallback
-    const sentiment = sentimentMap.get(s.name);
-    let status: 'pos' | 'neu' | 'warn' = sentiment?.status ?? 'neu';
-    if (!sentiment && prices) {
-      if (prices.todayPct >= 1.5) status = 'pos';
-      else if (prices.todayPct <= -1.5) status = 'warn';
-    }
-    const statusReason = sentiment ? (sentiment.reason ?? '') : null;
-
+    // status / 주가: 클라이언트에서 sentiment·주가 로드 후 채움
     return {
       rank,
-      date: reports[0]?.date ?? tradingDates[0],
+      date: (allReports as any[])[0]?.date ?? today,
       name: s.name,
-      status,
+      status: 'neu' as const,
       move,
       score: s.score,
       rawScore: s.rawScore,
@@ -296,16 +246,12 @@ export async function computeRanking(
       tagScore: s.tagScore,
       continuityScore: s.continuityScore,
       intensity: 1, // 클라이언트에서 sentiment 로드 후 업데이트
-      todayPct: prices?.todayPct ?? 0,
+      todayPct: 0,
       hold,
       reason,
       rankTrail,
-      price: {
-        today: prices?.todayPct ?? 0,
-        d5: prices?.d5Pct ?? 0,
-        m1: prices?.m1Pct ?? 0,
-      },
-      statusReason,
+      price: { today: 0, d5: 0, m1: 0 },
+      statusReason: null,
       latestNotes: s.latestNotes,
       factorsPos: [],
       factorsWarn: [],
