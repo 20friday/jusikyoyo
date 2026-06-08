@@ -48,7 +48,7 @@ const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
 
     <!-- 헤더 -->
     <div class="stock-hero">
-      <a href="/" class="back-link">← 피드로</a>
+      <a href="/" class="back-link" onclick="if(window.history.length>1){window.history.back();return false;}">← 뒤로</a>
       {info && <span class="stock-sector">{info.sector}</span>}
       <h1 class="stock-title">{name}</h1>
       {info && <p class="stock-desc">{info.desc}</p>}
