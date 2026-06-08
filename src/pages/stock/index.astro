@@ -784,7 +784,7 @@ function setMetaDate() {
   const isToday = !dataDate || dataDate === todayKST;
   const base = isToday
     ? new Date(Date.now() + 9 * 60 * 60 * 1000)
-    : new Date(dataDate + 'T00:00:00+09:00');
+    : new Date(dataDate + 'T12:00:00+09:00');
   const now = base;
   const days = ['일','월','화','수','목','금','토'];
   const mm = now.getUTCMonth() + 1;
