@@ -206,6 +206,7 @@ const initialMonthData = '[]';
   .rank-status--neu { background: var(--flat-bg); color: var(--text-3); }
   .rank-status--warn { background: var(--down-bg); color: var(--down); }
   .rank-status--loading { background: #f0f2f4; color: #94a0ad; }
+  .rank-status--mention { background: #f0f2f4; color: #8b95a1; }
   .rank-intensity {
     display: none;
   }
@@ -587,11 +588,15 @@ function moveBadge(move) {
   return '';
 }
 
-function statusChip(status, hasReason) {
-  if (!hasReason) return `<span class="rank-status rank-status--loading">분석 중</span>`;
-  const map = { pos: ['pos','긍정'], neu: ['neu','중립'], warn: ['warn','주의'] };
-  const [cls, label] = map[status] || ['neu','중립'];
-  return `<span class="rank-status rank-status--${cls}">${label}</span>`;
+function statusChip(stock) {
+  if (stock.statusReason !== null) {
+    const map = { pos: ['pos','긍정'], neu: ['neu','중립'], warn: ['warn','주의'] };
+    const [cls, label] = map[stock.status] || ['neu','중립'];
+    return `<span class="rank-status rank-status--${cls}">${label}</span>`;
+  }
+  // 뉘앙스 분석 결과가 없는 종목: 로딩이 끝났으면 "단순 언급", 아직이면 "분석 중"
+  if (stock.noSentiment) return `<span class="rank-status rank-status--mention">단순 언급</span>`;
+  return `<span class="rank-status rank-status--loading">분석 중</span>`;
 }
 
 // ── 순위 차트 SVG ─────────────────────────────────────────────
@@ -666,14 +671,17 @@ function detailHtml(stock) {
     </div>`;
   };
 
-  const statusReasonTitle = stock.statusReason === null
-    ? '방송 분석 내용'
-    : stock.status === 'pos' ? '긍정인 이유는!' : stock.status === 'warn' ? '주의해야 할 이유는!' : '분석 내용은!';
-  const statusReasonHtml = stock.statusReason === null
-    ? `<span style="color:#94a0ad">뉘앙스 분석 중이에요…</span>`
-    : stock.statusReason
-      ? stock.statusReason
-      : '';
+  let statusReasonTitle, statusReasonHtml;
+  if (stock.statusReason !== null) {
+    statusReasonTitle = stock.status === 'pos' ? '긍정인 이유는!' : stock.status === 'warn' ? '주의해야 할 이유는!' : '분석 내용은!';
+    statusReasonHtml = stock.statusReason ? stock.statusReason : '';
+  } else if (stock.noSentiment) {
+    statusReasonTitle = '방송 분석 내용';
+    statusReasonHtml = `<span style="color:#94a0ad">방송에서 이름은 언급됐지만, 방향성 코멘트는 없었어요.</span>`;
+  } else {
+    statusReasonTitle = '방송 분석 내용';
+    statusReasonHtml = `<span style="color:#94a0ad">뉘앙스 분석 중이에요…</span>`;
+  }
 
   return `<div class="rank-detail-inner">
     ${statusReasonHtml ? `<div class="detail-sec detail-sec--reason">
@@ -727,7 +735,7 @@ function cardHtml(stock) {
           <div class="rank-info">
             <div class="rank-name-row">
               <span class="rank-name stock-tag" onclick="event.stopPropagation(); window.openStockPopup('${stock.name}')">${stock.name}</span>
-              ${statusChip(stock.status, stock.statusReason !== null)}
+              ${statusChip(stock)}
             </div>
             <div class="rank-stat-row">
               <span class="rank-change-pct rank-change-pct--${pcl}">${pct(stock.todayPct)}</span>
@@ -871,39 +879,39 @@ async function loadSentiment(data, period = 'day') {
     if (!sentiment || typeof sentiment !== 'object') return;
 
     const STATUS_MULTIPLIER = { pos: 1, neu: 0, warn: -1 };
-    let changed = false;
     for (const stock of data) {
       const s = sentiment[stock.name];
       if (s?.status) {
         stock.status = s.status;
         stock.intensity = Math.min(Math.max(Math.round(Number(s.intensity) || 1), 1), 5);
         stock.statusReason = s.reason ?? '';
+        stock.noSentiment = false;
         // 서버가 준 기본 점수(뉘앙스 제외)를 한 번만 보관 → 중복 적용 방지
         if (stock.baseRawScore === undefined) stock.baseRawScore = stock.rawScore ?? 0;
         const nuanceScore = (STATUS_MULTIPLIER[s.status] ?? 0) * stock.intensity * 4;
         stock.rawScore = stock.baseRawScore + nuanceScore;
         stock.score = Math.max(0, Math.round((stock.rawScore / 155) * 100));
-        changed = true;
+      } else if (stock.statusReason === null) {
+        // 응답을 받았는데 이 종목의 뉘앙스 결과가 없음 → "단순 언급"으로 확정
+        stock.noSentiment = true;
       }
     }
-    if (changed) {
-      // nuanceScore 반영 후 재정렬
-      data.sort((a, b) =>
-        (b.rawScore - a.rawScore) ||
-        (b.mentionScore - a.mentionScore) ||
-        (b.intensity - a.intensity) ||
-        (b.tagScore - a.tagScore) ||
-        (b.continuityScore - a.continuityScore)
-      );
-      data.forEach((s, i) => s.rank = i + 1);
-      // 뉘앙스 반영으로 순위가 바뀌면 7일 차트의 오늘 점도 최종 순위로 맞춤
-      data.forEach((s) => {
-        if (Array.isArray(s.rankTrail) && s.rankTrail.length) {
-          s.rankTrail[s.rankTrail.length - 1] = s.rank;
-        }
-      });
-      render();
-    }
+    // 상태 반영 후 재정렬 (뉘앙스 가점·감점 포함)
+    data.sort((a, b) =>
+      (b.rawScore - a.rawScore) ||
+      (b.mentionScore - a.mentionScore) ||
+      (b.intensity - a.intensity) ||
+      (b.tagScore - a.tagScore) ||
+      (b.continuityScore - a.continuityScore)
+    );
+    data.forEach((s, i) => s.rank = i + 1);
+    // 순위가 바뀌면 7일 차트의 오늘 점도 최종 순위로 맞춤
+    data.forEach((s) => {
+      if (Array.isArray(s.rankTrail) && s.rankTrail.length) {
+        s.rankTrail[s.rankTrail.length - 1] = s.rank;
+      }
+    });
+    render();
   } catch (e) {
     // 실패해도 무시
   }
