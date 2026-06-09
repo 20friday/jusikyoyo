@@ -878,8 +878,10 @@ async function loadSentiment(data, period = 'day') {
         stock.status = s.status;
         stock.intensity = Math.min(Math.max(Math.round(Number(s.intensity) || 1), 1), 5);
         stock.statusReason = s.reason ?? '';
+        // 서버가 준 기본 점수(뉘앙스 제외)를 한 번만 보관 → 중복 적용 방지
+        if (stock.baseRawScore === undefined) stock.baseRawScore = stock.rawScore ?? 0;
         const nuanceScore = (STATUS_MULTIPLIER[s.status] ?? 0) * stock.intensity * 4;
-        stock.rawScore = (stock.rawScore ?? 0) + nuanceScore;
+        stock.rawScore = stock.baseRawScore + nuanceScore;
         stock.score = Math.max(0, Math.round((stock.rawScore / 155) * 100));
         changed = true;
       }
