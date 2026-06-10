@@ -78,6 +78,10 @@ export const STOCK_CODES: Record<string, string> = {
   'LG유플러스': '032640',
   'SK텔레콤': '017670',
   'POSCO홀딩스': '005490',
+
+  // 유통·소비재
+  '신세계': '004170',
+  '현대백화점': '069960',
 };
 
 export function getStockCode(name: string): string | null {

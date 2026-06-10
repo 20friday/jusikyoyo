@@ -12,10 +12,8 @@ export interface StockPrice {
   m1Pct: number;      // 1개월 수익률
 }
 
-// 코스닥 종목 코드 목록 (나머지는 코스피로 처리)
+// 시장이 확인 안 된 코드의 폴백용 코스닥 목록 (보통은 resolveStockCode가 시장을 넘겨줌)
 const KOSDAQ_CODES = new Set([
-  '042700', // 한미반도체
-  '454910', // 두산로보틱스
   '277810', // 레인보우로보틱스
   '108490', // 로보티즈
   '090360', // 로보스타
@@ -31,11 +29,14 @@ const KOSDAQ_CODES = new Set([
   '067310', // 하나마이크론
   '128940', // 한미약품
   '009420', // 한올바이오파마
+  '126640', // 화신정공
 ]);
 
-function toYahooSymbol(code: string): string {
-  const suffix = KOSDAQ_CODES.has(code) ? '.KQ' : '.KS';
-  return code + suffix;
+function toYahooSymbol(code: string, market?: 'KOSPI' | 'KOSDAQ'): string {
+  // 시장 정보가 있으면 그대로 사용, 없을 때만 폴백 목록으로 추정
+  if (market === 'KOSDAQ') return code + '.KQ';
+  if (market === 'KOSPI') return code + '.KS';
+  return code + (KOSDAQ_CODES.has(code) ? '.KQ' : '.KS');
 }
 
 async function fetchQuote(symbol: string): Promise<any> {
@@ -62,9 +63,9 @@ function calcPct(current: number, base: number): number {
   return Math.round(((current - base) / base) * 1000) / 10;
 }
 
-export async function fetchStockPrice(code: string): Promise<StockPrice | null> {
+export async function fetchStockPrice(code: string, market?: 'KOSPI' | 'KOSDAQ'): Promise<StockPrice | null> {
   try {
-    const symbol = toYahooSymbol(code);
+    const symbol = toYahooSymbol(code, market);
     const data = await fetchQuote(symbol);
 
     const result = data?.chart?.result?.[0];
@@ -96,15 +97,17 @@ export async function fetchStockPrice(code: string): Promise<StockPrice | null> 
   }
 }
 
-export async function fetchStockPrices(codes: string[]): Promise<Map<string, StockPrice>> {
+export async function fetchStockPrices(
+  items: { code: string; market?: 'KOSPI' | 'KOSDAQ' }[]
+): Promise<Map<string, StockPrice>> {
   const result = new Map<string, StockPrice>();
   const BATCH = 5;
 
-  for (let i = 0; i < codes.length; i += BATCH) {
-    const batch = codes.slice(i, i + BATCH);
-    const results = await Promise.all(batch.map(fetchStockPrice));
+  for (let i = 0; i < items.length; i += BATCH) {
+    const batch = items.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(it => fetchStockPrice(it.code, it.market)));
     for (let j = 0; j < batch.length; j++) {
-      if (results[j]) result.set(batch[j], results[j]!);
+      if (results[j]) result.set(batch[j].code, results[j]!);
     }
   }
 

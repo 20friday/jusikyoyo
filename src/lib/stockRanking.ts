@@ -14,9 +14,6 @@
  * 차트 마지막 점 = 헤더 순위가 항상 일치하도록 한다.
  */
 
-import { getStockCode } from './stockCodes';
-import { fetchStockPrices } from './yahooFinance';
-
 export interface RankedStock {
   rank: number;
   date: string;
