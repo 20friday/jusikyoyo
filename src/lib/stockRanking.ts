@@ -187,30 +187,46 @@ export async function computeRanking(
     return m;
   });
   // dayRankMaps[0] = 오늘, [1] = 어제 ...
-  const yesterdayRanks = dayRankMaps[1] ?? new Map<string, number>();
 
   // ── 최종 결과 조합 ───────────────────────────────────────────
   const results: RankedStock[] = top10.map((s, idx) => {
     const rank = idx + 1;
-
-    // move 계산 (어제 윈도우 순위 대비)
-    const prevRank = yesterdayRanks.get(s.name);
-    let move: RankedStock['move'];
-    if (!prevRank) {
-      const wasInLast7 = dayRankMaps.slice(2).some(m => m.has(s.name));
-      move = wasInLast7 ? { type: 're', n: 0 } : { type: 'new', n: 0 };
-    } else {
-      const diff = prevRank - rank;
-      if (diff > 0) move = { type: 'up', n: diff };
-      else if (diff < 0) move = { type: 'down', n: Math.abs(diff) };
-      else move = { type: 'same', n: 0 };
-    }
 
     // rankTrail: 오래된→최신 순 (마지막 = 오늘 = 헤더 순위와 동일)
     const rankTrail: (number | null)[] = dayRankMaps
       .slice()
       .reverse()
       .map(m => m.get(s.name) ?? null);
+
+    // move 계산
+    // 방송 없는 날(데이터 공백)은 직전 윈도우 순위를 그대로 복제하므로
+    // '바로 어제 대비'로는 변화가 항상 0이 된다. 그래서 트레일에서
+    // '마지막으로 순위가 실제로 달라졌던 시점' 대비로 변화를 표시한다.
+    const prior = rankTrail.slice(0, -1); // 오늘 제외
+    const everBefore = prior.some(v => v !== null);
+    const firstIdx = rankTrail.findIndex(v => v !== null); // 윈도우 내 첫 등장 위치
+    let move: RankedStock['move'];
+    if (!everBefore) {
+      move = { type: 'new', n: 0 };                  // 7일 내 첫 등장
+    } else if (prior[prior.length - 1] === null) {
+      move = { type: 're', n: 0 };                   // 직전엔 빠졌다가 오늘 재진입
+    } else {
+      // 가장 최근의 '다른' 순위 탐색 (복제된 동일값은 건너뜀)
+      let prevRank: number | null = null;
+      for (let i = prior.length - 1; i >= 0; i--) {
+        const v = prior[i];
+        if (v === null) continue;
+        if (v !== rank) { prevRank = v; break; }
+      }
+      if (prevRank === null) {
+        // 등장 이후 순위가 한 번도 안 바뀜
+        // → 윈도우 시작부터 쭉 있었으면 '유지(—)', 중간에 들어왔으면 '신규진입'
+        move = firstIdx > 0 ? { type: 'new', n: 0 } : { type: 'same', n: 0 };
+      } else {
+        const diff = prevRank - rank;
+        move = diff > 0 ? { type: 'up', n: diff } : { type: 'down', n: Math.abs(diff) };
+      }
+    }
 
     // hold: 연속 등장일
     const holdDays = s.days;
