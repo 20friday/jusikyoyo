@@ -230,6 +230,29 @@ const initialMonthData = '[]';
   .rank-change-pct--up { color: var(--up); }
   .rank-change-pct--down { color: var(--down); }
   .rank-change-pct--flat { color: var(--flat); }
+  .rank-change-pct--na { color: var(--text-3); }
+
+  /* 로딩 스켈레톤: 원래 요소 박스를 그대로 두고 텍스트만 투명 + shimmer → CLS 0 */
+  .rank-status--skel,
+  .rank-change-pct--skel {
+    color: transparent !important;
+    background: linear-gradient(100deg, #e9edf1 30%, #f5f7f9 50%, #e9edf1 70%);
+    background-size: 200% 100%;
+    border-radius: 5px;
+    animation: rankShimmer 1.15s ease-in-out infinite;
+    user-select: none;
+  }
+  .rank-status--skel { border-radius: 6px; }
+  @keyframes rankShimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  /* 로딩 → 실제 값 전환 시 한 번만 페이드인 */
+  .val-fade { animation: rankValFade 150ms ease-out; }
+  @keyframes rankValFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
   .rank-sep { width: 2.5px; height: 2.5px; border-radius: 50%; background: var(--text-3); flex-shrink: 0; }
   .rank-hold { color: var(--text-3); font-size: 14px; }
 
@@ -592,11 +615,32 @@ function statusChip(stock) {
   if (stock.statusReason !== null) {
     const map = { pos: ['pos','긍정'], neu: ['neu','중립'], warn: ['warn','주의'] };
     const [cls, label] = map[stock.status] || ['neu','중립'];
-    return `<span class="rank-status rank-status--${cls}">${label}</span>`;
+    const fade = stock._sentShown ? '' : ' val-fade';
+    stock._sentShown = true;
+    return `<span class="rank-status rank-status--${cls}${fade}">${label}</span>`;
   }
-  // 뉘앙스 분석 결과가 없는 종목: 로딩이 끝났으면 "단순 언급", 아직이면 "분석 중"
-  if (stock.noSentiment) return `<span class="rank-status rank-status--mention">단순 언급</span>`;
-  return `<span class="rank-status rank-status--loading">분석 중</span>`;
+  // 뉘앙스 분석 결과가 없는 종목: 로딩이 끝났으면 "단순 언급", 아직이면 스켈레톤
+  if (stock.noSentiment) {
+    const fade = stock._sentShown ? '' : ' val-fade';
+    stock._sentShown = true;
+    return `<span class="rank-status rank-status--mention${fade}">단순 언급</span>`;
+  }
+  // 감정 분석 대기 중 → "분석 중" 날것 대신 스켈레톤 칩 (실제 칩과 동일 박스)
+  return `<span class="rank-status rank-status--skel" aria-hidden="true">분석중</span>`;
+}
+
+// 변동률: 로딩이면 스켈레톤 바, 데이터 없으면 "—", 있으면 실제 값(+페이드인)
+function changeHtml(stock) {
+  if (!stock.priceFetched) {
+    return `<span class="rank-change-pct rank-change-pct--skel" aria-hidden="true">+0.0%</span>`;
+  }
+  const fade = stock._priceShown ? '' : ' val-fade';
+  stock._priceShown = true;
+  if (stock.priceMatched === false) {
+    return `<span class="rank-change-pct rank-change-pct--na${fade}">—</span>`;
+  }
+  const pcl = pctClass(stock.todayPct);
+  return `<span class="rank-change-pct rank-change-pct--${pcl}${fade}">${pct(stock.todayPct)}</span>`;
 }
 
 // ── 순위 차트 SVG ─────────────────────────────────────────────
@@ -721,7 +765,6 @@ function detailHtml(stock) {
 // ── 카드 HTML ─────────────────────────────────────────────────
 function cardHtml(stock) {
   const isTop3 = stock.rank <= 3;
-  const pcl = pctClass(stock.todayPct);
   const isOpen = !!state.open[stock.name];
 
   return `<li>
@@ -738,7 +781,7 @@ function cardHtml(stock) {
               ${statusChip(stock)}
             </div>
             <div class="rank-stat-row">
-              <span class="rank-change-pct rank-change-pct--${pcl}">${pct(stock.todayPct)}</span>
+              ${changeHtml(stock)}
               <span class="rank-sep"></span>
               <span class="rank-hold">${stock.hold}</span>
             </div>
@@ -922,30 +965,35 @@ async function loadSentiment(data, period = 'day') {
 // ── 주가 비동기 로드 ──────────────────────────────────────────
 async function loadPrices(data) {
   if (!data?.length) return;
-  // 이미 가격 데이터가 있으면 스킵
-  if (data.some(s => s.price?.today !== 0 || s.price?.d5 !== 0)) return;
+  // 이미 한 번 조회했으면 스킵 (중복 fetch 방지)
+  if (data[0]?.priceFetched) return;
+
+  // 응답 처리: 매칭되면 ready, 누락이면 unavailable. 무조건 priceFetched 확정해
+  // 스켈레톤이 영원히 남지 않게 한다.
+  const settle = (prices) => {
+    const map = (prices && typeof prices === 'object') ? prices : {};
+    for (const stock of data) {
+      const p = map[stock.name];
+      stock.priceFetched = true;
+      if (p) {
+        stock.priceMatched = true;
+        stock.todayPct = p.today;
+        stock.price = { today: p.today, d5: p.d5, m1: p.m1 };
+      } else {
+        stock.priceMatched = false;
+      }
+    }
+    // 현재 보고 있는 탭의 데이터면 다시 렌더
+    if (RANK_DATA[state.period] === data) render();
+  };
+
   try {
     const names = data.map(s => s.name).join(',');
     const res = await fetch(`/api/stock-prices?names=${encodeURIComponent(names)}`);
-    const prices = await res.json();
-    if (!prices || !Object.keys(prices).length) return;
-
-    let changed = false;
-    for (const stock of data) {
-      const p = prices[stock.name];
-      if (p) {
-        stock.todayPct = p.today;
-        stock.price = { today: p.today, d5: p.d5, m1: p.m1 };
-        changed = true;
-      }
-    }
-    if (changed) {
-      // 현재 보고 있는 탭의 데이터면 다시 렌더
-      const currentData = RANK_DATA[state.period];
-      if (currentData === data) render();
-    }
+    settle(await res.json());
   } catch {
-    // 실패해도 무시
+    // 실패해도 전 종목 unavailable로 확정 (로딩 스켈레톤 잔류 방지)
+    settle({});
   }
 }
 </script>
