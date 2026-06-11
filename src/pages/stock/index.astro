@@ -150,6 +150,9 @@ const initialMonthData = '[]';
   }
   .rank-info-btn svg { width: 17px; height: 17px; display: block; }
   .rank-info-btn:hover { color: var(--text-2); }
+  /* 터치·마우스 탭 시 파란 포커스 링 제거, 키보드 탐색 때만 표시 */
+  .rank-info-btn:focus { outline: none; }
+  .rank-info-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 6px; }
 
   .sheet-backdrop {
     position: fixed; inset: 0; z-index: 1000;
@@ -168,6 +171,8 @@ const initialMonthData = '[]';
     transition: transform .28s cubic-bezier(.32,.72,0,1);
   }
   .sheet.is-open { transform: translateY(0); }
+  /* 프로그램상 포커스(tabindex=-1)로 들어와도 파란 링이 보이지 않게 */
+  .sheet:focus { outline: none; }
   .sheet-handle {
     width: 38px; height: 4px; border-radius: 2px;
     background: var(--border); margin: 0 auto 14px;
@@ -178,6 +183,8 @@ const initialMonthData = '[]';
     border: none; background: none; cursor: pointer; color: var(--text-3);
     display: inline-flex; align-items: center; justify-content: center;
   }
+  .sheet-close:focus { outline: none; }
+  .sheet-close:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 8px; }
   .sheet-title {
     font-size: 18px; font-weight: 800; letter-spacing: -0.02em;
     color: var(--text-1); margin: 0 0 10px;
