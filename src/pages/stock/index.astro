@@ -28,6 +28,18 @@ const initialMonthData = '[]';
       <span class="rank-meta-date" id="metaDate"></span>
       <span class="rank-meta-ai"><span class="rank-meta-dot"></span>AI 자동 집계</span>
     </div>
+    <p class="rank-meta-sub">매 거래일 오후 5시쯤 갱신돼요</p>
+
+    <!-- 감정 태그 안내 + 범례 -->
+    <div class="rank-guide">
+      <p class="rank-guide-text">감정 태그는 방송에서 그 종목을 어떤 분위기로 다뤘는지를 보여줘요. 주가가 오르내린 것과는 별개예요.</p>
+      <ul class="rank-legend">
+        <li><span class="rank-status rank-status--pos">긍정</span> 좋게 본 분위기</li>
+        <li><span class="rank-status rank-status--neu">중립</span> 담담하게 다룸</li>
+        <li><span class="rank-status rank-status--warn">주의</span> 우려 섞인 분위기</li>
+        <li><span class="rank-status rank-status--mention">단순 언급</span> 평가 없이 이름만 나옴</li>
+      </ul>
+    </div>
 
 
     <!-- 랭킹 리스트 -->
@@ -99,7 +111,7 @@ const initialMonthData = '[]';
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 14px;
+    margin-bottom: 0;
     font-size: 13px;
   }
   .rank-meta-date { color: var(--text-2); font-weight: 700; }
@@ -107,6 +119,29 @@ const initialMonthData = '[]';
   .rank-meta-dot {
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--blue); display: inline-block;
+  }
+  .rank-meta-sub { margin: 4px 0 0; font-size: 12px; color: var(--text-3); }
+
+  /* ── 감정 태그 안내 + 범례 ── */
+  .rank-guide {
+    margin: 14px 0 16px;
+    padding: 12px 14px;
+    background: #f6f8fa;
+    border-radius: 12px;
+  }
+  .rank-guide-text {
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-2);
+  }
+  .rank-legend {
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-wrap: wrap; gap: 8px 14px;
+  }
+  .rank-legend li {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--text-3);
   }
 
   /* ── 랭킹 리스트 ── */
@@ -203,7 +238,7 @@ const initialMonthData = '[]';
     border-radius: 6px;
   }
   .rank-status--pos { background: var(--up-bg); color: var(--up); }
-  .rank-status--neu { background: var(--flat-bg); color: var(--text-3); }
+  .rank-status--neu { background: #FEF6DC; color: #9A7B0A; box-shadow: inset 0 0 0 1px #9A7B0A; }
   .rank-status--warn { background: var(--down-bg); color: var(--down); }
   .rank-status--loading { background: #f0f2f4; color: #94a0ad; }
   .rank-status--mention { background: #f0f2f4; color: #8b95a1; }
@@ -611,19 +646,27 @@ function moveBadge(move) {
   return '';
 }
 
+// 감정 칩 데스크톱 툴팁(접근성) — 범례와 동일한 의미 설명
+const STATUS_TITLE = {
+  pos: '긍정 · 좋게 본 분위기',
+  neu: '중립 · 담담하게 다룸',
+  warn: '주의 · 우려 섞인 분위기',
+  mention: '단순 언급 · 평가 없이 이름만 나옴',
+};
+
 function statusChip(stock) {
   if (stock.statusReason !== null) {
     const map = { pos: ['pos','긍정'], neu: ['neu','중립'], warn: ['warn','주의'] };
     const [cls, label] = map[stock.status] || ['neu','중립'];
     const fade = stock._sentShown ? '' : ' val-fade';
     stock._sentShown = true;
-    return `<span class="rank-status rank-status--${cls}${fade}">${label}</span>`;
+    return `<span class="rank-status rank-status--${cls}${fade}" title="${STATUS_TITLE[cls]}">${label}</span>`;
   }
   // 뉘앙스 분석 결과가 없는 종목: 로딩이 끝났으면 "단순 언급", 아직이면 스켈레톤
   if (stock.noSentiment) {
     const fade = stock._sentShown ? '' : ' val-fade';
     stock._sentShown = true;
-    return `<span class="rank-status rank-status--mention${fade}">단순 언급</span>`;
+    return `<span class="rank-status rank-status--mention${fade}" title="${STATUS_TITLE.mention}">단순 언급</span>`;
   }
   // 감정 분석 대기 중 → "분석 중" 날것 대신 스켈레톤 칩 (실제 칩과 동일 박스)
   return `<span class="rank-status rank-status--skel" aria-hidden="true">분석중</span>`;
@@ -829,27 +872,16 @@ function render() {
 // ── 메타 날짜 ─────────────────────────────────────────────────
 function setMetaDate() {
   const el = document.getElementById('metaDate');
-  // 실제 데이터 날짜 기준 (오늘 픽 없으면 전일 기준)
+  // 순위는 거래일 오후 5시쯤 작성된 일일리포트로 확정됨 → 항상 '장 마감 기준'.
+  // 데이터 날짜(오늘 픽 없으면 직전 거래일)를 그대로 표기해 주말·휴일도 자연스럽게 커버.
   const dataDate = RANK_DATA.day[0]?.date;
   const todayKST = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const isToday = !dataDate || dataDate === todayKST;
-  const base = isToday
-    ? new Date(Date.now() + 9 * 60 * 60 * 1000)
-    : new Date(dataDate + 'T12:00:00+09:00');
-  const now = base;
+  const base = new Date((dataDate || todayKST) + 'T12:00:00+09:00');
   const days = ['일','월','화','수','목','금','토'];
-  const mm = now.getUTCMonth() + 1;
-  const dd = now.getUTCDate();
-  const dow = days[now.getUTCDay()];
-  if (isToday) {
-    const hh = now.getUTCHours();
-    const min = String(now.getUTCMinutes()).padStart(2, '0');
-    const ampm = hh < 12 ? '오전' : '오후';
-    const h12 = hh % 12 || 12;
-    el.textContent = `${mm}월 ${dd}일 (${dow}) ${ampm} ${h12}:${min} 기준`;
-  } else {
-    el.textContent = `${mm}월 ${dd}일 (${dow}) 기준`;
-  }
+  const mm = base.getUTCMonth() + 1;
+  const dd = base.getUTCDate();
+  const dow = days[base.getUTCDay()];
+  el.textContent = `${mm}월 ${dd}일 (${dow}) 장 마감 기준`;
 }
 
 // ── 이벤트 ────────────────────────────────────────────────────
