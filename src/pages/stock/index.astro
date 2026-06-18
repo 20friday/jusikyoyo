@@ -698,6 +698,23 @@ function pctClass(v) {
   if (v > 0) return 'up'; if (v < 0) return 'down'; return 'flat';
 }
 
+// 최종 순위(뉘앙스 반영)로 화살표(▲▼)를 다시 계산한다.
+// 서버 stockRanking.ts의 move 계산 로직과 동일하게 맞춤.
+// rankTrail: 오래된→최신 순, 마지막 = 오늘 최종 순위.
+function computeMove(rankTrail) {
+  if (!Array.isArray(rankTrail) || !rankTrail.length) return { type: 'same', n: 0 };
+  const rank = rankTrail[rankTrail.length - 1];
+  const prior = rankTrail.slice(0, -1); // 오늘 제외
+  const everBefore = prior.some(v => v !== null);
+  const prevRank = prior[prior.length - 1]; // 바로 직전 거래일
+  if (!everBefore) return { type: 'new', n: 0 };       // 7일 내 첫 등장
+  if (prevRank === null) return { type: 're', n: 0 };  // 직전 빠졌다 재진입
+  const diff = prevRank - rank;
+  return diff > 0 ? { type: 'up', n: diff }
+       : diff < 0 ? { type: 'down', n: Math.abs(diff) }
+       : { type: 'same', n: 0 };
+}
+
 function moveBadge(move) {
   if (move.type === 'up') return `<span class="rank-move rank-move--up">▲${move.n}</span>`;
   if (move.type === 'down') return `<span class="rank-move rank-move--down">▼${move.n}</span>`;
@@ -1045,6 +1062,8 @@ async function loadSentiment(data, period = 'day') {
     data.forEach((s) => {
       if (Array.isArray(s.rankTrail) && s.rankTrail.length) {
         s.rankTrail[s.rankTrail.length - 1] = s.rank;
+        // 최종 순위로 화살표도 다시 계산 (뉘앙스 반영 후 기준 일치)
+        s.move = computeMove(s.rankTrail);
       }
     });
     render();

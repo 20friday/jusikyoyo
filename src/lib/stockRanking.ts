@@ -80,7 +80,7 @@ export async function computeRanking(
   // ── 데이터 한 번에 조회 ─────────────────────────────────────
   const { data: allReports } = await supabase
     .from('daily_reports')
-    .select('date, stocks')
+    .select('date, stocks, sentiment')
     .eq('published', true)
     .gte('date', oldestNeeded)
     .lte('date', today)
@@ -97,14 +97,18 @@ export async function computeRanking(
   interface ScoredStock {
     name: string;
     score: number;
-    rawScore: number;
+    rawScore: number;      // 기본 점수 (뉘앙스 제외) — 클라이언트로 전달
+    sortScore: number;     // 정렬용 점수 (뉘앙스 포함) — 순위·트레일 계산 전용
     mentionScore: number;
     tagScore: number;
     continuityScore: number;
+    intensity: number;     // 그날 뉘앙스 강도 (동점 시 정렬 보조)
     latestNotes: any[];
     latestShows: string[];
     days: number;
   }
+
+  const STATUS_MULT: Record<string, number> = { pos: 1, neu: 0, warn: -1 };
 
   // refDate 기준 윈도우의 종목 점수를 계산해 정렬된 목록 반환
   // (헤더 순위와 완전히 동일한 계산식)
@@ -152,6 +156,11 @@ export async function computeRanking(
       for (const tag of tags) tagCount.set(tag, (tagCount.get(tag) ?? 0) + 1);
     }
 
+    // 그날 뉘앙스: 윈도우 내 가장 최근 리포트의 sentiment 사용
+    // (클라이언트가 data[0].date 기준 sentiment를 쓰는 것과 동일하게 맞춤)
+    const sentiment: Record<string, { status?: string; intensity?: number }> =
+      reps[0]?.sentiment ?? {};
+
     const scored: ScoredStock[] = [];
     for (const [name, e] of stockMap) {
       const mentionScore = Math.min(e.latestShows.length * 25, 100);
@@ -159,27 +168,45 @@ export async function computeRanking(
       const continuityScore = Math.min(e.dates.size * 3, 15);
       const rawScore = mentionScore + tagScore + continuityScore;
       const score = Math.max(0, Math.round((rawScore / 155) * 100));
+      // 뉘앙스 가점·감점 (정렬에만 반영, rawScore 필드는 기본 점수 유지)
+      const sent = sentiment[name];
+      const intensity = sent?.status
+        ? Math.min(Math.max(Math.round(Number(sent.intensity) || 1), 1), 5)
+        : 1;
+      const nuanceScore = sent?.status ? (STATUS_MULT[sent.status] ?? 0) * intensity * 4 : 0;
+      const sortScore = rawScore + nuanceScore;
       scored.push({
-        name, score, rawScore, mentionScore, tagScore, continuityScore,
+        name, score, rawScore, sortScore, mentionScore, tagScore, continuityScore, intensity,
         latestNotes: e.latestNotes, latestShows: e.latestShows, days: e.dates.size,
       });
     }
 
+    // 클라이언트 재정렬과 동일한 우선순위로 정렬 (뉘앙스 포함)
     scored.sort((a, b) =>
-      b.rawScore - a.rawScore ||
+      b.sortScore - a.sortScore ||
       b.mentionScore - a.mentionScore ||
+      b.intensity - a.intensity ||
+      b.tagScore - a.tagScore ||
       b.continuityScore - a.continuityScore
     );
     return scored;
   }
 
-  // ── 오늘 기준 랭킹 (= 헤더 순위) ────────────────────────────
-  const scoredToday = computeScored(today);
+  // ── 기준 날짜 = 가장 최근 리포트 날짜 ──────────────────────
+  // 달력상 오늘(today)에 아직 리포트가 없으면, 그 날을 기준으로 잡으면
+  // 직전 거래일과 데이터가 같아 화살표가 전부 '—'가 된다.
+  // 그래서 실제 리포트가 있는 가장 최근 날짜를 '오늘'로 삼아
+  // 화면 라벨(= 최신 리포트 날짜)과 화살표 기준을 일치시킨다.
+  const anchorDate = (allReports as any[])[0]?.date ?? today;
+  const anchorIdx = Math.max(0, allTradingDates.indexOf(anchorDate));
+
+  // ── 기준 랭킹 (= 헤더 순위) ─────────────────────────────────
+  const scoredToday = computeScored(anchorDate);
   if (scoredToday.length === 0) return [];
   const top10 = scoredToday.slice(0, 10);
 
-  // ── 최근 7거래일 각 날짜의 순위 맵 (트레일·move 공용) ───────
-  const last7 = allTradingDates.slice(0, trailLen);
+  // ── 기준일부터 7거래일 각 날짜의 순위 맵 (트레일·move 공용) ──
+  const last7 = allTradingDates.slice(anchorIdx, anchorIdx + trailLen);
   const dayRankMaps = last7.map(d => {
     const sc = computeScored(d);
     const m = new Map<string, number>();
@@ -198,34 +225,20 @@ export async function computeRanking(
       .reverse()
       .map(m => m.get(s.name) ?? null);
 
-    // move 계산
-    // 방송 없는 날(데이터 공백)은 직전 윈도우 순위를 그대로 복제하므로
-    // '바로 어제 대비'로는 변화가 항상 0이 된다. 그래서 트레일에서
-    // '마지막으로 순위가 실제로 달라졌던 시점' 대비로 변화를 표시한다.
+    // move 계산: 바로 직전 거래일 순위와 비교
     const prior = rankTrail.slice(0, -1); // 오늘 제외
     const everBefore = prior.some(v => v !== null);
-    const firstIdx = rankTrail.findIndex(v => v !== null); // 윈도우 내 첫 등장 위치
+    const prevRank = prior[prior.length - 1]; // 바로 직전 거래일
     let move: RankedStock['move'];
     if (!everBefore) {
       move = { type: 'new', n: 0 };                  // 7일 내 첫 등장
-    } else if (prior[prior.length - 1] === null) {
+    } else if (prevRank === null) {
       move = { type: 're', n: 0 };                   // 직전엔 빠졌다가 오늘 재진입
     } else {
-      // 가장 최근의 '다른' 순위 탐색 (복제된 동일값은 건너뜀)
-      let prevRank: number | null = null;
-      for (let i = prior.length - 1; i >= 0; i--) {
-        const v = prior[i];
-        if (v === null) continue;
-        if (v !== rank) { prevRank = v; break; }
-      }
-      if (prevRank === null) {
-        // 등장 이후 순위가 한 번도 안 바뀜
-        // → 윈도우 시작부터 쭉 있었으면 '유지(—)', 중간에 들어왔으면 '신규진입'
-        move = firstIdx > 0 ? { type: 'new', n: 0 } : { type: 'same', n: 0 };
-      } else {
-        const diff = prevRank - rank;
-        move = diff > 0 ? { type: 'up', n: diff } : { type: 'down', n: Math.abs(diff) };
-      }
+      const diff = prevRank - rank;
+      move = diff > 0 ? { type: 'up', n: diff }
+           : diff < 0 ? { type: 'down', n: Math.abs(diff) }
+           : { type: 'same', n: 0 };
     }
 
     // hold: 연속 등장일

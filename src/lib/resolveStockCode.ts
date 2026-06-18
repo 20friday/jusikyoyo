@@ -16,6 +16,15 @@ import { STOCK_CODES } from './stockCodes';
 export type Market = 'KOSPI' | 'KOSDAQ';
 export interface ResolvedCode { code: string; market: Market; }
 
+/**
+ * 표시명 → 조회용 정식명 별칭
+ * 화면에 쓰는 이름과 네이버에 등록된 정식 종목명이 다른 경우만 등록한다.
+ * (예: 우리는 "LS일렉트릭"으로 표시하지만 네이버 정식명은 "LS ELECTRIC")
+ */
+const NAME_ALIASES: Record<string, string> = {
+  'LS일렉트릭': 'LS ELECTRIC',
+};
+
 // 인스턴스 메모리 캐시 (null = 조회했지만 못 찾음)
 const memCache = new Map<string, ResolvedCode | null>();
 
@@ -47,6 +56,18 @@ async function fetchFromNaver(name: string): Promise<ResolvedCode | null> {
 }
 
 export async function resolveStockCodes(names: string[]): Promise<Map<string, ResolvedCode>> {
+  // 표시명 → 조회용 정식명으로 변환해 조회한 뒤, 결과는 원래 표시명으로 돌려준다.
+  const queryNames = [...new Set(names.map(n => NAME_ALIASES[n] ?? n))];
+  const byQuery = await resolveByQueryNames(queryNames);
+  const out = new Map<string, ResolvedCode>();
+  for (const name of names) {
+    const rc = byQuery.get(NAME_ALIASES[name] ?? name);
+    if (rc) out.set(name, rc);
+  }
+  return out;
+}
+
+async function resolveByQueryNames(names: string[]): Promise<Map<string, ResolvedCode>> {
   const out = new Map<string, ResolvedCode>();
   const unknown: string[] = [];
 
