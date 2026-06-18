@@ -13,6 +13,7 @@
  * 7일 순위 변화 차트(rankTrail)도 헤더 순위와 동일한 윈도우 종합 점수로 계산해,
  * 차트 마지막 점 = 헤더 순위가 항상 일치하도록 한다.
  */
+import { isExcludedStock } from './excludedStocks';
 
 export interface RankedStock {
   rank: number;
@@ -132,6 +133,7 @@ export async function computeRanking(
     for (const report of reps) {
       for (const stock of (report.stocks ?? [])) {
         if (!stock.name) continue;
+        if (isExcludedStock(stock.name)) continue; // 해외·비상장·묶음 라벨 제외
         if (!stockMap.has(stock.name)) {
           stockMap.set(stock.name, { dates: new Set(), latestNotes: [], latestShows: [] });
         }
