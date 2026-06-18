@@ -1043,7 +1043,8 @@ async function loadSentiment(data, period = 'day') {
         if (stock.baseRawScore === undefined) stock.baseRawScore = stock.rawScore ?? 0;
         const nuanceScore = (STATUS_MULTIPLIER[s.status] ?? 0) * stock.intensity * 4;
         stock.rawScore = stock.baseRawScore + nuanceScore;
-        stock.score = Math.max(0, Math.round((stock.rawScore / 155) * 100));
+        const divisor = stock.scoreDivisor || 155; // 일간 155 / 주간·월간 100
+        stock.score = Math.max(0, Math.min(100, Math.round((stock.rawScore / divisor) * 100)));
       } else if (stock.statusReason === null) {
         // 응답을 받았는데 이 종목의 뉘앙스 결과가 없음 → "단순 언급"으로 확정
         stock.noSentiment = true;

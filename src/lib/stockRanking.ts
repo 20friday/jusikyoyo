@@ -23,6 +23,7 @@ export interface RankedStock {
   move: { type: 'up' | 'down' | 'same' | 'new' | 're'; n: number };
   score: number;        // displayScore (0~100)
   rawScore: number;     // 서버 계산 기본 점수 (nuanceScore 제외)
+  scoreDivisor: number; // 화면 점수 환산 분모 (일간 155 / 주간·월간 100)
   mentionScore: number;
   tagScore: number;
   continuityScore: number;
@@ -100,6 +101,7 @@ export async function computeRanking(
     score: number;
     rawScore: number;      // 기본 점수 (뉘앙스 제외) — 클라이언트로 전달
     sortScore: number;     // 정렬용 점수 (뉘앙스 포함) — 순위·트레일 계산 전용
+    scoreDivisor: number;  // 화면 점수 환산 분모 (일간 155 / 주간·월간 100)
     mentionScore: number;
     tagScore: number;
     continuityScore: number;
@@ -107,6 +109,7 @@ export async function computeRanking(
     latestNotes: any[];
     latestShows: string[];
     days: number;
+    totalShows: number;    // 기간 내 누적 방송 언급 수 (주간·월간용)
   }
 
   const STATUS_MULT: Record<string, number> = { pos: 1, neu: 0, warn: -1 };
@@ -128,6 +131,7 @@ export async function computeRanking(
       dates: Set<string>;
       latestNotes: any[];
       latestShows: string[];
+      totalShows: number;
     }>();
 
     for (const report of reps) {
@@ -135,10 +139,11 @@ export async function computeRanking(
         if (!stock.name) continue;
         if (isExcludedStock(stock.name)) continue; // 해외·비상장·묶음 라벨 제외
         if (!stockMap.has(stock.name)) {
-          stockMap.set(stock.name, { dates: new Set(), latestNotes: [], latestShows: [] });
+          stockMap.set(stock.name, { dates: new Set(), latestNotes: [], latestShows: [], totalShows: 0 });
         }
         const e = stockMap.get(stock.name)!;
         e.dates.add(report.date);
+        e.totalShows += (stock.shows?.length ?? 0); // 기간 내 누적 방송 언급 수
         // reps가 최신 순이므로 첫 등장이 가장 최근 데이터
         if (e.latestShows.length === 0 && e.latestNotes.length === 0) {
           e.latestNotes = stock.notes ?? [];
@@ -163,13 +168,30 @@ export async function computeRanking(
     const sentiment: Record<string, { status?: string; intensity?: number }> =
       reps[0]?.sentiment ?? {};
 
+    const isPeriod = period !== 'day'; // 주간·월간
     const scored: ScoredStock[] = [];
     for (const [name, e] of stockMap) {
-      const mentionScore = Math.min(e.latestShows.length * 25, 100);
-      const tagScore = Math.min((tagCount.get(name) ?? 0) * 5, 20);
-      const continuityScore = Math.min(e.dates.size * 3, 15);
-      const rawScore = mentionScore + tagScore + continuityScore;
-      const score = Math.max(0, Math.round((rawScore / 155) * 100));
+      let mentionScore: number, tagScore: number, continuityScore: number;
+      let rawScore: number, scoreDivisor: number;
+      if (!isPeriod) {
+        // ── 일간: 오늘 화제 종목 (기존 공식 유지) ──
+        mentionScore = Math.min(e.latestShows.length * 25, 100);
+        tagScore = Math.min((tagCount.get(name) ?? 0) * 5, 20);
+        continuityScore = Math.min(e.dates.size * 3, 15);
+        rawScore = mentionScore + tagScore + continuityScore;
+        scoreDivisor = 155;
+      } else {
+        // ── 주간·월간: 꾸준함 60 + 누적 언급 30 (감정은 아래 ±20) ──
+        const consistency = Math.min(e.dates.size / days, 1) * 60;          // 나온 날 수 / 기간 거래일
+        const volume = Math.min(e.totalShows / (days * 3), 1) * 30;         // 누적 방송 언급 수
+        rawScore = consistency + volume;                                    // 0~90
+        scoreDivisor = 100;
+        // 필드 매핑 (정렬 보조·전달용)
+        mentionScore = Math.round(consistency);
+        continuityScore = Math.round(volume);
+        tagScore = 0;
+      }
+      const score = Math.max(0, Math.min(100, Math.round((rawScore / scoreDivisor) * 100)));
       // 뉘앙스 가점·감점 (정렬에만 반영, rawScore 필드는 기본 점수 유지)
       const sent = sentiment[name];
       const intensity = sent?.status
@@ -178,8 +200,8 @@ export async function computeRanking(
       const nuanceScore = sent?.status ? (STATUS_MULT[sent.status] ?? 0) * intensity * 4 : 0;
       const sortScore = rawScore + nuanceScore;
       scored.push({
-        name, score, rawScore, sortScore, mentionScore, tagScore, continuityScore, intensity,
-        latestNotes: e.latestNotes, latestShows: e.latestShows, days: e.dates.size,
+        name, score, rawScore, sortScore, scoreDivisor, mentionScore, tagScore, continuityScore, intensity,
+        latestNotes: e.latestNotes, latestShows: e.latestShows, days: e.dates.size, totalShows: e.totalShows,
       });
     }
 
@@ -270,6 +292,7 @@ export async function computeRanking(
       move,
       score: s.score,
       rawScore: s.rawScore,
+      scoreDivisor: s.scoreDivisor,
       mentionScore: s.mentionScore,
       tagScore: s.tagScore,
       continuityScore: s.continuityScore,
