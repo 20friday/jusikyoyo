@@ -27,7 +27,10 @@ export interface RankedStock {
   mentionScore: number;
   tagScore: number;
   continuityScore: number;
-  intensity: number;    // 1~5, 클라이언트에서 sentiment 로드 후 채워짐
+  intensity: number;    // 1~5, 대표 감정 강도
+  sentimentDate: string | null; // 대표 감정이 나온 날짜
+  mentionDate: string | null;   // 가장 최근 등장 날짜
+  noSentiment: boolean; // 등장한 어느 날에도 감정 데이터 없음 → "단순 언급"
   todayPct: number;
   hold: string;
   reason: string;
@@ -105,7 +108,12 @@ export async function computeRanking(
     mentionScore: number;
     tagScore: number;
     continuityScore: number;
-    intensity: number;     // 그날 뉘앙스 강도 (동점 시 정렬 보조)
+    intensity: number;     // 대표 감정 강도 (1~5)
+    status: string;        // 대표 감정 (pos/neu/warn), 없으면 'neu'
+    statusReason: string | null;  // 대표 감정 이유, 없으면 null
+    sentimentDate: string | null; // 대표 감정이 나온 날짜
+    mentionDate: string | null;   // 가장 최근 등장 날짜 (basis·코멘트 기준)
+    noSentiment: boolean;  // 등장한 어느 날에도 감정 데이터 없음
     latestNotes: any[];
     latestShows: string[];
     days: number;
@@ -113,6 +121,17 @@ export async function computeRanking(
   }
 
   const STATUS_MULT: Record<string, number> = { pos: 1, neu: 0, warn: -1 };
+
+  // 종목이 등장한 날들의 일간 감정 중 대표 감정을 고른다.
+  // day: 가장 최근 (감정이 있는) 날 / week·month: 강도가 가장 센 날 (같으면 최근)
+  type DaySent = { date: string; status: string; intensity: number; reason: string };
+  function pickSentiment(list: DaySent[]): DaySent | null {
+    if (!list.length) return null;            // list는 최신순
+    if (period === 'day') return list[0];     // 가장 최근 감정
+    let best = list[0];
+    for (const d of list) if (d.intensity > best.intensity) best = d; // 동점이면 최신(앞) 유지
+    return best;
+  }
 
   // refDate 기준 윈도우의 종목 점수를 계산해 정렬된 목록 반환
   // (헤더 순위와 완전히 동일한 계산식)
@@ -131,7 +150,9 @@ export async function computeRanking(
       dates: Set<string>;
       latestNotes: any[];
       latestShows: string[];
+      latestDate: string | null;
       totalShows: number;
+      daySentiments: DaySent[];   // 등장한 날들의 일간 감정 (최신순)
     }>();
 
     for (const report of reps) {
@@ -139,15 +160,26 @@ export async function computeRanking(
         if (!stock.name) continue;
         if (isExcludedStock(stock.name)) continue; // 해외·비상장·묶음 라벨 제외
         if (!stockMap.has(stock.name)) {
-          stockMap.set(stock.name, { dates: new Set(), latestNotes: [], latestShows: [], totalShows: 0 });
+          stockMap.set(stock.name, { dates: new Set(), latestNotes: [], latestShows: [], latestDate: null, totalShows: 0, daySentiments: [] });
         }
         const e = stockMap.get(stock.name)!;
         e.dates.add(report.date);
         e.totalShows += (stock.shows?.length ?? 0); // 기간 내 누적 방송 언급 수
+        // 그날 일간 감정 수집 (있으면) — reps가 최신순이라 daySentiments도 최신순
+        const sent = report.sentiment?.[stock.name];
+        if (sent?.status) {
+          e.daySentiments.push({
+            date: report.date,
+            status: sent.status,
+            intensity: Math.min(Math.max(Math.round(Number(sent.intensity) || 1), 1), 5),
+            reason: sent.reason ?? '',
+          });
+        }
         // reps가 최신 순이므로 첫 등장이 가장 최근 데이터
         if (e.latestShows.length === 0 && e.latestNotes.length === 0) {
           e.latestNotes = stock.notes ?? [];
           e.latestShows = stock.shows ?? [];
+          e.latestDate = report.date;
         }
       }
     }
@@ -191,16 +223,20 @@ export async function computeRanking(
         continuityScore = Math.round(volume);
         tagScore = 0;
       }
-      const score = Math.max(0, Math.min(100, Math.round((rawScore / scoreDivisor) * 100)));
-      // 뉘앙스 가점·감점 (정렬에만 반영, rawScore 필드는 기본 점수 유지)
-      const sent = sentiment[name];
-      const intensity = sent?.status
-        ? Math.min(Math.max(Math.round(Number(sent.intensity) || 1), 1), 5)
-        : 1;
-      const nuanceScore = sent?.status ? (STATUS_MULT[sent.status] ?? 0) * intensity * 4 : 0;
+      // 대표 감정: 종목이 등장한 날들의 일간 감정에서 선택 (day=최근, week/month=강도 최강)
+      const picked = pickSentiment(e.daySentiments);
+      const intensity = picked ? picked.intensity : 1;
+      const nuanceScore = picked ? (STATUS_MULT[picked.status] ?? 0) * intensity * 4 : 0;
       const sortScore = rawScore + nuanceScore;
+      // 화면 점수는 감정까지 반영(sortScore) 후 환산
+      const score = Math.max(0, Math.min(100, Math.round((sortScore / scoreDivisor) * 100)));
       scored.push({
         name, score, rawScore, sortScore, scoreDivisor, mentionScore, tagScore, continuityScore, intensity,
+        status: picked ? picked.status : 'neu',
+        statusReason: picked ? (picked.reason ?? '') : null,
+        sentimentDate: picked ? picked.date : null,
+        mentionDate: e.latestDate,
+        noSentiment: !picked,
         latestNotes: e.latestNotes, latestShows: e.latestShows, days: e.dates.size, totalShows: e.totalShows,
       });
     }
@@ -273,22 +309,26 @@ export async function computeRanking(
     const firstNote = s.latestNotes[0];
     const reason = firstNote?.view ?? `${s.latestShows.join('·')}에서 주목받았어요.`;
 
-    // basis: 언급 방송 기반 자동 생성
+    // basis: 언급 방송 기반 자동 생성 (각 방송에 날짜 prefix)
+    const md = s.mentionDate
+      ? `${Number(s.mentionDate.slice(5, 7))}/${Number(s.mentionDate.slice(8, 10))}`
+      : '';
     const showCount = s.latestShows.length;
     const basis: string[] = [
-      `${showCount}개 방송에서 언급됐어요`,
+      `${md ? md + ' · ' : ''}${showCount}개 방송에서 언급됐어요`,
       ...s.latestShows.map((show: string) => {
         const note = s.latestNotes.find((n: any) => n.show === show);
-        return note ? `<strong>${show}</strong>: ${note.view}` : `<strong>${show}</strong>에서 언급`;
+        const dp = md ? `${md} · ` : '';
+        return note ? `${dp}<strong>${show}</strong>: ${note.view}` : `${dp}<strong>${show}</strong>에서 언급`;
       }),
     ];
 
-    // status / 주가: 클라이언트에서 sentiment·주가 로드 후 채움
+    // 감정·주가: 감정은 서버에서 종목별로 채움, 주가는 클라이언트에서 로드
     return {
       rank,
       date: (allReports as any[])[0]?.date ?? today,
       name: s.name,
-      status: 'neu' as const,
+      status: (s.status as 'pos' | 'neu' | 'warn'),
       move,
       score: s.score,
       rawScore: s.rawScore,
@@ -296,13 +336,16 @@ export async function computeRanking(
       mentionScore: s.mentionScore,
       tagScore: s.tagScore,
       continuityScore: s.continuityScore,
-      intensity: 1, // 클라이언트에서 sentiment 로드 후 업데이트
+      intensity: s.intensity,
+      sentimentDate: s.sentimentDate,
+      mentionDate: s.mentionDate,
+      noSentiment: s.noSentiment,
       todayPct: 0,
       hold,
       reason,
       rankTrail,
       price: { today: 0, d5: 0, m1: 0 },
-      statusReason: null,
+      statusReason: s.statusReason,
       latestNotes: s.latestNotes,
       factorsPos: [],
       factorsWarn: [],

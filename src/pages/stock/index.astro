@@ -514,6 +514,11 @@ const initialMonthData = '[]';
     color: var(--accent, #e86c2c);
     margin-bottom: 6px;
   }
+  .detail-reason-date {
+    margin-left: 6px;
+    font-weight: 600;
+    color: var(--text-3);
+  }
   .detail-reason-body {
     font-size: 15px;
     color: var(--text-1);
@@ -848,9 +853,19 @@ function detailHtml(stock) {
     statusReasonHtml = `<span style="color:#94a0ad">뉘앙스 분석 중이에요…</span>`;
   }
 
+  // 감정 기준 시점 라벨: 일간=날짜 / 주간·월간=기간 종합
+  let sentLabel = '';
+  if (state.period === 'week') sentLabel = '이번 주 종합';
+  else if (state.period === 'month') sentLabel = '이번 달 종합';
+  else if (stock.sentimentDate) {
+    const m = Number(stock.sentimentDate.slice(5, 7));
+    const d = Number(stock.sentimentDate.slice(8, 10));
+    sentLabel = `${m}월 ${d}일 방송 기준`;
+  }
+
   return `<div class="rank-detail-inner">
     ${statusReasonHtml ? `<div class="detail-sec detail-sec--reason">
-      <div class="detail-reason-title">${statusReasonTitle}</div>
+      <div class="detail-reason-title">${statusReasonTitle}${sentLabel ? `<span class="detail-reason-date">· ${sentLabel}</span>` : ''}</div>
       <p class="detail-reason-body">${statusReasonHtml}</p>
     </div>` : ''}
     <div class="detail-sec">
@@ -1022,55 +1037,30 @@ document.getElementById('periodTabs').addEventListener('click', async e => {
   }
 })();
 
-// ── 뉘앙스 분석 비동기 로드 (초기 렌더 후) ──────────────────
+// ── 감정 생성 보장 (초기 렌더 후) ──────────────────────────
+// 감정태그·점수·순위는 서버가 종목별로 이미 채워서 보내준다.
+// 여기서는 최신 리포트일의 일간 감정이 아직 생성 안 됐을 수 있어
+// 한 번 호출해 생성·캐시를 보장하고, 그 결과 단순언급이던 종목이 있으면
+// 랭킹을 한 번 다시 받아 갱신한다.
 async function loadSentiment(data, period = 'day') {
-  if (!data || !data.length) return;
+  if (!data || !data.length || data._sentTriggered) return;
+  data._sentTriggered = true;
+  const latestDate = data[0]?.date;
+  if (!latestDate) return;
+  const needGen = data.some(s => s.noSentiment);
   try {
-    const date = data[0]?.date ?? new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10);
-    const res = await fetch(`/api/stock-sentiment?date=${date}&period=${period}`);
-    const sentiment = await res.json();
-    if (!sentiment || typeof sentiment !== 'object') return;
-
-    const STATUS_MULTIPLIER = { pos: 1, neu: 0, warn: -1 };
-    for (const stock of data) {
-      const s = sentiment[stock.name];
-      if (s?.status) {
-        stock.status = s.status;
-        stock.intensity = Math.min(Math.max(Math.round(Number(s.intensity) || 1), 1), 5);
-        stock.statusReason = s.reason ?? '';
-        stock.noSentiment = false;
-        // 서버가 준 기본 점수(뉘앙스 제외)를 한 번만 보관 → 중복 적용 방지
-        if (stock.baseRawScore === undefined) stock.baseRawScore = stock.rawScore ?? 0;
-        const nuanceScore = (STATUS_MULTIPLIER[s.status] ?? 0) * stock.intensity * 4;
-        stock.rawScore = stock.baseRawScore + nuanceScore;
-        const divisor = stock.scoreDivisor || 155; // 일간 155 / 주간·월간 100
-        stock.score = Math.max(0, Math.min(100, Math.round((stock.rawScore / divisor) * 100)));
-      } else if (stock.statusReason === null) {
-        // 응답을 받았는데 이 종목의 뉘앙스 결과가 없음 → "단순 언급"으로 확정
-        stock.noSentiment = true;
-      }
+    await fetch(`/api/stock-sentiment?date=${latestDate}&period=day`);
+  } catch { /* 무시 */ }
+  if (!needGen) return; // 단순언급 종목 없으면 갱신 불필요
+  try {
+    const res = await fetch(`/api/stock-ranking?period=${period}`);
+    const fresh = await res.json();
+    if (Array.isArray(fresh) && fresh.length) {
+      fresh._sentTriggered = true;
+      RANK_DATA[period] = fresh;
+      if (state.period === period) { render(); loadPrices(fresh); }
     }
-    // 상태 반영 후 재정렬 (뉘앙스 가점·감점 포함)
-    data.sort((a, b) =>
-      (b.rawScore - a.rawScore) ||
-      (b.mentionScore - a.mentionScore) ||
-      (b.intensity - a.intensity) ||
-      (b.tagScore - a.tagScore) ||
-      (b.continuityScore - a.continuityScore)
-    );
-    data.forEach((s, i) => s.rank = i + 1);
-    // 순위가 바뀌면 7일 차트의 오늘 점도 최종 순위로 맞춤
-    data.forEach((s) => {
-      if (Array.isArray(s.rankTrail) && s.rankTrail.length) {
-        s.rankTrail[s.rankTrail.length - 1] = s.rank;
-        // 최종 순위로 화살표도 다시 계산 (뉘앙스 반영 후 기준 일치)
-        s.move = computeMove(s.rankTrail);
-      }
-    });
-    render();
-  } catch (e) {
-    // 실패해도 무시
-  }
+  } catch { /* 무시 */ }
 }
 
 // (초기화는 위 IIFE에서 처리)
