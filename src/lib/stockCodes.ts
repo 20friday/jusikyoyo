@@ -90,11 +90,13 @@ export function getStockCode(name: string): string | null {
 }
 
 /**
- * 사명 변경으로 이름이 바뀐 종목의 옛 이름 → 현재 이름 매핑.
- * DB에 옛 이름으로 저장된 과거 글도 화면에는 현재 이름으로 보이게 한다.
+ * 옛 이름·약칭 → 정식 표시명 매핑.
+ * 사명 변경이나 약칭(KAI 등)으로 다르게 저장된 과거 글도
+ * 화면에는 하나의 정식 이름으로 보이게 한다.
  */
 export const RENAMED_STOCKS: Record<string, string> = {
   'LIG넥스원': 'LIG디펜스앤에어로스페이스', // 2026.4 주총서 사명 변경 (LIG D&A)
+  'KAI': '한국항공우주',                    // 약칭 통일
 };
 
 /** 옛 이름이면 현재 이름으로 바꿔서 돌려준다. 아니면 그대로. */
