@@ -2,15 +2,19 @@
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import { stockInfo } from '../../lib/stockInfo';
+import { canonicalStockName } from '../../lib/stockCodes';
 
 const { name } = Astro.params as { name: string };
+// 옛 이름·약칭으로 저장된 과거 글도 같이 잡히도록 정식명 기준으로 매칭한다.
+const canonName = canonicalStockName(name);
+const matchesStock = (s: any) => canonicalStockName(s.name) === canonName;
 
 // 1. content collection (과거 리포트)
 const allReports = await getCollection('reports');
 const contentEntries = allReports
-  .filter(r => r.data.stocks?.some((s: any) => s.name === name))
+  .filter(r => r.data.stocks?.some(matchesStock))
   .map(r => {
-    const stock = r.data.stocks.find((s: any) => s.name === name)!;
+    const stock = r.data.stocks.find(matchesStock)!;
     return { date: r.data.date as string, shows: stock.shows as string[], notes: (stock.notes ?? []) as any[] };
   });
 
@@ -21,9 +25,9 @@ const { data: supabaseReports } = await Astro.locals.supabase
   .order('date', { ascending: false });
 
 const supabaseEntries = (supabaseReports ?? [])
-  .filter((r: any) => r.stocks?.some((s: any) => s.name === name))
+  .filter((r: any) => r.stocks?.some(matchesStock))
   .map((r: any) => {
-    const stock = r.stocks.find((s: any) => s.name === name);
+    const stock = r.stocks.find(matchesStock);
     return { date: r.date as string, shows: (stock?.shows ?? []) as string[], notes: (stock?.notes ?? []) as any[] };
   });
 
@@ -33,7 +37,7 @@ for (const e of contentEntries) dateMap.set(e.date, e);
 for (const e of supabaseEntries) dateMap.set(e.date, e); // Supabase가 더 최신이면 덮어씀
 const entries = [...dateMap.values()].sort((a, b) => b.date.localeCompare(a.date));
 
-const info = stockInfo.find(s => s.name === name);
+const info = stockInfo.find(s => canonicalStockName(s.name) === canonName);
 
 const days = ['일', '월', '화', '수', '목', '금', '토'];
 function formatDate(dateStr: string) {
@@ -43,14 +47,14 @@ function formatDate(dateStr: string) {
 
 const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
 ---
-<Base title={`${name} 언급 히스토리`} description={info?.desc ?? `${name} 방송 언급 모음`}>
+<Base title={`${canonName} 언급 히스토리`} description={info?.desc ?? `${canonName} 방송 언급 모음`}>
   <div class="stock-wrap">
 
     <!-- 헤더 -->
     <div class="stock-hero">
       <a href="/" class="back-link" onclick="if(window.history.length>1){window.history.back();return false;}">← 뒤로</a>
       {info && <span class="stock-sector">{info.sector}</span>}
-      <h1 class="stock-title">{name}</h1>
+      <h1 class="stock-title">{canonName}</h1>
       {info && <p class="stock-desc">{info.desc}</p>}
       <div class="stock-stats">
         <div class="stat-item">
