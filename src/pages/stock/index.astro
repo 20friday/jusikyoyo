@@ -913,7 +913,7 @@ function cardHtml(stock) {
         <div class="rank-body">
           <div class="rank-info">
             <div class="rank-name-row">
-              <span class="rank-name stock-tag" onclick="event.stopPropagation(); window.openStockPopup('${stock.name}')">${stock.name}</span>
+              <span class="rank-name stock-tag" onclick="event.stopPropagation(); window.open('/stock/' + encodeURIComponent('${stock.name}'), '_blank')">${stock.name}</span>
               ${statusChip(stock)}
             </div>
             <div class="rank-stat-row">
