@@ -22,7 +22,8 @@ export const STOCK_CODES: Record<string, string> = {
   '삼성SDI': '006400',
 
   // AI·소프트웨어·SI
-  '네이버': '035420',
+  'NAVER': '035420',
+  '네이버': '035420', // 옛/한글 표기 — 과거 글 주가 조회 폴백용
   '카카오': '035720',
   '삼성SDS': '018260',
   'LG CNS': '064400',
@@ -97,6 +98,7 @@ export function getStockCode(name: string): string | null {
 export const RENAMED_STOCKS: Record<string, string> = {
   'LIG넥스원': 'LIG디펜스앤에어로스페이스', // 2026.4 주총서 사명 변경 (LIG D&A)
   'KAI': '한국항공우주',                    // 약칭 통일
+  '네이버': 'NAVER',                        // 정식 종목명은 NAVER
 };
 
 /** 옛 이름이면 현재 이름으로 바꿔서 돌려준다. 아니면 그대로. */
