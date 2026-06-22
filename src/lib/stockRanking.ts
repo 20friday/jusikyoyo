@@ -14,6 +14,7 @@
  * 차트 마지막 점 = 헤더 순위가 항상 일치하도록 한다.
  */
 import { isExcludedStock } from './excludedStocks';
+import { canonicalStockName } from './stockCodes';
 
 export interface RankedStock {
   rank: number;
@@ -158,14 +159,17 @@ export async function computeRanking(
     for (const report of reps) {
       for (const stock of (report.stocks ?? [])) {
         if (!stock.name) continue;
-        if (isExcludedStock(stock.name)) continue; // 해외·비상장·묶음 라벨 제외
-        if (!stockMap.has(stock.name)) {
-          stockMap.set(stock.name, { dates: new Set(), latestNotes: [], latestShows: [], latestDate: null, totalShows: 0, daySentiments: [] });
+        // 사명 변경된 종목은 현재 이름으로 통일 (옛 이름으로 저장된 과거 글 포함)
+        const name = canonicalStockName(stock.name);
+        if (isExcludedStock(name)) continue; // 해외·비상장·묶음 라벨 제외
+        if (!stockMap.has(name)) {
+          stockMap.set(name, { dates: new Set(), latestNotes: [], latestShows: [], latestDate: null, totalShows: 0, daySentiments: [] });
         }
-        const e = stockMap.get(stock.name)!;
+        const e = stockMap.get(name)!;
         e.dates.add(report.date);
         e.totalShows += (stock.shows?.length ?? 0); // 기간 내 누적 방송 언급 수
         // 그날 일간 감정 수집 (있으면) — reps가 최신순이라 daySentiments도 최신순
+        // 감정은 DB에 저장된 원래 이름(stock.name)으로 키가 잡혀 있다.
         const sent = report.sentiment?.[stock.name];
         if (sent?.status) {
           e.daySentiments.push({
@@ -192,7 +196,10 @@ export async function computeRanking(
         : typeof post.tags === 'string'
           ? post.tags.split(',').map((t: string) => t.trim())
           : [];
-      for (const tag of tags) tagCount.set(tag, (tagCount.get(tag) ?? 0) + 1);
+      for (const tag of tags) {
+        const ct = canonicalStockName(tag); // 옛 이름 태그도 현재 이름으로 합산
+        tagCount.set(ct, (tagCount.get(ct) ?? 0) + 1);
+      }
     }
 
     // 그날 뉘앙스: 윈도우 내 가장 최근 리포트의 sentiment 사용

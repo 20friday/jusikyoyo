@@ -42,7 +42,8 @@ export const STOCK_CODES: Record<string, string> = {
   'HD한국조선해양': '009540',
   '삼성중공업': '010140',
   '한국항공우주': '047810',
-  'LIG넥스원': '079550',
+  'LIG디펜스앤에어로스페이스': '079550',
+  'LIG넥스원': '079550', // 옛 이름 — 과거 글 주가 조회 폴백용
 
   // 자동차
   '현대차': '005380',
@@ -86,4 +87,17 @@ export const STOCK_CODES: Record<string, string> = {
 
 export function getStockCode(name: string): string | null {
   return STOCK_CODES[name] ?? null;
+}
+
+/**
+ * 사명 변경으로 이름이 바뀐 종목의 옛 이름 → 현재 이름 매핑.
+ * DB에 옛 이름으로 저장된 과거 글도 화면에는 현재 이름으로 보이게 한다.
+ */
+export const RENAMED_STOCKS: Record<string, string> = {
+  'LIG넥스원': 'LIG디펜스앤에어로스페이스', // 2026.4 주총서 사명 변경 (LIG D&A)
+};
+
+/** 옛 이름이면 현재 이름으로 바꿔서 돌려준다. 아니면 그대로. */
+export function canonicalStockName(name: string): string {
+  return RENAMED_STOCKS[name] ?? name;
 }
