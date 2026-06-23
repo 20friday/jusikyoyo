@@ -234,8 +234,19 @@ export async function computeRanking(
       const picked = pickSentiment(e.daySentiments);
       const intensity = picked ? picked.intensity : 1;
       const nuanceScore = picked ? (STATUS_MULT[picked.status] ?? 0) * intensity * 4 : 0;
-      const sortScore = rawScore + nuanceScore;
-      // 화면 점수는 감정까지 반영(sortScore) 후 환산
+
+      // 일간 점수 감쇠: 마지막 언급일에서 멀어질수록 하루 –20%씩 깎는다.
+      // 5거래일째 0%가 되어 보드에서 자연 퇴장. 다시 언급되면 latestDate가
+      // 갱신돼 감쇠가 100%로 복귀한다. (주간·월간은 꾸준함 공식이라 감쇠 없음)
+      let decay = 1;
+      if (!isPeriod) {
+        const li = allTradingDates.indexOf(e.latestDate ?? '');
+        const daysSince = li >= 0 ? li - idx : 0;
+        decay = Math.max(0, 1 - 0.2 * daysSince);
+        if (decay <= 0) continue; // 마지막 언급 후 5거래일 이상 → 제외
+      }
+      const sortScore = (rawScore + nuanceScore) * decay;
+      // 화면 점수는 감정·감쇠까지 반영 후 환산
       const score = Math.max(0, Math.min(100, Math.round((sortScore / scoreDivisor) * 100)));
       scored.push({
         name, score, rawScore, sortScore, scoreDivisor, mentionScore, tagScore, continuityScore, intensity,
@@ -308,9 +319,23 @@ export async function computeRanking(
            : { type: 'same', n: 0 };
     }
 
-    // hold: 연속 등장일
-    const holdDays = s.days;
-    const hold = holdDays === 1 ? '오늘 진입' : `${holdDays}일 연속 TOP`;
+    // hold 배지: 일간은 '보드(상위 10위)에 떠 있는 연속 일수' 기준.
+    // 오늘 처음 뜬 종목만 '오늘 진입', 이미 떠 있던 종목은 'N일 연속 TOP'.
+    // (점수는 언급 신선도로 따로 감쇠하므로, 배지는 화면 노출 일수만 말한다.)
+    // 주간·월간은 기존 언급일 수 기준 유지.
+    let hold: string;
+    if (period === 'day') {
+      let boardDays = 0;
+      for (let i = rankTrail.length - 1; i >= 0; i--) {
+        const rk = rankTrail[i];
+        if (rk != null && rk <= 10) boardDays++;
+        else break;
+      }
+      hold = boardDays <= 1 ? '오늘 진입' : `${boardDays}일 연속 TOP`;
+    } else {
+      const holdDays = s.days;
+      hold = holdDays === 1 ? '오늘 진입' : `${holdDays}일 연속 TOP`;
+    }
 
     // reason: 최신 방송 코멘트에서 뽑기 (첫 번째 note)
     const firstNote = s.latestNotes[0];
