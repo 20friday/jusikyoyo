@@ -1,0 +1,410 @@
+---
+import Base from '../layouts/Base.astro';
+import { stockInfo } from '../lib/stockInfo';
+
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+
+// 미국 주식 이름 목록 — 검색 인덱스에서 제외
+const usStockNames = JSON.stringify(
+  stockInfo.filter(s => s.isUS).map(s => s.name)
+);
+---
+
+<Base title="종목 검색" footer="none" header="none">
+  <header class="search-hdr">
+    <div class="search-hdr-inner">
+      <div class="search-bar">
+        <svg class="search-bar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.9"/>
+          <path d="m20 20-3.4-3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+        <input id="search-input" class="search-input" type="text"
+          placeholder="종목명 검색"
+          autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <button id="search-clear" class="search-clear" hidden aria-label="지우기">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <a href="#" id="search-cancel" class="search-cancel">취소</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="feed-wrap">
+      <div id="search-body">
+        <div class="search-loading">불러오는 중...</div>
+      </div>
+    </div>
+  </main>
+</Base>
+
+<style is:global>
+  .feed-wrap { max-width: 680px; margin: 0 auto; padding: 0 16px 80px; }
+
+  .search-hdr {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(250,249,246,0.82);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    backdrop-filter: saturate(180%) blur(14px);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .search-hdr-inner {
+    max-width: 680px; margin: 0 auto;
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .search-bar {
+    flex: 1; min-width: 0;
+    display: flex; align-items: center; gap: 8px;
+    height: 44px; padding: 0 12px;
+    background: var(--card);
+    border: 1px solid var(--divider);
+    border-radius: 12px;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+  .search-bar:focus-within {
+    border-color: #ed781f;
+    box-shadow: 0 0 0 3px rgba(237,120,31,0.12);
+  }
+  .search-bar-icon { flex-shrink: 0; color: var(--text-3); }
+  .search-input {
+    flex: 1; min-width: 0;
+    border: none; outline: none; background: transparent;
+    font-family: var(--font); font-size: 17px; font-weight: 600;
+    color: var(--text-1); letter-spacing: -0.01em;
+  }
+  .search-input::placeholder { color: var(--text-3); font-weight: 500; }
+  .search-clear {
+    flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--divider); color: var(--text-2);
+    border: none; cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .search-clear:hover { background: var(--flat); color: #fff; }
+  .search-clear[hidden] { display: none; }
+  .search-cancel {
+    flex-shrink: 0; font-size: 17px; font-weight: 700;
+    color: var(--text-2); letter-spacing: -0.01em;
+    padding: 4px 2px; white-space: nowrap;
+    text-decoration: none;
+    transition: color 120ms ease;
+  }
+  .search-cancel:hover { color: var(--text-1); }
+
+  .search-loading { padding: 40px 0; text-align: center; font-size: 15px; color: var(--text-3); }
+
+  /* 입력 전: 인기 검색어 */
+  .search-idle { padding: 22px 2px 0; }
+  .idle-label { font-size: 14px; font-weight: 700; color: var(--text-3); letter-spacing: -0.01em; margin-bottom: 14px; }
+  .pop-list { display: flex; flex-direction: column; gap: 2px; }
+  .pop-chip {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 12px 4px; text-align: left;
+    font-size: 17px; font-weight: 700; color: var(--text-1); letter-spacing: -0.02em;
+    background: none; border: none; cursor: pointer;
+    transition: opacity 120ms ease;
+  }
+  .pop-chip:hover { opacity: 0.62; }
+  .pop-rank {
+    flex-shrink: 0; width: 20px;
+    font-size: 17px; font-weight: 900; color: #ed781f;
+    letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+  }
+
+  /* 결과 */
+  .result-count { font-size: 14px; font-weight: 700; color: var(--text-3); letter-spacing: -0.01em; padding: 22px 2px 12px; }
+  .result-list { display: flex; flex-direction: column; gap: 8px; }
+  .result-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 14px;
+    background: var(--card);
+    border: 0.5px solid var(--divider);
+    border-radius: 12px;
+    text-decoration: none;
+    transition: box-shadow 160ms ease, transform 160ms ease, border-color 160ms ease;
+  }
+  .result-card:hover {
+    box-shadow: 0 8px 22px -12px rgba(0,0,0,0.18);
+    border-color: var(--text-3);
+    transform: translateY(-1px);
+  }
+  .result-info { flex: 1; min-width: 0; }
+  .result-name { font-size: 17px; font-weight: 800; color: var(--text-1); letter-spacing: -0.02em; margin-bottom: 5px; }
+  .result-name mark { background: rgba(237,120,31,0.16); color: #c45e0a; border-radius: 3px; padding: 0 1px; }
+  .result-meta { font-size: 15px; font-weight: 600; color: var(--text-3); letter-spacing: -0.01em; display: flex; align-items: center; }
+  .result-meta b { font-weight: 800; color: var(--text-2); }
+  .result-dot { width: 2.5px; height: 2.5px; border-radius: 50%; background: var(--text-3); opacity: 0.5; margin: 0 8px; }
+  .result-arrow { flex-shrink: 0; color: var(--text-3); opacity: 0.55; }
+
+  /* 전체 종목 인덱스 */
+  .stock-index { padding: 28px 0 0; position: relative; }
+  .stock-index-label { font-size: 14px; font-weight: 700; color: var(--text-3); letter-spacing: -0.01em; margin-bottom: 14px; padding: 0 2px; }
+  .stock-section { margin-bottom: 4px; }
+  .stock-section-header {
+    font-size: 13px; font-weight: 800; color: var(--text-3);
+    letter-spacing: 0.02em;
+    padding: 10px 2px 6px;
+    border-bottom: 0.5px solid var(--divider);
+    margin-bottom: 2px;
+  }
+  .stock-item {
+    display: flex; align-items: center;
+    width: 100%; padding: 11px 4px;
+    font-size: 16px; font-weight: 600; color: var(--text-1); letter-spacing: -0.01em;
+    background: none; border: none; cursor: pointer; text-align: left;
+    border-bottom: 0.5px solid var(--divider);
+    transition: opacity 120ms ease;
+  }
+  .stock-item:hover { opacity: 0.62; }
+
+  /* 우측 인덱스 바 */
+  .index-bar {
+    position: fixed; right: 6px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    z-index: 40;
+  }
+  .index-bar a {
+    font-size: 11px; font-weight: 700; color: #ed781f;
+    line-height: 1.4; padding: 1px 4px;
+    text-decoration: none;
+  }
+  .index-bar a:hover { opacity: 0.6; }
+
+  /* 결과 없음 */
+  .search-noresult { padding: 72px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .search-noresult svg { color: var(--text-3); opacity: 0.45; margin-bottom: 18px; }
+  .noresult-title { font-size: 17px; font-weight: 800; color: var(--text-2); letter-spacing: -0.02em; margin-bottom: 8px; }
+  .noresult-sub { font-size: 15px; font-weight: 500; color: var(--text-3); line-height: 1.6; letter-spacing: -0.01em; max-width: 280px; }
+</style>
+
+<script define:vars={{ supabaseUrl, supabaseKey, usStockNames }}>
+(function () {
+  var inputEl  = document.getElementById('search-input');
+  var clearEl  = document.getElementById('search-clear');
+  var bodyEl   = document.getElementById('search-body');
+  var cancelEl = document.getElementById('search-cancel');
+
+  var INDEX   = [];
+  var POPULAR = [];
+
+  function esc(s) {
+    return s.replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function highlight(name, q) {
+    if (!q) return esc(name);
+    var i = name.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return esc(name);
+    return esc(name.slice(0, i)) +
+      '<mark>' + esc(name.slice(i, i + q.length)) + '</mark>' +
+      esc(name.slice(i + q.length));
+  }
+
+  function matches(q) {
+    var nq = q.trim().toLowerCase();
+    if (!nq) return [];
+    var scored = [];
+    INDEX.forEach(function (s) {
+      var name = s.name.toLowerCase();
+      var hit = -1;
+      if (name.indexOf(nq) === 0) hit = 0;
+      else if (name.indexOf(nq) > 0) hit = 1;
+      if (hit >= 0) scored.push({ s: s, hit: hit });
+    });
+    scored.sort(function (a, b) {
+      if (a.hit !== b.hit) return a.hit - b.hit;
+      return b.s.mentions - a.s.mentions;
+    });
+    return scored.map(function (x) { return x.s; });
+  }
+
+  var CHOSUNG = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+  var DISPLAY = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+
+  function getChosung(ch) {
+    var code = ch.charCodeAt(0);
+    if (code >= 0xAC00 && code <= 0xD7A3) {
+      return CHOSUNG[Math.floor((code - 0xAC00) / 28 / 21)];
+    }
+    if (/[A-Za-z]/.test(ch)) return ch.toUpperCase();
+    return '#';
+  }
+
+  function normalizeKey(ch) {
+    // ㄲ→ㄱ, ㄸ→ㄷ, ㅃ→ㅂ, ㅆ→ㅅ, ㅉ→ㅈ (된소리는 예사소리로 묶기)
+    var map = { 'ㄲ':'ㄱ','ㄸ':'ㄷ','ㅃ':'ㅂ','ㅆ':'ㅅ','ㅉ':'ㅈ' };
+    return map[ch] || ch;
+  }
+
+  function renderIdle() {
+    var chips = POPULAR.map(function (name, i) {
+      return '<button class="pop-chip" data-name="' + esc(name) + '">' +
+        '<span class="pop-rank">' + (i + 1) + '</span>' + esc(name) +
+        '</button>';
+    }).join('');
+
+    // 자음별 그룹핑
+    var groups = {};
+    INDEX.forEach(function (s) {
+      var first = s.name.charAt(0);
+      var key = normalizeKey(getChosung(first));
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(s.name);
+    });
+
+    // 정렬 순서: 한글 자음 → 영문 → #
+    var keys = Object.keys(groups).sort(function (a, b) {
+      var order = function(k) {
+        var i = DISPLAY.indexOf(k);
+        if (i >= 0) return i;
+        if (/[A-Z]/.test(k)) return 100 + k.charCodeAt(0);
+        return 999;
+      };
+      return order(a) - order(b);
+    });
+
+    var sections = keys.map(function (key) {
+      var items = groups[key].map(function (name) {
+        return '<button class="stock-item" data-name="' + esc(name) + '">' + esc(name) + '</button>';
+      }).join('');
+      return '<div class="stock-section" id="idx-' + encodeURIComponent(key) + '">' +
+        '<div class="stock-section-header">' + key + '</div>' +
+        items +
+        '</div>';
+    }).join('');
+
+    var indexBar = '<div class="index-bar">' +
+      keys.map(function (k) {
+        return '<a href="#idx-' + encodeURIComponent(k) + '">' + k + '</a>';
+      }).join('') +
+    '</div>';
+
+    bodyEl.innerHTML =
+      '<div class="search-idle">' +
+        (POPULAR.length ? '<div class="idle-label">인기 검색어</div><div class="pop-list">' + chips + '</div>' : '') +
+        '<div class="stock-index">' +
+          '<div class="stock-index-label">전체 종목</div>' +
+          sections +
+        '</div>' +
+      '</div>' +
+      indexBar;
+
+    bodyEl.querySelectorAll('.pop-chip, .stock-item').forEach(function (b) {
+      b.addEventListener('click', function () {
+        inputEl.value = b.getAttribute('data-name');
+        onInput();
+        inputEl.focus();
+      });
+    });
+  }
+
+  function renderEmpty(q) {
+    bodyEl.innerHTML =
+      '<div class="search-noresult">' +
+        '<svg width="44" height="44" viewBox="0 0 24 24" fill="none">' +
+          '<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/>' +
+          '<path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+        '</svg>' +
+        '<p class="noresult-title">아직 방송에서 언급된 기록이 없어요</p>' +
+        '<p class="noresult-sub">‘' + esc(q.trim()) + '’ 종목은 아직 방송에서 다뤄지지 않았어요.</p>' +
+      '</div>';
+  }
+
+  function renderResults(list, q) {
+    var cards = list.map(function (s) {
+      return '<a class="result-card" href="/stock/' + encodeURIComponent(s.name) + '">' +
+        '<div class="result-info">' +
+          '<div class="result-name">' + highlight(s.name, q.trim()) + '</div>' +
+          '<div class="result-meta">방송 언급 <b>' + s.mentions + '회</b><span class="result-dot"></span>전체 기간</div>' +
+        '</div>' +
+        '<svg class="result-arrow" width="18" height="18" viewBox="0 0 20 20" fill="none">' +
+          '<path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '</svg>' +
+      '</a>';
+    }).join('');
+    bodyEl.innerHTML =
+      '<div class="result-count">' + list.length + '개 종목</div>' +
+      '<div class="result-list">' + cards + '</div>';
+  }
+
+  function onInput() {
+    var q = inputEl.value;
+    clearEl.hidden = !q;
+    if (!q.trim()) { renderIdle(); return; }
+    var list = matches(q);
+    if (list.length === 0) renderEmpty(q);
+    else renderResults(list, q);
+  }
+
+  inputEl.addEventListener('input', onInput);
+
+  clearEl.addEventListener('click', function () {
+    inputEl.value = '';
+    onInput();
+    inputEl.focus();
+  });
+
+  cancelEl.addEventListener('click', function (e) {
+    e.preventDefault();
+    if (history.length > 1) history.back();
+    else location.href = '/';
+  });
+
+  var US_STOCKS = new Set(JSON.parse(usStockNames));
+  // 종목명이 아닌 테마·키워드 등 잘못 등록된 항목 차단 목록
+  var BLOCKLIST = new Set(['AI 토큰', '비트코인', '이더리움', '암호화폐']);
+
+  function isValidStockName(name) {
+    // "·"가 포함된 복합 종목명 제외 (분리해서 따로 집계)
+    if (name.indexOf('·') >= 0) return false;
+    // 괄호가 있는 부가설명 형태 제외 (예: 엔비디아(회사채))
+    if (/\(.+\)/.test(name)) return false;
+    // 미국 주식 및 테마 키워드 제외
+    if (US_STOCKS.has(name)) return false;
+    if (BLOCKLIST.has(name)) return false;
+    // 공백 포함 + 한글 없는 경우 제외 (예: "AI 토큰", "ETF 상품" 같은 테마 키워드)
+    if (name.includes(' ') && !/[가-힣]/.test(name)) return false;
+    // 너무 짧은 단어 제외 (1글자)
+    if (name.length < 2) return false;
+    return true;
+  }
+
+  // Supabase에서 전체 종목 인덱스 로드
+  fetch(supabaseUrl + '/rest/v1/daily_reports?select=stocks', {
+    headers: {
+      'apikey': supabaseKey,
+      'Authorization': 'Bearer ' + supabaseKey,
+    }
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (reports) {
+    var mentionMap = {};
+    reports.forEach(function (report) {
+      (report.stocks || []).forEach(function (stock) {
+        if (!stock.name) return;
+        // "·"로 묶인 복합 종목은 개별 종목으로 분리해서 각각 집계
+        var names = stock.name.split('·').map(function (n) { return n.trim(); });
+        names.forEach(function (name) {
+          if (!name || !isValidStockName(name)) return;
+          mentionMap[name] = (mentionMap[name] || 0) + 1;
+        });
+      });
+    });
+    INDEX = Object.entries(mentionMap)
+      .map(function (e) { return { name: e[0], mentions: e[1] }; })
+      .sort(function (a, b) { return b.mentions - a.mentions; });
+    POPULAR = INDEX.slice(0, 6).map(function (s) { return s.name; });
+    renderIdle();
+    inputEl.focus();
+  })
+  .catch(function () {
+    bodyEl.innerHTML = '<div class="search-loading">데이터를 불러오지 못했어요.</div>';
+  });
+})();
+</script>
