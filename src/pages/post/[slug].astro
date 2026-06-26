@@ -2,6 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import { stockInfo } from '../../lib/stockInfo';
 import { renderMarkdown } from '../../lib/renderMarkdown';
+import { applyGlossary } from '../../lib/glossary';
 
 const { slug } = Astro.params;
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
@@ -20,6 +21,7 @@ if (!post || error) {
 
 const { title, content, show, summary, tags, date } = post;
 const contentHtml = await renderMarkdown(content ?? '');
+const summaryHtml = applyGlossary(summary ?? '');
 
 const days = ['일', '월', '화', '수', '목', '금', '토'];
 const d = new Date(date + 'T00:00:00');
@@ -36,7 +38,7 @@ const stockInfoJson = JSON.stringify(stockInfo);
         <span class="detail-date">{dateKo}</span>
       </div>
       <h1 class="detail-title">{title}</h1>
-      <p class="detail-summary">{summary}</p>
+      <p class="detail-summary" set:html={summaryHtml} />
       <hr class="detail-divider" />
       <div class="prose" set:html={contentHtml} />
     </article>

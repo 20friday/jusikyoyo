@@ -12,6 +12,7 @@ export const EXCLUDED_KEYWORDS: string[] = [
   '엔비디아',
   '스페이스X',
   '마이크론', // 미국 상장 (Micron) — 국내 순위에서 제외
+  '애플', // 미국 상장 (Apple) — "애플 (미국)" 부분일치로 제외
 ];
 
 export function isExcludedStock(name: string): boolean {

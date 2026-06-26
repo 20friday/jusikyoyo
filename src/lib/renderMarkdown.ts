@@ -7,6 +7,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeStringify from 'rehype-stringify';
 // @ts-ignore
 import { remarkBlocks } from './remarkBlocks.mjs';
+import { applyGlossary } from './glossary';
 
 const processor = unified()
   .use(remarkParse)
@@ -19,5 +20,5 @@ const processor = unified()
 
 export async function renderMarkdown(markdown: string): Promise<string> {
   const result = await processor.process(markdown);
-  return String(result);
+  return applyGlossary(String(result));
 }
