@@ -21,6 +21,7 @@ export type Tone = 'good' | 'watch' | 'caution';
 export interface MetricItem {
   key: string;
   label: string;        // PER
+  fullName?: string;    // 약자 풀이 (주가수익비율 · Price Earnings Ratio)
   value: string;        // 15.15배
   explain: string;      // PER이 뭔지 (지표 자체의 정의)
   meaning?: string;     // 이 값이 투자자에게 좋은지/나쁜지 해석
@@ -155,7 +156,7 @@ function buildMetrics(ti: Record<string, string>, divFreq = ''): MetricItem[] {
       }
     }
     out.push({
-      key: 'per', label: 'PER', value: ti.per,
+      key: 'per', label: 'PER', fullName: '주가수익비율 · Price Earnings Ratio', value: ti.per,
       explain: 'PER은 주가를 1주당 순이익으로 나눈 값이에요. 쉽게 말하면 지금 주가가 회사가 1년에 버는 돈의 몇 배인지를 보여줘요. 예를 들어 PER이 10배면, 회사가 지금처럼 벌 때 10년이면 주가만큼 번다는 뜻이에요. 숫자가 낮을수록 버는 돈에 비해 주가가 싸요. 단, 적정 수준은 업종마다 달라서 같은 업종끼리 비교하는 게 정확해요.',
       meaning, verdict, tone,
     });
@@ -173,7 +174,7 @@ function buildMetrics(ti: Record<string, string>, divFreq = ''): MetricItem[] {
       meaning = '추정 PER이 지금 PER보다 높아요. 올해 이익이 줄어든다는 뜻이라 조심해야 해요.';
     }
     out.push({
-      key: 'cnsPer', label: '추정 PER', value: ti.cnsPer,
+      key: 'cnsPer', label: '추정 PER', fullName: '추정 주가수익비율 · Forward PER', value: ti.cnsPer,
       explain: '추정 PER은 올해 예상되는 이익으로 계산한 PER이에요. 지금 PER이 지난 실적 기준이라면, 추정 PER은 올해 예상 기준이에요. 두 값을 비교하면 회사 이익이 앞으로 늘지 줄지 방향을 알 수 있어요. 추정 PER이 더 낮으면 이익이 늘어난다는 뜻이라 좋은 신호예요.',
       meaning, verdict, tone,
     });
@@ -194,7 +195,7 @@ function buildMetrics(ti: Record<string, string>, divFreq = ''): MetricItem[] {
       }
     }
     out.push({
-      key: 'pbr', label: 'PBR', value: ti.pbr,
+      key: 'pbr', label: 'PBR', fullName: '주가순자산비율 · Price Book-value Ratio', value: ti.pbr,
       explain: 'PBR은 주가를 1주당 순자산으로 나눈 값이에요. 순자산은 회사 재산에서 빚을 뺀, 온전히 회사 몫인 재산이에요. PBR이 1배면 주가가 딱 그 재산만큼, 1배보다 낮으면 재산보다도 싸게 거래된다는 뜻이에요.',
       meaning, verdict, tone,
     });
@@ -217,7 +218,7 @@ function buildMetrics(ti: Record<string, string>, divFreq = ''): MetricItem[] {
     // 배당이 있는 경우에만 배당 주기(분기/반기/연)를 덧붙인다.
     if (divFreq && (div === null || div > 0)) meaning += ' ' + divFreq;
     out.push({
-      key: 'div', label: '배당수익률', value: ti.dividendYieldRatio,
+      key: 'div', label: '배당수익률', fullName: 'Dividend Yield', value: ti.dividendYieldRatio,
       explain: '배당수익률은 1년간 받는 배당금을 현재 주가로 나눈 값이에요. 주식을 사두면 회사가 번 돈의 일부를 나눠주기도 하는데(배당), 그게 지금 주가의 몇 퍼센트인지를 보여줘요. 은행 예금 이자율과 비슷한 개념이에요.',
       meaning, verdict, tone,
     });

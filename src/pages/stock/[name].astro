@@ -170,7 +170,7 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
                 <div class="metric">
                   <div class="metric-top">
                     <span class="metric-label">{m.label}</span>
-                    <button class="metric-info" data-mtitle={m.label} data-mbody={m.explain} aria-label={`${m.label} 설명 보기`} type="button">
+                    <button class="metric-info" data-mtitle={m.label} data-mfull={m.fullName} data-mbody={m.explain} aria-label={`${m.label} 설명 보기`} type="button">
                       <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="6" r="1.1" fill="currentColor"/><rect x="9.1" y="8.6" width="1.8" height="6" rx="0.9" fill="currentColor"/></svg>
                     </button>
                     <span class="metric-value">{m.value}</span>
@@ -228,7 +228,10 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
     <div class="mm-backdrop" data-mm-close></div>
     <div class="mm-box" role="dialog" aria-modal="true" aria-labelledby="mmTitle">
       <div class="mm-head">
-        <h3 class="mm-title" id="mmTitle"></h3>
+        <div class="mm-head-text">
+          <h3 class="mm-title" id="mmTitle"></h3>
+          <p class="mm-sub"></p>
+        </div>
         <button class="mm-close" data-mm-close aria-label="닫기" type="button">✕</button>
       </div>
       <p class="mm-body"></p>
@@ -510,8 +513,10 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
   }
   @keyframes mm-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
   @keyframes mm-pop { from { transform: scale(.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .mm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .mm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
   .mm-title { font-size: 20px; font-weight: 800; color: var(--text-1); letter-spacing: -0.02em; }
+  .mm-sub { font-size: 13px; font-weight: 600; color: var(--text-3); margin: 3px 0 0; }
+  .mm-sub[hidden] { display: none; }
   .mm-close {
     appearance: none; border: none; background: var(--border); cursor: pointer;
     width: 32px; height: 32px; border-radius: 50%; color: var(--text-2);
@@ -540,9 +545,12 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
   const modal = document.getElementById('metricModal');
   if (modal) {
     const titleEl = modal.querySelector('.mm-title') as HTMLElement;
+    const subEl = modal.querySelector('.mm-sub') as HTMLElement;
     const bodyEl = modal.querySelector('.mm-body') as HTMLElement;
-    const openModal = (title: string, body: string) => {
+    const openModal = (title: string, full: string, body: string) => {
       titleEl.textContent = title;
+      subEl.textContent = full;
+      subEl.hidden = !full;
       bodyEl.textContent = body;
       modal.hidden = false;
       document.body.style.overflow = 'hidden';
@@ -552,7 +560,7 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
       document.body.style.overflow = '';
     };
     document.querySelectorAll<HTMLButtonElement>('.metric-info').forEach(btn => {
-      btn.addEventListener('click', () => openModal(btn.dataset.mtitle ?? '', btn.dataset.mbody ?? ''));
+      btn.addEventListener('click', () => openModal(btn.dataset.mtitle ?? '', btn.dataset.mfull ?? '', btn.dataset.mbody ?? ''));
     });
     modal.querySelectorAll('[data-mm-close]').forEach(el => el.addEventListener('click', closeModal));
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
