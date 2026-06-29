@@ -58,6 +58,8 @@ ul, ol { margin: 0; padding-left: 1.4em; }
   -webkit-backdrop-filter: saturate(200%) blur(24px);
   border-bottom: 1px solid rgba(0,0,0,0.06);
 }
+/* 섹션 탭이 없는 페이지(종목 상세 등): 페이지 자체 탭과 한 덩어리로 보이도록 헤더 하단 보더 제거 */
+.hdr--bare { border-bottom: none; }
 .hdr-inner {
   max-width: 680px; margin: 0 auto;
   padding: 12px 16px;

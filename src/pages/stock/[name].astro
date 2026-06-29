@@ -381,11 +381,15 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
   .tabs {
     display: flex;
     gap: 4px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 24px;
+    /* 헤더와 같은 frosted 배경 + 풀블리드로 상단 메뉴 영역에 한 덩어리처럼 붙는다 */
+    margin: 0 -16px 24px;
+    padding: 0 16px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
     position: sticky;
     top: 56px;
-    background: var(--bg);
+    background: rgba(255,255,255,0.45);
+    backdrop-filter: saturate(200%) blur(24px);
+    -webkit-backdrop-filter: saturate(200%) blur(24px);
     z-index: 5;
   }
   .tab {
