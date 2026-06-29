@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import { stockInfo } from '../lib/stockInfo';
+import { RENAMED_STOCKS } from '../lib/stockCodes';
 
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
 const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
@@ -9,6 +10,16 @@ const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 const usStockNames = JSON.stringify(
   stockInfo.filter(s => s.isUS).map(s => s.name)
 );
+
+// 종목명 → aliases 맵 (검색 시 별칭 매핑용)
+const stockAliasMap = JSON.stringify(
+  Object.fromEntries(
+    stockInfo.filter(s => s.aliases?.length).map(s => [s.name, s.aliases])
+  )
+);
+
+// 옛 이름 → 정식명 매핑 (INDEX 정규화용)
+const renamedStocks = JSON.stringify(RENAMED_STOCKS);
 ---
 
 <Base title="종목 검색" footer="none" header="none">
@@ -181,7 +192,7 @@ const usStockNames = JSON.stringify(
   .noresult-sub { font-size: 15px; font-weight: 500; color: var(--text-3); line-height: 1.6; letter-spacing: -0.01em; max-width: 280px; }
 </style>
 
-<script define:vars={{ supabaseUrl, supabaseKey, usStockNames }}>
+<script define:vars={{ supabaseUrl, supabaseKey, usStockNames, stockAliasMap, renamedStocks }}>
 (function () {
   var inputEl  = document.getElementById('search-input');
   var clearEl  = document.getElementById('search-clear');
@@ -211,10 +222,13 @@ const usStockNames = JSON.stringify(
     if (!nq) return [];
     var scored = [];
     INDEX.forEach(function (s) {
-      var name = s.name.toLowerCase();
+      var targets = [s.name].concat(s.aliases || []);
       var hit = -1;
-      if (name.indexOf(nq) === 0) hit = 0;
-      else if (name.indexOf(nq) > 0) hit = 1;
+      for (var i = 0; i < targets.length; i++) {
+        var t = targets[i].toLowerCase();
+        if (t.indexOf(nq) === 0) { hit = 0; break; }
+        if (t.indexOf(nq) > 0 && hit < 0) hit = 1;
+      }
       if (hit >= 0) scored.push({ s: s, hit: hit });
     });
     scored.sort(function (a, b) {
@@ -385,6 +399,7 @@ const usStockNames = JSON.stringify(
   .then(function (r) { return r.json(); })
   .then(function (reports) {
     var mentionMap = {};
+    var RENAMED = JSON.parse(renamedStocks);
     reports.forEach(function (report) {
       (report.stocks || []).forEach(function (stock) {
         if (!stock.name) return;
@@ -392,12 +407,14 @@ const usStockNames = JSON.stringify(
         var names = stock.name.split('·').map(function (n) { return n.trim(); });
         names.forEach(function (name) {
           if (!name || !isValidStockName(name)) return;
-          mentionMap[name] = (mentionMap[name] || 0) + 1;
+          var canonical = RENAMED[name] || name;
+          mentionMap[canonical] = (mentionMap[canonical] || 0) + 1;
         });
       });
     });
+    var ALIAS_MAP = JSON.parse(stockAliasMap);
     INDEX = Object.entries(mentionMap)
-      .map(function (e) { return { name: e[0], mentions: e[1] }; })
+      .map(function (e) { return { name: e[0], mentions: e[1], aliases: ALIAS_MAP[e[0]] || [] }; })
       .sort(function (a, b) { return b.mentions - a.mentions; });
     POPULAR = INDEX.slice(0, 6).map(function (s) { return s.name; });
     renderIdle();
