@@ -7,8 +7,9 @@ interface Props {
   description?: string;
   footer?: 'default' | 'minimal' | 'none';
   header?: 'default' | 'none';
+  sectionNav?: boolean;
 }
-const { title = '테드픽', description = '매일 12시, 장 정리', footer = 'default', header = 'default' } = Astro.props;
+const { title = '테드픽', description = '매일 12시, 장 정리', footer = 'default', header = 'default', sectionNav = true } = Astro.props;
 const { user } = Astro.locals;
 ---
 <!doctype html>
@@ -56,10 +57,10 @@ const { user } = Astro.locals;
           <a href="/login" class="btn-pill ghost">로그인</a>
         )}
       </div>
-      <nav class="hdr-tabs" style="border-top: none;">
+      {sectionNav && <nav class="hdr-tabs" style="border-top: none;">
         <a href="/" class:list={['hdr-tab', { active: Astro.url.pathname === '/' }]}>방송 요약</a>
         <a href="/stock" class:list={['hdr-tab', { active: Astro.url.pathname.startsWith('/stock') }]}>종목 랭킹</a>
-      </nav>
+      </nav>}
     </header>}
     <main>
       <slot />

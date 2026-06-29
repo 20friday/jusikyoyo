@@ -70,7 +70,7 @@ const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
 // 종목 정보가 있으면 그 탭을 먼저, 없으면 방송 히스토리 탭을 먼저 보여준다.
 const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
 ---
-<Base title={`${canonName} 언급 히스토리`} description={info?.desc ?? `${canonName} 방송 언급 모음`}>
+<Base title={`${canonName} 언급 히스토리`} description={info?.desc ?? `${canonName} 방송 언급 모음`} sectionNav={false}>
   <div class="stock-wrap">
 
     <!-- 헤더 -->
