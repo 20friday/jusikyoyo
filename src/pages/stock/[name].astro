@@ -386,7 +386,8 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
     padding: 0 16px;
     border-bottom: 1px solid rgba(0,0,0,0.06);
     position: sticky;
-    top: 56px;
+    /* 헤더 높이(약 62px)에 맞춰 붙여 frosted 이중 겹침(층) 제거. 1px만 살짝 겹쳐 틈 방지 */
+    top: 61px;
     background: rgba(255,255,255,0.45);
     backdrop-filter: saturate(200%) blur(24px);
     -webkit-backdrop-filter: saturate(200%) blur(24px);
