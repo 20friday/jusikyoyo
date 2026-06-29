@@ -3,6 +3,8 @@ import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import { stockInfo } from '../../lib/stockInfo';
 import { canonicalStockName } from '../../lib/stockCodes';
+import { resolveStockCodes } from '../../lib/resolveStockCode';
+import { getStockDetail, type StockDetail } from '../../lib/stockDetail';
 
 const { name } = Astro.params as { name: string };
 // 옛 이름·약칭으로 저장된 과거 글도 같이 잡히도록 정식명 기준으로 매칭한다.
@@ -39,6 +41,24 @@ const entries = [...dateMap.values()].sort((a, b) => b.date.localeCompare(a.date
 
 const info = stockInfo.find(s => canonicalStockName(s.name) === canonName);
 
+// 종목 상세(네이버) — 국내 종목만. 코드 조회 후 목표주가·지표·건강태그 가져오기.
+// 비공식 API라 실패하면 detail=null → 섹션 자체를 숨긴다.
+let detail: StockDetail | null = null;
+if (!info?.isUS) {
+  try {
+    const resolved = await resolveStockCodes([canonName]);
+    const code = resolved.get(canonName)?.code;
+    if (code) {
+      detail = await Promise.race([
+        getStockDetail(code, canonName),
+        new Promise<null>(resolve => setTimeout(() => resolve(null), 5000)),
+      ]);
+    }
+  } catch {
+    detail = null;
+  }
+}
+
 const days = ['일', '월', '화', '수', '목', '금', '토'];
 function formatDate(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -46,6 +66,9 @@ function formatDate(dateStr: string) {
 }
 
 const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
+
+// 종목 정보가 있으면 그 탭을 먼저, 없으면 방송 히스토리 탭을 먼저 보여준다.
+const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
 ---
 <Base title={`${canonName} 언급 히스토리`} description={info?.desc ?? `${canonName} 방송 언급 모음`}>
   <div class="stock-wrap">
@@ -69,7 +92,105 @@ const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
       </div>
     </div>
 
-    <!-- 타임라인 -->
+    <!-- ===== 탭 ===== -->
+    <div class="tabs" role="tablist">
+      <button class={`tab ${defaultTab === 'info' ? 'is-active' : ''}`} data-tab="info" role="tab">종목 정보</button>
+      <button class={`tab ${defaultTab === 'history' ? 'is-active' : ''}`} data-tab="history" role="tab">
+        방송 언급 {totalMentions > 0 && <span class="tab-count">{totalMentions}</span>}
+      </button>
+    </div>
+
+    <!-- ===== 종목 정보 탭 ===== -->
+    <div class={`panel ${defaultTab === 'info' ? 'is-active' : ''}`} data-panel="info">
+    {detail ? (
+      <div class="detail">
+
+        <!-- 현재가 -->
+        {detail.price && (
+          <div class="price-row">
+            <span class={`price-now ${detail.price.direction}`}>{detail.price.current}<span class="price-won">원</span></span>
+            <span class={`price-chg ${detail.price.direction}`}>
+              {detail.price.direction === 'up' ? '▲' : detail.price.direction === 'down' ? '▼' : ''} {detail.price.change} ({detail.price.changePct}%)
+            </span>
+            <span class="price-status">{detail.price.marketStatus}</span>
+          </div>
+        )}
+
+        <!-- 건강 상태 -->
+        {detail.health && (
+          <section class={`d-card health health--${detail.health.tone}`}>
+            <div class="health-head">
+              <span class="health-emoji">{detail.health.tone === 'good' ? '👍' : detail.health.tone === 'caution' ? '⚠️' : '👀'}</span>
+              <span class="health-title">{detail.health.headline}</span>
+            </div>
+            <div class="health-tags">
+              {detail.health.tags.map(t => (
+                <span class={`htag htag--${t.tone}`}>{t.text}</span>
+              ))}
+            </div>
+            <p class="d-note">회사 실적(매출·영업이익·배당 등)을 기준으로 자동 정리한 상태예요. 방송에서의 평가와는 별개예요.</p>
+          </section>
+        )}
+
+        <!-- 목표주가 · 투자의견 -->
+        {detail.consensus && (
+          <section class="d-card">
+            <h2 class="d-h">증권사들은 어떻게 볼까요?</h2>
+            <div class="consensus-grid">
+              <div class="cons-target">
+                <span class="cons-label">목표주가</span>
+                <span class="cons-target-num">{detail.consensus.targetPrice}<span class="price-won">원</span></span>
+                {detail.consensus.upsidePct !== null && (
+                  <span class={`cons-upside ${detail.consensus.upsidePct >= 0 ? 'up' : 'down'}`}>
+                    현재가보다 {detail.consensus.upsidePct >= 0 ? '+' : ''}{detail.consensus.upsidePct}%
+                  </span>
+                )}
+              </div>
+              <div class="cons-opinion">
+                <span class="cons-label">투자의견</span>
+                <span class="cons-op-label">{detail.consensus.recommLabel}</span>
+                <div class="opinion-bar">
+                  {['적극매도','매도','중립','매수','적극매수'].map((seg, i) => (
+                    <span class={`op-seg ${i+1 === Math.round(detail.consensus.recommMean) ? 'on' : ''}`}>{seg}</span>
+                  ))}
+                  <span class="op-marker" style={`left:${detail.consensus.recommPct}%`}></span>
+                </div>
+              </div>
+            </div>
+            <p class="d-note">최근 3개월간 증권사들이 발표한 전망치 평균이에요. ({detail.consensus.asOf} 기준 · 에프앤가이드 제공)</p>
+          </section>
+        )}
+
+        <!-- 핵심 지표 + 설명 -->
+        {detail.metrics.length > 0 && (
+          <section class="d-card">
+            <h2 class="d-h">숫자로 보면 이런 회사예요</h2>
+            <div class="metrics">
+              {detail.metrics.map(m => (
+                <div class="metric">
+                  <div class="metric-top">
+                    <span class="metric-label">{m.label}</span>
+                    <button class="metric-info" data-mtitle={m.label} data-mbody={m.explain} aria-label={`${m.label} 설명 보기`} type="button">
+                      <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="6" r="1.1" fill="currentColor"/><rect x="9.1" y="8.6" width="1.8" height="6" rx="0.9" fill="currentColor"/></svg>
+                    </button>
+                    <span class="metric-value">{m.value}</span>
+                    {m.verdict && <span class={`metric-verdict mv--${m.tone}`}>{m.verdict}</span>}
+                  </div>
+                  {m.meaning && <p class={`metric-meaning mm--${m.tone}`}>{m.meaning}</p>}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+      </div>
+    ) : (
+      <div class="empty">종목 정보를 불러오지 못했어요. 잠시 후 다시 들어와 주세요.</div>
+    )}
+    </div>
+
+    <!-- ===== 방송 언급 히스토리 탭 ===== -->
+    <div class={`panel ${defaultTab === 'history' ? 'is-active' : ''}`} data-panel="history">
     {entries.length === 0 ? (
       <div class="empty">아직 언급 기록이 없어요.</div>
     ) : (
@@ -98,7 +219,20 @@ const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
         ))}
       </div>
     )}
+    </div>
 
+  </div>
+
+  <!-- 지표 설명 모달 -->
+  <div class="metric-modal" id="metricModal" hidden>
+    <div class="mm-backdrop" data-mm-close></div>
+    <div class="mm-box" role="dialog" aria-modal="true" aria-labelledby="mmTitle">
+      <div class="mm-head">
+        <h3 class="mm-title" id="mmTitle"></h3>
+        <button class="mm-close" data-mm-close aria-label="닫기" type="button">✕</button>
+      </div>
+      <p class="mm-body"></p>
+    </div>
   </div>
 </Base>
 
@@ -239,9 +373,191 @@ const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
     color: var(--text-3);
     font-size: 15px;
   }
+
+  /* ===== 탭 ===== */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    position: sticky;
+    top: 56px;
+    background: var(--bg);
+    z-index: 5;
+  }
+  .tab {
+    flex: 1;
+    appearance: none;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-3);
+    padding: 14px 8px;
+    border-bottom: 2.5px solid transparent;
+    margin-bottom: -1px;
+    transition: color .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .tab:hover { color: var(--text-2); }
+  .tab.is-active { color: var(--text-1); border-bottom-color: var(--text-1); }
+  .tab-count {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--blue);
+    background: color-mix(in srgb, var(--blue) 12%, transparent);
+    border-radius: 20px;
+    padding: 1px 7px;
+  }
+  .panel { display: none; }
+  .panel.is-active { display: block; }
+
+  /* ===== 종목 정보 ===== */
+  .detail { display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px; }
+
+  /* tone 팔레트 */
+  .detail {
+    --good: #12b886; --good-bg: #e6f7f0;
+    --warn: #f08c00; --warn-bg: #fff4e0;
+    --bad:  #f04452; --bad-bg:  #ffe9eb;
+  }
+
+  /* 현재가 */
+  .price-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: -8px 0 4px; }
+  .price-now { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; color: var(--text-1); }
+  .price-now.up { color: var(--up); } .price-now.down { color: var(--down); }
+  .price-won { font-size: 16px; font-weight: 600; margin-left: 2px; }
+  .price-chg { font-size: 15px; font-weight: 700; }
+  .price-chg.up { color: var(--up); } .price-chg.down { color: var(--down); } .price-chg.flat { color: var(--flat); }
+  .price-status { font-size: 12px; font-weight: 700; color: var(--text-3); background: var(--border); border-radius: 6px; padding: 2px 8px; }
+
+  .d-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
+  .d-h { font-size: 17px; font-weight: 800; color: var(--text-1); margin-bottom: 14px; letter-spacing: -0.02em; }
+  .d-note { font-size: 13px; line-height: 1.6; color: var(--text-3); margin: 12px 0 0; }
+
+  /* 건강 상태 */
+  .health--good { background: var(--good-bg); }
+  .health--watch { background: var(--warn-bg); }
+  .health--caution { background: var(--bad-bg); }
+  .health-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .health-emoji { font-size: 22px; }
+  .health-title { font-size: 19px; font-weight: 800; color: var(--text-1); letter-spacing: -0.02em; }
+  .health-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .htag { font-size: 13px; font-weight: 700; border-radius: 8px; padding: 5px 10px; background: #fff; }
+  .htag--good { color: var(--good); border: 1px solid color-mix(in srgb, var(--good) 35%, transparent); }
+  .htag--watch { color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
+  .htag--caution { color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); }
+
+  /* 컨센서스 */
+  .consensus-grid { display: flex; flex-direction: column; gap: 18px; }
+  .cons-label { display: block; font-size: 13px; font-weight: 700; color: var(--text-3); margin-bottom: 6px; }
+  .cons-target-num { font-size: 26px; font-weight: 800; color: var(--text-1); letter-spacing: -0.02em; }
+  .cons-upside { display: inline-block; margin-left: 8px; font-size: 14px; font-weight: 700; }
+  .cons-upside.up { color: var(--up); } .cons-upside.down { color: var(--down); }
+  .cons-op-label { font-size: 20px; font-weight: 800; color: var(--blue); letter-spacing: -0.02em; }
+  .opinion-bar { position: relative; display: flex; gap: 3px; margin-top: 12px; }
+  .op-seg { flex: 1; text-align: center; font-size: 11px; font-weight: 700; color: var(--text-3);
+            background: var(--border); border-radius: 5px; padding: 7px 0; transition: all .2s; }
+  .op-seg.on { background: var(--blue); color: #fff; }
+  .op-marker { position: absolute; top: -7px; width: 10px; height: 10px; border-radius: 50%;
+               background: var(--blue); transform: translateX(-50%);
+               box-shadow: 0 0 0 3px var(--card); }
+
+  /* 지표 */
+  .metrics { display: flex; flex-direction: column; gap: 16px; }
+  .metric { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .metric:last-child { padding-bottom: 0; border-bottom: none; }
+  .metric-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .metric-label { font-size: 15px; font-weight: 800; color: var(--text-1); }
+  .metric-value { font-size: 18px; font-weight: 800; color: var(--text-1); letter-spacing: -0.02em; }
+  .metric-verdict { font-size: 12px; font-weight: 700; border-radius: 6px; padding: 3px 8px; margin-left: auto; }
+  .mv--good { color: var(--good); background: var(--good-bg); }
+  .mv--watch { color: var(--warn); background: var(--warn-bg); }
+  .mv--caution { color: var(--bad); background: var(--bad-bg); }
+  .metric-info {
+    appearance: none; border: none; background: none; cursor: pointer;
+    color: var(--text-3); padding: 2px; margin-left: -4px;
+    display: inline-flex; align-items: center; line-height: 0;
+  }
+  .metric-info:hover { color: var(--blue); }
+  .metric-meaning {
+    font-size: 14px; line-height: 1.65; font-weight: 600;
+    margin: 8px 0 0; padding: 10px 12px; border-radius: 10px;
+  }
+  .mm--good { color: #0a7a59; background: var(--good-bg); }
+  .mm--watch { color: #b56b00; background: var(--warn-bg); }
+  .mm--caution { color: #c2293a; background: var(--bad-bg); }
+
+  /* 지표 설명 모달 */
+  .metric-modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
+  .metric-modal[hidden] { display: none; }
+  .mm-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+  .mm-box {
+    position: relative; width: 100%; max-width: 480px;
+    background: var(--card); border-radius: 20px 20px 0 0;
+    padding: 24px 22px calc(28px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.18);
+    animation: mm-up .22s ease;
+  }
+  @media (min-width: 520px) {
+    .metric-modal { align-items: center; }
+    .mm-box { border-radius: 20px; animation: mm-pop .18s ease; }
+  }
+  @keyframes mm-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes mm-pop { from { transform: scale(.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .mm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .mm-title { font-size: 20px; font-weight: 800; color: var(--text-1); letter-spacing: -0.02em; }
+  .mm-close {
+    appearance: none; border: none; background: var(--border); cursor: pointer;
+    width: 32px; height: 32px; border-radius: 50%; color: var(--text-2);
+    font-size: 15px; display: flex; align-items: center; justify-content: center;
+  }
+  .mm-close:hover { background: var(--divider); color: var(--text-1); }
+  .mm-body { font-size: 16px; line-height: 1.75; color: var(--text-2); margin: 0; }
+
+  /* 언급 히스토리 헤딩 */
+  .section-h { font-size: 17px; font-weight: 800; color: var(--text-1); margin-bottom: 18px; letter-spacing: -0.02em; }
 </style>
 
 <script>
+  // 탭 전환
+  const tabs = document.querySelectorAll<HTMLButtonElement>('.tab');
+  const panels = document.querySelectorAll<HTMLElement>('.panel');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      tabs.forEach(t => t.classList.toggle('is-active', t === tab));
+      panels.forEach(p => p.classList.toggle('is-active', p.dataset.panel === target));
+    });
+  });
+
+  // 지표 설명 모달
+  const modal = document.getElementById('metricModal');
+  if (modal) {
+    const titleEl = modal.querySelector('.mm-title') as HTMLElement;
+    const bodyEl = modal.querySelector('.mm-body') as HTMLElement;
+    const openModal = (title: string, body: string) => {
+      titleEl.textContent = title;
+      bodyEl.textContent = body;
+      modal.hidden = false;
+      document.body.style.overflow = 'hidden';
+    };
+    const closeModal = () => {
+      modal.hidden = true;
+      document.body.style.overflow = '';
+    };
+    document.querySelectorAll<HTMLButtonElement>('.metric-info').forEach(btn => {
+      btn.addEventListener('click', () => openModal(btn.dataset.mtitle ?? '', btn.dataset.mbody ?? ''));
+    });
+    modal.querySelectorAll('[data-mm-close]').forEach(el => el.addEventListener('click', closeModal));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+  }
+
   const hdrInner = document.querySelector('.hdr-inner') as HTMLElement;
   const hero = document.querySelector('.stock-hero') as HTMLElement;
   if (hdrInner && hero) {
