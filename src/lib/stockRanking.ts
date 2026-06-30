@@ -210,17 +210,29 @@ export async function computeRanking(
     const isPeriod = period !== 'day'; // 주간·월간
     const scored: ScoredStock[] = [];
     for (const [name, e] of stockMap) {
+      // ── 일간 '오늘만': refDate(= 그날) 리포트에 등록된 종목만 노출.
+      //    며칠 전 종목 잔류·감쇠(decay) 없음. (주간·월간은 윈도우 전체 사용) ──
+      if (!isPeriod && e.latestDate !== refDate) continue;
+
+      // 대표 감정·비중을 먼저 구한다 (intensity가 일간 점수의 주력 기둥)
+      const picked = pickSentiment(e.daySentiments);
+      const intensity = picked ? picked.intensity : 1;
+
       let mentionScore: number, tagScore: number, continuityScore: number;
-      let rawScore: number, scoreDivisor: number;
+      let rawScore: number, scoreDivisor: number, nuanceScore: number;
       if (!isPeriod) {
-        // ── 일간: 오늘 화제 종목 (기존 공식 유지) ──
-        mentionScore = Math.min(e.latestShows.length * 25, 100);
-        tagScore = Math.min((tagCount.get(name) ?? 0) * 5, 20);
-        continuityScore = Math.min(e.dates.size * 3, 15);
-        rawScore = mentionScore + tagScore + continuityScore;
-        scoreDivisor = 155;
+        // ── 일간: 비중(intensity) 주력 + 방송 수·태그 보조 ──
+        // 한 방송에서 핵심으로 깊게 다룬 종목이, 여러 방송에 짧게 스친 종목을 이긴다.
+        // 감정(긍/주의)은 점수가 아니라 색·태그로만 구분한다.
+        const weightScore = intensity * 16;                      // 비중 (주력, 감정 무관, i5=80)
+        mentionScore = e.latestShows.length * 12;                // 방송 수 (보조, 4방송=48)
+        tagScore = Math.min((tagCount.get(name) ?? 0) * 2, 12);  // posts 태그 (보조)
+        continuityScore = 0;                                     // '오늘만'이라 연속일 개념 없음
+        rawScore = mentionScore + weightScore + tagScore;        // 최대 48 + 80 + 12 = 140
+        scoreDivisor = 140;
+        nuanceScore = 0;                                         // 감정은 표시만, 점수 제외
       } else {
-        // ── 주간·월간: 꾸준함 60 + 누적 언급 30 (감정은 아래 ±20) ──
+        // ── 주간·월간: 꾸준함 60 + 누적 언급 30 (감정은 ±20) ──
         const consistency = Math.min(e.dates.size / days, 1) * 60;          // 나온 날 수 / 기간 거래일
         const volume = Math.min(e.totalShows / (days * 3), 1) * 30;         // 누적 방송 언급 수
         rawScore = consistency + volume;                                    // 0~90
@@ -229,23 +241,9 @@ export async function computeRanking(
         mentionScore = Math.round(consistency);
         continuityScore = Math.round(volume);
         tagScore = 0;
+        nuanceScore = picked ? (STATUS_MULT[picked.status] ?? 0) * intensity * 4 : 0;
       }
-      // 대표 감정: 종목이 등장한 날들의 일간 감정에서 선택 (day=최근, week/month=강도 최강)
-      const picked = pickSentiment(e.daySentiments);
-      const intensity = picked ? picked.intensity : 1;
-      const nuanceScore = picked ? (STATUS_MULT[picked.status] ?? 0) * intensity * 4 : 0;
-
-      // 일간 점수 감쇠: 마지막 언급일에서 멀어질수록 하루 –20%씩 깎는다.
-      // 5거래일째 0%가 되어 보드에서 자연 퇴장. 다시 언급되면 latestDate가
-      // 갱신돼 감쇠가 100%로 복귀한다. (주간·월간은 꾸준함 공식이라 감쇠 없음)
-      let decay = 1;
-      if (!isPeriod) {
-        const li = allTradingDates.indexOf(e.latestDate ?? '');
-        const daysSince = li >= 0 ? li - idx : 0;
-        decay = Math.max(0, 1 - 0.2 * daysSince);
-        if (decay <= 0) continue; // 마지막 언급 후 5거래일 이상 → 제외
-      }
-      const sortScore = (rawScore + nuanceScore) * decay;
+      const sortScore = rawScore + nuanceScore;  // 일간은 감정 0 → 비중·방송수로 정렬
       // 화면 점수는 감정·감쇠까지 반영 후 환산
       const score = Math.max(0, Math.min(100, Math.round((sortScore / scoreDivisor) * 100)));
       scored.push({
