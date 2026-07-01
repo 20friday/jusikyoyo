@@ -27,6 +27,7 @@ export interface MetricItem {
   meaning?: string;     // 이 값이 투자자에게 좋은지/나쁜지 해석
   verdict?: string;     // "낮은 편이에요" 같은 한 줄 평가
   tone?: Tone;          // 평가 색상
+  noData?: boolean;     // 값이 없을 때(왜 없는지 meaning에 설명)
 }
 
 export interface HealthTag {
@@ -128,14 +129,28 @@ function dividendFreqSentence(quarter: any): string {
 }
 
 // ── 지표별 친절 해설 + 한 줄 평가 ─────────────────────
+// 지표 정의 해설(지표 자체가 뭔지) — 값 유무와 상관없이 ⓘ 모달에 쓴다.
+const EXPLAIN = {
+  per: 'PER은 주가를 1주당 순이익으로 나눈 값이에요. 쉽게 말하면 지금 주가가 회사가 1년에 버는 돈의 몇 배인지를 보여줘요. 예를 들어 PER이 10배면, 회사가 지금처럼 벌 때 10년이면 주가만큼 번다는 뜻이에요. 숫자가 낮을수록 버는 돈에 비해 주가가 싸요. 단, 적정 수준은 업종마다 달라서 같은 업종끼리 비교하는 게 정확해요.',
+  cnsPer: '추정 PER은 올해 예상되는 이익으로 계산한 PER이에요. 지금 PER이 지난 실적 기준이라면, 추정 PER은 올해 예상 기준이에요. 두 값을 비교하면 회사 이익이 앞으로 늘지 줄지 방향을 알 수 있어요. 추정 PER이 더 낮으면 이익이 늘어난다는 뜻이라 좋은 신호예요.',
+  pbr: 'PBR은 주가를 1주당 순자산으로 나눈 값이에요. 순자산은 회사 재산에서 빚을 뺀, 온전히 회사 몫인 재산이에요. PBR이 1배면 주가가 딱 그 재산만큼, 1배보다 낮으면 재산보다도 싸게 거래된다는 뜻이에요.',
+  div: '배당수익률은 1년간 받는 배당금을 현재 주가로 나눈 값이에요. 주식을 사두면 회사가 번 돈의 일부를 나눠주기도 하는데(배당), 그게 지금 주가의 몇 퍼센트인지를 보여줘요. 은행 예금 이자율과 비슷한 개념이에요.',
+};
+
+const NO_DATA = '데이터 없음';
+
 function buildMetrics(ti: Record<string, string>, divFreq = ''): MetricItem[] {
   const out: MetricItem[] = [];
   const per = numOf(ti.per);
   const cnsPer = numOf(ti.cnsPer);
   const pbr = numOf(ti.pbr);
   const div = numOf(ti.dividendYieldRatio);
+  const eps = numOf(ti.eps);
+  const bps = numOf(ti.bps);
+  const has = (v: string | undefined) => !!v && v !== 'N/A';
 
-  if (ti.per && ti.per !== 'N/A') {
+  // ── PER ──
+  if (has(ti.per)) {
     let verdict = '보통 수준이에요', tone: Tone = 'watch', meaning = '';
     if (per !== null) {
       if (per < 0) {
@@ -157,12 +172,21 @@ function buildMetrics(ti: Record<string, string>, divFreq = ''): MetricItem[] {
     }
     out.push({
       key: 'per', label: 'PER', fullName: '주가수익비율 · Price Earnings Ratio', value: ti.per,
-      explain: 'PER은 주가를 1주당 순이익으로 나눈 값이에요. 쉽게 말하면 지금 주가가 회사가 1년에 버는 돈의 몇 배인지를 보여줘요. 예를 들어 PER이 10배면, 회사가 지금처럼 벌 때 10년이면 주가만큼 번다는 뜻이에요. 숫자가 낮을수록 버는 돈에 비해 주가가 싸요. 단, 적정 수준은 업종마다 달라서 같은 업종끼리 비교하는 게 정확해요.',
+      explain: EXPLAIN.per,
       meaning, verdict, tone,
+    });
+  } else {
+    const reason = eps !== null && eps < 0
+      ? '최근 1년 순이익이 적자라 PER을 계산할 수 없어요. 회사가 이익을 내야 따질 수 있는 지표예요.'
+      : '순이익 데이터가 없어서 계산되지 않았어요.';
+    out.push({
+      key: 'per', label: 'PER', fullName: '주가수익비율 · Price Earnings Ratio', value: NO_DATA,
+      explain: EXPLAIN.per, meaning: reason, noData: true,
     });
   }
 
-  if (ti.cnsPer && ti.cnsPer !== 'N/A' && cnsPer !== null) {
+  // ── 추정 PER ──
+  if (has(ti.cnsPer) && cnsPer !== null) {
     // 추정PER < 현재PER 이면 앞으로 이익이 늘어날 전망
     let verdict = '비슷한 수준이에요', tone: Tone = 'watch';
     let meaning = '추정 PER이 지금과 비슷해요. 올해 이익이 지난해와 크게 다르지 않을 거란 전망이에요.';
@@ -175,12 +199,20 @@ function buildMetrics(ti: Record<string, string>, divFreq = ''): MetricItem[] {
     }
     out.push({
       key: 'cnsPer', label: '추정 PER', fullName: '추정 주가수익비율 · Forward PER', value: ti.cnsPer,
-      explain: '추정 PER은 올해 예상되는 이익으로 계산한 PER이에요. 지금 PER이 지난 실적 기준이라면, 추정 PER은 올해 예상 기준이에요. 두 값을 비교하면 회사 이익이 앞으로 늘지 줄지 방향을 알 수 있어요. 추정 PER이 더 낮으면 이익이 늘어난다는 뜻이라 좋은 신호예요.',
+      explain: EXPLAIN.cnsPer,
       meaning, verdict, tone,
+    });
+  } else {
+    out.push({
+      key: 'cnsPer', label: '추정 PER', fullName: '추정 주가수익비율 · Forward PER', value: NO_DATA,
+      explain: EXPLAIN.cnsPer,
+      meaning: '이 종목을 분석한 증권사 추정치가 아직 없어서예요. 규모가 작아 증권사 리포트가 적은 종목에서 자주 그래요.',
+      noData: true,
     });
   }
 
-  if (ti.pbr && ti.pbr !== 'N/A') {
+  // ── PBR ──
+  if (has(ti.pbr)) {
     let verdict = '보통 수준이에요', tone: Tone = 'watch', meaning = '';
     if (pbr !== null) {
       if (pbr < 1) {
@@ -196,12 +228,21 @@ function buildMetrics(ti: Record<string, string>, divFreq = ''): MetricItem[] {
     }
     out.push({
       key: 'pbr', label: 'PBR', fullName: '주가순자산비율 · Price Book-value Ratio', value: ti.pbr,
-      explain: 'PBR은 주가를 1주당 순자산으로 나눈 값이에요. 순자산은 회사 재산에서 빚을 뺀, 온전히 회사 몫인 재산이에요. PBR이 1배면 주가가 딱 그 재산만큼, 1배보다 낮으면 재산보다도 싸게 거래된다는 뜻이에요.',
+      explain: EXPLAIN.pbr,
       meaning, verdict, tone,
+    });
+  } else {
+    const reason = bps !== null && bps < 0
+      ? '자본잠식 상태(순자산이 마이너스)라 PBR을 계산할 수 없어요.'
+      : '순자산 데이터가 없어서 계산되지 않았어요.';
+    out.push({
+      key: 'pbr', label: 'PBR', fullName: '주가순자산비율 · Price Book-value Ratio', value: NO_DATA,
+      explain: EXPLAIN.pbr, meaning: reason, noData: true,
     });
   }
 
-  if (ti.dividendYieldRatio && ti.dividendYieldRatio !== 'N/A') {
+  // ── 배당수익률 ──
+  if (has(ti.dividendYieldRatio)) {
     let verdict = '배당이 있어요', tone: Tone = 'good', meaning = '';
     if (div !== null) {
       if (div <= 0) {
@@ -219,8 +260,15 @@ function buildMetrics(ti: Record<string, string>, divFreq = ''): MetricItem[] {
     if (divFreq && (div === null || div > 0)) meaning += ' ' + divFreq;
     out.push({
       key: 'div', label: '배당수익률', fullName: 'Dividend Yield', value: ti.dividendYieldRatio,
-      explain: '배당수익률은 1년간 받는 배당금을 현재 주가로 나눈 값이에요. 주식을 사두면 회사가 번 돈의 일부를 나눠주기도 하는데(배당), 그게 지금 주가의 몇 퍼센트인지를 보여줘요. 은행 예금 이자율과 비슷한 개념이에요.',
+      explain: EXPLAIN.div,
       meaning, verdict, tone,
+    });
+  } else {
+    out.push({
+      key: 'div', label: '배당수익률', fullName: 'Dividend Yield', value: NO_DATA,
+      explain: EXPLAIN.div,
+      meaning: '최근 배당을 하지 않는 회사라 배당수익률이 없어요. 주가가 올라야 수익이 나는 종목이에요.',
+      noData: true,
     });
   }
 

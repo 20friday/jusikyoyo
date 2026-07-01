@@ -202,7 +202,7 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
             <h2 class="d-h">숫자로 보면 이런 회사예요</h2>
             <div class="metrics">
               {detail.metrics.map(m => (
-                <div class="metric">
+                <div class={`metric ${m.noData ? 'metric--nodata' : ''}`}>
                   <div class="metric-top">
                     <span class="metric-label">{m.label}</span>
                     <button class="metric-info" data-mtitle={m.label} data-mfull={m.fullName} data-mbody={m.explain} aria-label={`${m.label} 설명 보기`} type="button">
@@ -211,7 +211,7 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
                     <span class="metric-value">{m.value}</span>
                     {m.verdict && <span class={`metric-verdict mv--${m.tone}`}>{m.verdict}</span>}
                   </div>
-                  {m.meaning && <p class={`metric-meaning mm--${m.tone}`}>{m.meaning}</p>}
+                  {m.meaning && <p class={`metric-meaning mm--${m.noData ? 'none' : m.tone}`}>{m.meaning}</p>}
                 </div>
               ))}
             </div>
@@ -617,6 +617,9 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
   .mm--good { color: #0a7a59; background: var(--good-bg); }
   .mm--watch { color: #b56b00; background: var(--warn-bg); }
   .mm--caution { color: #c2293a; background: var(--bad-bg); }
+  /* 데이터 없음 상태 — 값은 흐리게, 이유는 중립 회색 박스 */
+  .metric--nodata .metric-value { color: var(--text-3); font-weight: 700; font-size: 16px; }
+  .mm--none { color: var(--text-2); background: var(--bg); }
 
   /* 지표 설명 모달 */
   .metric-modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
