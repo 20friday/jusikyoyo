@@ -126,6 +126,17 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
     letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
   }
 
+  /* 방송 언급 아이콘 (전파 모양) */
+  .bc-ico { flex-shrink: 0; color: #ed781f; margin-left: 5px; }
+  .result-name-row { display: flex; align-items: center; gap: 0; margin-bottom: 5px; }
+  .result-market {
+    display: inline-flex; align-items: center;
+    font-size: 12px; font-weight: 800; letter-spacing: 0.01em;
+    color: var(--text-3);
+    padding: 2px 7px; border-radius: 6px;
+    background: var(--divider);
+  }
+
   /* 결과 */
   .result-count { font-size: 14px; font-weight: 700; color: var(--text-3); letter-spacing: -0.01em; padding: 22px 2px 12px; }
   .result-list { display: flex; flex-direction: column; gap: 8px; }
@@ -144,7 +155,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
     transform: translateY(-1px);
   }
   .result-info { flex: 1; min-width: 0; }
-  .result-name { font-size: 17px; font-weight: 800; color: var(--text-1); letter-spacing: -0.02em; margin-bottom: 5px; }
+  .result-name { font-size: 17px; font-weight: 800; color: var(--text-1); letter-spacing: -0.02em; min-width: 0; }
   .result-name mark { background: rgba(237,120,31,0.16); color: #c45e0a; border-radius: 3px; padding: 0 1px; }
   .result-meta { font-size: 15px; font-weight: 600; color: var(--text-3); letter-spacing: -0.01em; display: flex; align-items: center; }
   .result-meta b { font-weight: 800; color: var(--text-2); }
@@ -201,6 +212,14 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
 
   var INDEX   = [];
   var POPULAR = [];
+
+  // 방송 언급 표시 아이콘 (전파가 퍼지는 모양)
+  var BC_ICON =
+    '<svg class="bc-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-label="방송 언급">' +
+      '<circle cx="12" cy="12" r="2.3" fill="currentColor"/>' +
+      '<path d="M8 8a5.6 5.6 0 0 0 0 8M16 16a5.6 5.6 0 0 0 0-8M5.2 5.2a9.6 9.6 0 0 0 0 13.6M18.8 18.8a9.6 9.6 0 0 0 0-13.6" ' +
+        'stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+    '</svg>';
 
   function esc(s) {
     return s.replace(/[&<>"]/g, function (c) {
@@ -259,7 +278,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
   function renderIdle() {
     var chips = POPULAR.map(function (name, i) {
       return '<button class="pop-chip" data-name="' + esc(name) + '">' +
-        '<span class="pop-rank">' + (i + 1) + '</span>' + esc(name) +
+        '<span class="pop-rank">' + (i + 1) + '</span>' + esc(name) + BC_ICON +
         '</button>';
     }).join('');
 
@@ -269,7 +288,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
       var first = s.name.charAt(0);
       var key = normalizeKey(getChosung(first));
       if (!groups[key]) groups[key] = [];
-      groups[key].push(s.name);
+      groups[key].push(s);
     });
 
     // 정렬 순서: 한글 자음 → 영문 → #
@@ -284,8 +303,10 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
     });
 
     var sections = keys.map(function (key) {
-      var items = groups[key].map(function (name) {
-        return '<button class="stock-item" data-name="' + esc(name) + '">' + esc(name) + '</button>';
+      var items = groups[key].map(function (s) {
+        return '<button class="stock-item" data-name="' + esc(s.name) + '">' +
+          esc(s.name) + (s.mentioned ? BC_ICON : '') +
+          '</button>';
       }).join('');
       return '<div class="stock-section" id="idx-' + encodeURIComponent(key) + '">' +
         '<div class="stock-section-header">' + key + '</div>' +
@@ -325,17 +346,22 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
           '<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/>' +
           '<path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
         '</svg>' +
-        '<p class="noresult-title">아직 방송에서 언급된 기록이 없어요</p>' +
-        '<p class="noresult-sub">‘' + esc(q.trim()) + '’ 종목은 아직 방송에서 다뤄지지 않았어요.</p>' +
+        '<p class="noresult-title">검색 결과가 없어요</p>' +
+        '<p class="noresult-sub">‘' + esc(q.trim()) + '’와 일치하는 코스피·코스닥 종목을 찾지 못했어요.</p>' +
       '</div>';
   }
 
   function renderResults(list, q) {
     var cards = list.map(function (s) {
+      var tag = s.market ? '<span class="result-market">' + esc(s.market) + '</span>' : '';
+      var meta = s.mentioned
+        ? tag + (tag ? '<span class="result-dot"></span>' : '') + '방송 언급 <b>' + s.mentions + '회</b>'
+        : (tag || '아직 방송 언급 없음');
       return '<a class="result-card" href="/stock/' + encodeURIComponent(s.name) + '">' +
         '<div class="result-info">' +
-          '<div class="result-name">' + highlight(s.name, q.trim()) + '</div>' +
-          '<div class="result-meta">방송 언급 <b>' + s.mentions + '회</b><span class="result-dot"></span>전체 기간</div>' +
+          '<div class="result-name-row"><span class="result-name">' + highlight(s.name, q.trim()) + '</span>' +
+            (s.mentioned ? BC_ICON : '') + '</div>' +
+          '<div class="result-meta">' + meta + '</div>' +
         '</div>' +
         '<svg class="result-arrow" width="18" height="18" viewBox="0 0 20 20" fill="none">' +
           '<path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
@@ -389,34 +415,75 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
     return true;
   }
 
-  // Supabase에서 전체 종목 인덱스 로드
-  fetch(supabaseUrl + '/rest/v1/daily_reports?select=stocks', {
-    headers: {
-      'apikey': supabaseKey,
-      'Authorization': 'Bearer ' + supabaseKey,
-    }
-  })
-  .then(function (r) { return r.json(); })
-  .then(function (reports) {
+  var MARKET_LABEL = { KP: '코스피', KQ: '코스닥' };
+
+  // 코스피·코스닥 전체 종목(public/stocks.json)과 방송 언급(daily_reports)을 함께 불러온다.
+  Promise.all([
+    fetch('/stocks.json').then(function (r) { return r.json(); }),
+    fetch(supabaseUrl + '/rest/v1/daily_reports?select=stocks', {
+      headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + supabaseKey }
+    }).then(function (r) { return r.json(); })
+  ])
+  .then(function (res) {
+    var allStocks = res[0] || [];
+    var reports   = res[1] || [];
+
+    // 1) 방송 언급 횟수 집계 (canonical 종목명 → 횟수)
     var mentionMap = {};
     var RENAMED = JSON.parse(renamedStocks);
     reports.forEach(function (report) {
       (report.stocks || []).forEach(function (stock) {
         if (!stock.name) return;
         // "·"로 묶인 복합 종목은 개별 종목으로 분리해서 각각 집계
-        var names = stock.name.split('·').map(function (n) { return n.trim(); });
-        names.forEach(function (name) {
+        stock.name.split('·').map(function (n) { return n.trim(); }).forEach(function (name) {
           if (!name || !isValidStockName(name)) return;
           var canonical = RENAMED[name] || name;
           mentionMap[canonical] = (mentionMap[canonical] || 0) + 1;
         });
       });
     });
+
+    // 2) 전체 종목 목록을 기본 인덱스로 구성
     var ALIAS_MAP = JSON.parse(stockAliasMap);
-    INDEX = Object.entries(mentionMap)
-      .map(function (e) { return { name: e[0], mentions: e[1], aliases: ALIAS_MAP[e[0]] || [] }; })
-      .sort(function (a, b) { return b.mentions - a.mentions; });
-    POPULAR = INDEX.slice(0, 6).map(function (s) { return s.name; });
+    var byName = {};
+    INDEX = allStocks.map(function (s) {
+      var e = {
+        name: s.n, code: s.c, market: MARKET_LABEL[s.m] || '',
+        mentions: 0, mentioned: false, aliases: ALIAS_MAP[s.n] || []
+      };
+      byName[s.n] = e;
+      return e;
+    });
+
+    // 별칭 → 정식명 역맵 (방송에서 다른 표기로 언급된 경우 정식명에 붙이기 위함)
+    var aliasToName = {};
+    Object.keys(ALIAS_MAP).forEach(function (nm) {
+      (ALIAS_MAP[nm] || []).forEach(function (al) { aliasToName[al.toLowerCase()] = nm; });
+    });
+
+    // 3) 방송 언급을 전체 목록에 병합. 목록에 없는 종목은 새 항목으로 추가.
+    Object.keys(mentionMap).forEach(function (mname) {
+      var target = byName[mname];
+      if (!target) {
+        var canon = aliasToName[mname.toLowerCase()];
+        if (canon && byName[canon]) target = byName[canon];
+      }
+      if (target) {
+        target.mentions += mentionMap[mname];
+        target.mentioned = true;
+      } else {
+        var e = { name: mname, code: '', market: '', mentions: mentionMap[mname], mentioned: true, aliases: ALIAS_MAP[mname] || [] };
+        byName[mname] = e;
+        INDEX.push(e);
+      }
+    });
+
+    // 인기 검색어 = 방송에서 가장 많이 언급된 종목
+    POPULAR = INDEX.filter(function (s) { return s.mentioned; })
+      .sort(function (a, b) { return b.mentions - a.mentions; })
+      .slice(0, 6)
+      .map(function (s) { return s.name; });
+
     renderIdle();
     inputEl.focus();
   })

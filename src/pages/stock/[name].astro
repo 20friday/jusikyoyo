@@ -5,6 +5,7 @@ import { stockInfo } from '../../lib/stockInfo';
 import { canonicalStockName } from '../../lib/stockCodes';
 import { resolveStockCodes } from '../../lib/resolveStockCode';
 import { getStockDetail, type StockDetail } from '../../lib/stockDetail';
+import { getCompanyOverview } from '../../lib/companyOverview';
 
 const { name } = Astro.params as { name: string };
 // 옛 이름·약칭으로 저장된 과거 글도 같이 잡히도록 정식명 기준으로 매칭한다.
@@ -45,21 +46,34 @@ const info = stockInfo.find(s => canonicalStockName(s.name) === canonName);
 // 비공식 API라 실패하면 detail=null → 섹션 자체를 숨긴다.
 let detail: StockDetail | null = null;
 let stockCode: string | null = null;
+
+// 회사 소개: 큐레이션 소개(테드픽)와 공식 기업개요(FnGuide)를 각각 준비해 둘 다 보여준다.
+const curatedDesc: string = info?.desc ?? '';
+let officialDesc = '';
+
 if (!info?.isUS) {
   try {
     const resolved = await resolveStockCodes([canonName]);
     const code = resolved.get(canonName)?.code;
     if (code) {
       stockCode = code;
-      detail = await Promise.race([
-        getStockDetail(code, canonName),
-        new Promise<null>(resolve => setTimeout(() => resolve(null), 5000)),
+      const [d, overview] = await Promise.all([
+        Promise.race([
+          getStockDetail(code, canonName),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 5000)),
+        ]),
+        getCompanyOverview(code),
       ]);
+      detail = d;
+      if (overview) officialDesc = overview;
     }
   } catch {
     detail = null;
   }
 }
+
+// 둘 다 있을 때만 라벨을 붙여 구분한다.
+const showDescLabels = Boolean(curatedDesc && officialDesc);
 
 const days = ['일', '월', '화', '수', '목', '금', '토'];
 function formatDate(dateStr: string) {
@@ -72,7 +86,7 @@ const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
 // 종목 정보가 있으면 그 탭을 먼저, 없으면 방송 히스토리 탭을 먼저 보여준다.
 const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
 ---
-<Base title={`${canonName} 언급 히스토리`} description={info?.desc ?? `${canonName} 방송 언급 모음`} sectionNav={false}>
+<Base title={`${canonName} 언급 히스토리`} description={curatedDesc || officialDesc || `${canonName} 방송 언급 모음`} sectionNav={false}>
   <div class="stock-wrap">
 
     <!-- 헤더 -->
@@ -80,7 +94,26 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
       <a href="/" class="back-link" onclick="if(window.history.length>1){window.history.back();return false;}">← 뒤로</a>
       {info && <span class="stock-sector">{info.sector}</span>}
       <h1 class="stock-title">{canonName}</h1>
-      {info && <p class="stock-desc">{info.desc}</p>}
+      {(curatedDesc || officialDesc) && (
+        <div class="company-intro is-collapsed" data-intro>
+          {curatedDesc && (
+            <div class="intro-block is-preview">
+              {showDescLabels && <span class="desc-label desc-label-ted">테드픽 소개</span>}
+              <p class="stock-desc">{curatedDesc}</p>
+            </div>
+          )}
+          {officialDesc && (
+            <div class={`intro-block ${curatedDesc ? 'is-extra' : 'is-preview'}`}>
+              {showDescLabels && <span class="desc-label">공식 기업개요</span>}
+              <p class="stock-desc">{officialDesc}</p>
+              <p class="desc-source">출처 · FnGuide</p>
+            </div>
+          )}
+          <button type="button" class="desc-toggle" data-intro-toggle hidden>
+            <span class="desc-toggle-label">더보기</span>
+          </button>
+        </div>
+      )}
       <div class="stock-stats">
         <div class="stat-item">
           <span class="stat-num">{entries.length}</span>
@@ -291,11 +324,83 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
     margin-bottom: 10px;
     line-height: 1.2;
   }
+  /* 회사 소개 — 테드픽 소개 + 공식 기업개요를 한 묶음으로 접었다 편다 */
+  .company-intro {
+    margin-bottom: 20px;
+  }
+  .intro-block + .intro-block {
+    margin-top: 18px;
+  }
+  /* 접힌 상태: 미리보기 블록만 2줄, 나머지 블록은 숨김 */
+  .company-intro.is-collapsed .is-extra {
+    display: none;
+  }
+  .company-intro.is-collapsed .is-preview .stock-desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .desc-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: var(--text-3);
+    margin-bottom: 6px;
+  }
+  .desc-label-ted {
+    color: #ed781f;
+  }
   .stock-desc {
     font-size: 15px;
     line-height: 1.7;
     color: var(--text-2);
-    margin-bottom: 20px;
+    margin: 0;
+  }
+  /* 더보기/접기 — 우측 정렬 텍스트 버튼, 탭 여백만 확보 */
+  .desc-toggle {
+    display: flex;
+    width: fit-content;
+    margin: 8px 0 0 auto;   /* 오른쪽 정렬 */
+    align-items: center;
+    gap: 5px;
+    min-height: 36px;
+    padding: 6px 2px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--blue);
+    letter-spacing: -0.01em;
+    transition: opacity 120ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .desc-toggle:active {
+    opacity: 0.55;
+  }
+  .desc-toggle[hidden] { display: none; }
+  .desc-toggle::after {
+    content: '';
+    width: 7px; height: 7px;
+    margin-top: -3px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 160ms ease;
+  }
+  .desc-toggle.is-open::after {
+    margin-top: 2px;
+    transform: rotate(-135deg);
+  }
+  .desc-source {
+    margin: 8px 0 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-3);
+    letter-spacing: -0.01em;
   }
 
   /* 통계 */
@@ -631,6 +736,37 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
 </style>
 
 <script>
+  // 회사 소개 접기/펼치기 — 테드픽 소개 + 공식 기업개요를 한 묶음으로, 버튼 하나로 편다.
+  document.querySelectorAll<HTMLElement>('[data-intro]').forEach(intro => {
+    const toggle = intro.querySelector<HTMLButtonElement>('[data-intro-toggle]');
+    if (!toggle) return;
+    const label = toggle.querySelector<HTMLElement>('.desc-toggle-label');
+    const preview = intro.querySelector<HTMLElement>('.is-preview .stock-desc');
+    const hasExtra = !!intro.querySelector('.is-extra');
+    // 접힌 상태에서 미리보기 텍스트가 2줄을 넘치는지 판단.
+    const previewOverflows = () => !!preview && preview.scrollHeight - preview.clientHeight > 2;
+
+    const sync = () => {
+      // 펼친 상태면 버튼 유지. 접힌 상태면 더 보여줄 게 있을 때만 버튼 노출.
+      if (!intro.classList.contains('is-collapsed')) { toggle.hidden = false; return; }
+      toggle.hidden = !(hasExtra || previewOverflows());
+    };
+
+    toggle.addEventListener('click', () => {
+      const collapsed = intro.classList.toggle('is-collapsed');
+      toggle.classList.toggle('is-open', !collapsed);
+      if (label) label.textContent = collapsed ? '더보기' : '접기';
+    });
+
+    sync();
+    // 화면 폭이 바뀌면(회전 등) 줄 수가 달라지므로 다시 판단한다.
+    let t: number | undefined;
+    window.addEventListener('resize', () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(sync, 150);
+    });
+  });
+
   // 탭 전환
   const tabs = document.querySelectorAll<HTMLButtonElement>('.tab');
   const panels = document.querySelectorAll<HTMLElement>('.panel');
