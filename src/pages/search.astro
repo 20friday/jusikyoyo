@@ -332,9 +332,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
 
     bodyEl.querySelectorAll('.pop-chip, .stock-item').forEach(function (b) {
       b.addEventListener('click', function () {
-        inputEl.value = b.getAttribute('data-name');
-        onInput();
-        inputEl.focus();
+        location.href = '/stock/' + encodeURIComponent(b.getAttribute('data-name'));
       });
     });
   }
