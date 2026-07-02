@@ -53,6 +53,11 @@ export interface StockDetail {
     direction: 'up' | 'down' | 'flat';
     marketStatus: string;
   } | null;
+  week52: {
+    low: string;       // 52주 최저 (표시용 문자열)
+    high: string;      // 52주 최고
+    position: number;  // 0~100, 현재가가 최저~최고 사이 어디쯤인지
+  } | null;
   consensus: {
     targetPrice: string;
     recommMean: number;
@@ -381,6 +386,21 @@ export async function getStockDetail(code: string, name: string): Promise<StockD
     };
   }
 
+  // 52주 최고·최저 범위 (현재가가 1년 범위에서 어디쯤인지)
+  let week52: StockDetail['week52'] = null;
+  const hi52 = numOf(ti.highPriceOf52Weeks);
+  const lo52 = numOf(ti.lowPriceOf52Weeks);
+  const cur52 = price ? numOf(price.current) : numOf(ti.lastClosePrice);
+  if (hi52 !== null && lo52 !== null && hi52 > lo52) {
+    let pos = 50;
+    if (cur52 !== null) pos = Math.max(0, Math.min(100, ((cur52 - lo52) / (hi52 - lo52)) * 100));
+    week52 = {
+      low: ti.lowPriceOf52Weeks,
+      high: ti.highPriceOf52Weeks,
+      position: Math.round(pos * 10) / 10,
+    };
+  }
+
   // 컨센서스(목표주가·투자의견)
   let consensus: StockDetail['consensus'] = null;
   const ci = integration.consensusInfo;
@@ -421,6 +441,7 @@ export async function getStockDetail(code: string, name: string): Promise<StockD
     code,
     name,
     price,
+    week52,
     consensus,
     metrics: buildMetrics(ti, dividendFreqSentence(quarter)),
     researches,

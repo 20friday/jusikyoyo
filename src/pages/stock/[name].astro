@@ -176,6 +176,26 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
           </div>
         )}
 
+        <!-- 52주 범위 (현재가가 1년 중 어디쯤인지) -->
+        {detail.week52 && (
+          <div class="range52">
+            <div class="range52-track">
+              <span class="range52-dot" style={`left:${detail.week52.position}%`}></span>
+              <span class="range52-flag" style={`left:${detail.week52.position}%`}>현재가</span>
+            </div>
+            <div class="range52-ends">
+              <div class="range52-end">
+                <span class="range52-label">52주 최저</span>
+                <span class="range52-num low">{detail.week52.low}원</span>
+              </div>
+              <div class="range52-end range52-end--right">
+                <span class="range52-label">52주 최고</span>
+                <span class="range52-num high">{detail.week52.high}원</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <!-- 건강 상태 -->
         {detail.health && (
           <section class={`d-card health health--${detail.health.tone}`}>
@@ -585,6 +605,31 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
   .price-chg { font-size: 15px; font-weight: 700; }
   .price-chg.up { color: var(--up); } .price-chg.down { color: var(--down); } .price-chg.flat { color: var(--flat); }
   .price-status { font-size: 12px; font-weight: 700; color: var(--text-3); background: var(--border); border-radius: 6px; padding: 2px 8px; }
+
+  /* 52주 범위 바 */
+  .range52 { margin: 20px 2px 4px; }
+  .range52-track {
+    position: relative; height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--down), var(--flat) 50%, var(--up));
+    margin-top: 30px;
+  }
+  .range52-dot {
+    position: absolute; top: -4px; transform: translateX(-50%);
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--card); border: 3px solid var(--text-1);
+  }
+  .range52-flag {
+    position: absolute; top: -30px; transform: translateX(-50%);
+    font-size: 11px; font-weight: 700; color: var(--text-1); white-space: nowrap;
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px;
+  }
+  .range52-ends { display: flex; justify-content: space-between; margin-top: 10px; }
+  .range52-end { display: flex; flex-direction: column; gap: 1px; }
+  .range52-end--right { text-align: right; }
+  .range52-label { font-size: 12px; color: var(--text-3); }
+  .range52-num { font-size: 14px; font-weight: 700; }
+  .range52-num.low { color: var(--down); }
+  .range52-num.high { color: var(--up); }
 
   .d-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
   .d-h { font-size: 17px; font-weight: 800; color: var(--text-1); margin-bottom: 14px; letter-spacing: -0.02em; }
