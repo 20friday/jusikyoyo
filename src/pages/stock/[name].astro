@@ -841,7 +841,10 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
     backBtn.className = 'hdr-back-btn';
     backBtn.setAttribute('aria-label', '뒤로');
     backBtn.textContent = '←';
-    backBtn.addEventListener('click', () => history.back());
+    backBtn.addEventListener('click', () => {
+      if (history.length > 1) history.back();
+      else location.href = '/';
+    });
 
     const label = document.createElement('span');
     label.className = 'hdr-ctx-label';
