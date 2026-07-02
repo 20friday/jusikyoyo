@@ -6,6 +6,7 @@ import { canonicalStockName } from '../../lib/stockCodes';
 import { resolveStockCodes } from '../../lib/resolveStockCode';
 import { getStockDetail, type StockDetail } from '../../lib/stockDetail';
 import { getCompanyOverview } from '../../lib/companyOverview';
+import { BROADCAST_LABEL, snippetFor } from '../../lib/stockRanking';
 
 const { name } = Astro.params as { name: string };
 // 옛 이름·약칭으로 저장된 과거 글도 같이 잡히도록 정식명 기준으로 매칭한다.
@@ -34,10 +35,34 @@ const supabaseEntries = (supabaseReports ?? [])
     return { date: r.date as string, shows: (stock?.shows ?? []) as string[], notes: (stock?.notes ?? []) as any[] };
   });
 
-// 3. 날짜 기준으로 병합 (Supabase 우선), 최신순 정렬
+// 3. posts(방송별 개별 글) — 오늘의 픽에 안 담겼어도 방송이 태그·본문에서 언급한 기록.
+//    최근 글 위주로만 조회(비용 제한). 오늘의 픽이 있는 날짜는 아래 병합에서 그쪽이 우선한다.
+const { data: mentionPosts } = await Astro.locals.supabase
+  .from('posts')
+  .select('date, slug, tags, content')
+  .order('date', { ascending: false })
+  .limit(240);
+const postEntriesByDate = new Map<string, { date: string; shows: string[]; notes: any[] }>();
+for (const p of (mentionPosts ?? []) as any[]) {
+  const tags: string[] = Array.isArray(p.tags)
+    ? p.tags
+    : typeof p.tags === 'string' ? p.tags.split(',').map((t: string) => t.trim()) : [];
+  const tagged = tags.some((t) => canonicalStockName(t) === canonName);
+  const view = snippetFor(p.content ?? '', canonName);
+  if (!tagged && !view) continue; // 이 글에선 다루지 않음
+  const show = BROADCAST_LABEL[String(p.slug ?? '').slice(11)] ?? String(p.slug ?? '');
+  if (!postEntriesByDate.has(p.date)) postEntriesByDate.set(p.date, { date: p.date, shows: [], notes: [] });
+  const pe = postEntriesByDate.get(p.date)!;
+  if (!pe.shows.includes(show)) pe.shows.push(show);
+  if (view) pe.notes.push({ show, view });
+}
+
+// 4. 날짜 기준으로 병합. 우선순위: posts(가장 낮음) → 과거 리포트 → Supabase 오늘의 픽(가장 높음).
+//    오늘의 픽이 있는 날은 그 정리 코멘트가 이기고, 태그로만 언급된 날은 posts 기록이 남는다.
 const dateMap = new Map<string, { date: string; shows: string[]; notes: any[] }>();
+for (const e of postEntriesByDate.values()) dateMap.set(e.date, e);
 for (const e of contentEntries) dateMap.set(e.date, e);
-for (const e of supabaseEntries) dateMap.set(e.date, e); // Supabase가 더 최신이면 덮어씀
+for (const e of supabaseEntries) dateMap.set(e.date, e);
 const entries = [...dateMap.values()].sort((a, b) => b.date.localeCompare(a.date));
 
 const info = stockInfo.find(s => canonicalStockName(s.name) === canonName);

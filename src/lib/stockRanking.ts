@@ -14,7 +14,36 @@
  * 차트 마지막 점 = 헤더 순위가 항상 일치하도록 한다.
  */
 import { isExcludedStock } from './excludedStocks';
-import { canonicalStockName } from './stockCodes';
+import { canonicalStockName, getStockCode } from './stockCodes';
+import stockList from '../../public/stocks.json';
+
+// 코스피·코스닥 전체 상장 종목 화이트리스트.
+// posts.tags에는 테마·키워드(반도체·AI 등)도 섞여 있어, 실제 상장 종목만 걸러낸다.
+const VALID_STOCK_NAMES: Set<string> = new Set(
+  (stockList as Array<{ n: string }>).flatMap((s) => [s.n, canonicalStockName(s.n)])
+);
+export function isRealStock(name: string): boolean {
+  return VALID_STOCK_NAMES.has(name) || getStockCode(name) != null;
+}
+
+// 방송 슬러그 접미사 → 방송명 (태그로만 언급된 종목의 카드 근거 표기용)
+export const BROADCAST_LABEL: Record<string, string> = {
+  hankyungtv: '한국경제TV',
+  samprotv: '삼프로TV',
+  yonhapeconomy: '연합뉴스경제TV',
+  '12simannaayo': '12시에 만나요',
+};
+
+// 방송 본문(마크다운)에서 특정 종목이 언급된 문장을 뽑는다.
+// 오늘의 픽에 없이 태그로만 언급된 종목의 카드 근거·감정분석 근거로 쓴다.
+export function snippetFor(content: string, name: string): string {
+  if (!content) return '';
+  const plain = content.replace(/[*#>`]/g, '');
+  const parts = plain.split(/\n+|(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  const hits = parts.filter((p) => p.includes(name));
+  const text = hits.slice(0, 2).join(' ');
+  return text.length > 240 ? text.slice(0, 240) : text;
+}
 
 export interface RankedStock {
   rank: number;
@@ -96,7 +125,7 @@ export async function computeRanking(
 
   const { data: allPosts } = await supabase
     .from('posts')
-    .select('tags, date')
+    .select('tags, date, slug, content')
     .gte('date', oldestNeeded)
     .lte('date', today);
 
@@ -151,34 +180,32 @@ export async function computeRanking(
       dates: Set<string>;
       latestNotes: any[];
       latestShows: string[];
-      latestDate: string | null;
+      latestDate: string | null;              // 가장 최근 '리포트' 등장일 (notes 출처)
       totalShows: number;
-      daySentiments: DaySent[];   // 등장한 날들의 일간 감정 (최신순)
+      daySentiments: DaySent[];               // 등장한 날들의 일간 감정 (최신순)
+      tagDates: Map<string, Set<string>>;      // 날짜 → 그날 태그한 방송(slug 접미사) 집합
+      reportShowsByDate: Map<string, string[]>; // 날짜 → 그날 오늘의 픽에 실린 방송명 목록
+      tagNotesByDate: Map<string, Array<{ show: string; view: string }>>; // 날짜 → 방송 본문에서 뽑은 근거 문장
     }>();
+    const fresh = () => ({
+      dates: new Set<string>(), latestNotes: [] as any[], latestShows: [] as string[],
+      latestDate: null as string | null, totalShows: 0, daySentiments: [] as DaySent[],
+      tagDates: new Map<string, Set<string>>(), reportShowsByDate: new Map<string, string[]>(),
+      tagNotesByDate: new Map<string, Array<{ show: string; view: string }>>(),
+    });
 
+    // ① 오늘의 픽(daily_reports)에 실린 종목 수집
     for (const report of reps) {
       for (const stock of (report.stocks ?? [])) {
         if (!stock.name) continue;
         // 사명 변경된 종목은 현재 이름으로 통일 (옛 이름으로 저장된 과거 글 포함)
         const name = canonicalStockName(stock.name);
         if (isExcludedStock(name)) continue; // 해외·비상장·묶음 라벨 제외
-        if (!stockMap.has(name)) {
-          stockMap.set(name, { dates: new Set(), latestNotes: [], latestShows: [], latestDate: null, totalShows: 0, daySentiments: [] });
-        }
+        if (!stockMap.has(name)) stockMap.set(name, fresh());
         const e = stockMap.get(name)!;
         e.dates.add(report.date);
-        e.totalShows += (stock.shows?.length ?? 0); // 기간 내 누적 방송 언급 수
-        // 그날 일간 감정 수집 (있으면) — reps가 최신순이라 daySentiments도 최신순
-        // 감정은 DB에 저장된 원래 이름(stock.name)으로 키가 잡혀 있다.
-        const sent = report.sentiment?.[stock.name];
-        if (sent?.status) {
-          e.daySentiments.push({
-            date: report.date,
-            status: sent.status,
-            intensity: Math.min(Math.max(Math.round(Number(sent.intensity) || 1), 1), 5),
-            reason: sent.reason ?? '',
-          });
-        }
+        e.totalShows += (stock.shows?.length ?? 0);      // 기간 내 누적 방송 언급 수
+        e.reportShowsByDate.set(report.date, stock.shows ?? []);
         // reps가 최신 순이므로 첫 등장이 가장 최근 데이터
         if (e.latestShows.length === 0 && e.latestNotes.length === 0) {
           e.latestNotes = stock.notes ?? [];
@@ -188,72 +215,126 @@ export async function computeRanking(
       }
     }
 
-    const tagCount = new Map<string, number>();
-    for (const post of (allPosts ?? [])) {
-      if (!(post.date >= fromD && post.date <= toD)) continue;
-      const tags: string[] = Array.isArray(post.tags)
-        ? post.tags
-        : typeof post.tags === 'string'
-          ? post.tags.split(',').map((t: string) => t.trim())
-          : [];
-      for (const tag of tags) {
-        const ct = canonicalStockName(tag); // 옛 이름 태그도 현재 이름으로 합산
-        tagCount.set(ct, (tagCount.get(ct) ?? 0) + 1);
+    const isPeriod = period !== 'day'; // 주간·월간
+
+    // ② 일간: 각 방송(posts)에서 태그된 종목도 후보에 추가 (실제 상장 종목만).
+    //    방송 횟수 = 그 종목을 태그한 방송(글) 수. 오늘의 픽에 없던 종목도 여기서 올라온다.
+    if (!isPeriod) {
+      const windowPosts = (allPosts ?? []).filter((p: any) => p.date >= fromD && p.date <= toD);
+      for (const post of windowPosts) {
+        const slug = String(post.slug ?? '');
+        const broadcast = slug.slice(11) || slug; // 'YYYY-MM-DD-' 접미사
+        const tags: string[] = Array.isArray(post.tags)
+          ? post.tags
+          : typeof post.tags === 'string' ? post.tags.split(',').map((t: string) => t.trim()) : [];
+        const seen = new Set<string>();
+        for (const tag of tags) {
+          const name = canonicalStockName(tag);
+          if (seen.has(name)) continue;                 // 한 글 안에서 같은 종목 중복 태그 방지
+          seen.add(name);
+          if (isExcludedStock(name) || !isRealStock(name)) continue; // 테마·해외·비상장 제외
+          if (!stockMap.has(name)) stockMap.set(name, fresh());
+          const e = stockMap.get(name)!;
+          e.dates.add(post.date);
+          if (!e.tagDates.has(post.date)) e.tagDates.set(post.date, new Set());
+          e.tagDates.get(post.date)!.add(broadcast);
+          // 방송 본문에서 그 종목이 나온 문장을 근거로 저장 (있으면). 카드 표시·정렬 근거용.
+          const view = snippetFor(post.content ?? '', name);
+          if (view) {
+            if (!e.tagNotesByDate.has(post.date)) e.tagNotesByDate.set(post.date, []);
+            e.tagNotesByDate.get(post.date)!.push({ show: BROADCAST_LABEL[broadcast] ?? broadcast, view });
+          }
+        }
       }
     }
 
-    // 그날 뉘앙스: 윈도우 내 가장 최근 리포트의 sentiment 사용
-    // (클라이언트가 data[0].date 기준 sentiment를 쓰는 것과 동일하게 맞춤)
-    const sentiment: Record<string, { status?: string; intensity?: number }> =
-      reps[0]?.sentiment ?? {};
+    // ③ 감정 수집: 리포트 sentiment를 canonical 키로 정리(원래 이름·현재 이름·태그 종목 모두 매칭).
+    //    reps가 최신순이라 daySentiments도 최신순으로 쌓인다.
+    for (const report of reps) {
+      const raw = (report.sentiment ?? {}) as Record<string, any>;
+      const canon: Record<string, any> = {};
+      for (const [k, v] of Object.entries(raw)) canon[canonicalStockName(k)] = v;
+      for (const [name, e] of stockMap) {
+        const s = canon[name];
+        if (s?.status) {
+          e.daySentiments.push({
+            date: report.date,
+            status: s.status,
+            intensity: Math.min(Math.max(Math.round(Number(s.intensity) || 1), 1), 5),
+            reason: s.reason ?? '',
+          });
+        }
+      }
+    }
 
-    const isPeriod = period !== 'day'; // 주간·월간
+    const BROADCAST_SCORE: Record<number, number> = { 1: 30, 2: 62, 3: 85, 4: 100 };
     const scored: ScoredStock[] = [];
     for (const [name, e] of stockMap) {
-      // ── 일간 '오늘만': refDate(= 그날) 리포트에 등록된 종목만 노출.
-      //    며칠 전 종목 잔류·감쇠(decay) 없음. (주간·월간은 윈도우 전체 사용) ──
-      if (!isPeriod && e.latestDate !== refDate) continue;
+      // 가장 최근 등장일 (태그·리포트 통합). 신선도 감쇠·방송 횟수 기준일.
+      const latestAppear = e.dates.size ? [...e.dates].sort()[e.dates.size - 1] : e.latestDate;
 
-      // 대표 감정·비중을 먼저 구한다 (intensity가 일간 점수의 주력 기둥)
+      // 대표 감정·비중
       const picked = pickSentiment(e.daySentiments);
       const intensity = picked ? picked.intensity : 1;
 
       let mentionScore: number, tagScore: number, continuityScore: number;
       let rawScore: number, scoreDivisor: number, nuanceScore: number;
+      let decay = 1;
+      let showsForCard = e.latestShows;
+      let notesForCard = e.latestNotes; // 카드 근거: 기본은 오늘의 픽 코멘트
+
       if (!isPeriod) {
-        // ── 일간: 비중(intensity) 주력 + 방송 수·태그 보조 ──
-        // 한 방송에서 핵심으로 깊게 다룬 종목이, 여러 방송에 짧게 스친 종목을 이긴다.
-        // 감정(긍/주의)은 점수가 아니라 색·태그로만 구분한다.
-        const weightScore = intensity * 16;                      // 비중 (주력, 감정 무관, i5=80)
-        mentionScore = e.latestShows.length * 12;                // 방송 수 (보조, 4방송=48)
-        tagScore = Math.min((tagCount.get(name) ?? 0) * 2, 12);  // posts 태그 (보조)
-        continuityScore = 0;                                     // '오늘만'이라 연속일 개념 없음
-        rawScore = mentionScore + weightScore + tagScore;        // 최대 48 + 80 + 12 = 140
-        scoreDivisor = 140;
-        nuanceScore = 0;                                         // 감정은 표시만, 점수 제외
+        // ── 일간(C): 방송 횟수(계단식) 주력 + 감정 보정 + 신선도 감쇠 ──
+        // 신선도 감쇠: 마지막 등장일에서 하루 멀어질수록 –20%, 5거래일째 퇴장.
+        // (어제 뜬 종목이 오늘 갑자기 사라지지 않게 해 순위 출렁임을 막는다.)
+        const li = allTradingDates.indexOf(latestAppear ?? '');
+        const daysSince = li >= 0 ? li - idx : 0;
+        decay = Math.max(0, 1 - 0.2 * daysSince);
+        if (decay <= 0) continue; // 마지막 언급 후 5거래일 이상 → 제외
+
+        // 방송 횟수 = 마지막 등장일에 그 종목을 언급한 방송들의 합집합 (리포트 shows ∪ 태그 방송).
+        // 표시(방송명)와 점수 기준을 동일한 집합으로 맞춘다.
+        const repShows = e.reportShowsByDate.get(latestAppear ?? '') ?? [];
+        const tagBs = [...(e.tagDates.get(latestAppear ?? '') ?? [])].map((b) => BROADCAST_LABEL[b] ?? b);
+        const bcSet = new Set<string>([...repShows, ...tagBs]);
+        const bc = Math.max(bcSet.size, 1);
+        const inReport = e.reportShowsByDate.has(latestAppear ?? '');
+        // 오늘의 픽에 없이 태그로만 든 종목은 방송 본문에서 뽑은 문장을 근거로 쓴다
+        // (며칠 전 픽 코멘트를 오늘 날짜로 붙이는 문제를 피하고, 실제 방송 내용을 보여준다).
+        if (!inReport) notesForCard = e.tagNotesByDate.get(latestAppear ?? '') ?? [];
+        if (bcSet.size) showsForCard = [...bcSet];
+
+        const broadcastScore = BROADCAST_SCORE[Math.min(bc, 4)] ?? 30;    // ① 방송 횟수 (주력)
+        const curationBonus = inReport ? 8 : 0;                            // ③ 오늘의 픽 강조
+        // ② 감정 보정: 긍정 +, 주의 −, 강도(1~5)에 비례 (최대 ±15)
+        nuanceScore = picked ? (STATUS_MULT[picked.status] ?? 0) * Math.min(intensity * 3, 15) : 0;
+
+        mentionScore = broadcastScore;    // 방송 횟수 점수 (전달·표시용)
+        tagScore = curationBonus;         // 큐레이션 보너스 (전달용)
+        continuityScore = 0;
+        rawScore = broadcastScore + curationBonus;   // 감정 제외 기본 (최대 108)
+        scoreDivisor = 123;                          // 108 + 감정 15 = 123 → 만점 100 환산
       } else {
-        // ── 주간·월간: 꾸준함 60 + 누적 언급 30 (감정은 ±20) ──
+        // ── 주간·월간: 꾸준함 60 + 누적 언급 30 (감정은 ±20) — 기존 유지 ──
         const consistency = Math.min(e.dates.size / days, 1) * 60;          // 나온 날 수 / 기간 거래일
         const volume = Math.min(e.totalShows / (days * 3), 1) * 30;         // 누적 방송 언급 수
         rawScore = consistency + volume;                                    // 0~90
         scoreDivisor = 100;
-        // 필드 매핑 (정렬 보조·전달용)
         mentionScore = Math.round(consistency);
         continuityScore = Math.round(volume);
         tagScore = 0;
         nuanceScore = picked ? (STATUS_MULT[picked.status] ?? 0) * intensity * 4 : 0;
       }
-      const sortScore = rawScore + nuanceScore;  // 일간은 감정 0 → 비중·방송수로 정렬
-      // 화면 점수는 감정·감쇠까지 반영 후 환산
+      const sortScore = (rawScore + nuanceScore) * decay;
       const score = Math.max(0, Math.min(100, Math.round((sortScore / scoreDivisor) * 100)));
       scored.push({
         name, score, rawScore, sortScore, scoreDivisor, mentionScore, tagScore, continuityScore, intensity,
         status: picked ? picked.status : 'neu',
         statusReason: picked ? (picked.reason ?? '') : null,
         sentimentDate: picked ? picked.date : null,
-        mentionDate: e.latestDate,
+        mentionDate: latestAppear,
         noSentiment: !picked,
-        latestNotes: e.latestNotes, latestShows: e.latestShows, days: e.dates.size, totalShows: e.totalShows,
+        latestNotes: notesForCard, latestShows: showsForCard, days: e.dates.size, totalShows: e.totalShows,
       });
     }
 
@@ -335,20 +416,19 @@ export async function computeRanking(
       hold = holdDays === 1 ? '오늘 진입' : `${holdDays}일 연속 TOP`;
     }
 
-    // reason: 최신 방송 코멘트에서 뽑기 (첫 번째 note)
-    const firstNote = s.latestNotes[0];
-    const reason = firstNote?.view ?? `${s.latestShows.join('·')}에서 주목받았어요.`;
-
-    // basis: 언급 방송 기반 자동 생성 (각 방송에 날짜 prefix)
+    // reason / basis: 방송 코멘트(오늘의 픽) 또는 방송 본문 문장(태그 종목) 기반 자동 생성.
+    // latestNotes에 이미 종목 유형에 맞는(날짜가 맞는) 근거가 담겨 있다.
     const md = s.mentionDate
       ? `${Number(s.mentionDate.slice(5, 7))}/${Number(s.mentionDate.slice(8, 10))}`
       : '';
+    const dp = md ? `${md} · ` : '';
     const showCount = s.latestShows.length;
+    const firstNote = s.latestNotes[0];
+    const reason = firstNote?.view ?? `${s.latestShows.join('·')}에서 주목받았어요.`;
     const basis: string[] = [
-      `${md ? md + ' · ' : ''}${showCount}개 방송에서 언급됐어요`,
+      `${dp}${showCount}개 방송에서 언급됐어요`,
       ...s.latestShows.map((show: string) => {
         const note = s.latestNotes.find((n: any) => n.show === show);
-        const dp = md ? `${md} · ` : '';
         return note ? `${dp}<strong>${show}</strong>: ${note.view}` : `${dp}<strong>${show}</strong>에서 언급`;
       }),
     ];
