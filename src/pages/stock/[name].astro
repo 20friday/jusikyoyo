@@ -77,6 +77,18 @@ for (const e of contentEntries) dateMap.set(e.date, e);
 for (const e of supabaseEntries) dateMap.set(e.date, e);
 const entries = [...dateMap.values()].sort((a, b) => b.date.localeCompare(a.date));
 
+// 최근 2주 방송 흐름 요약 — 등록 시 미리 써서 stock_flows에 저장해 둔 걸 그대로 보여준다.
+// 아직 요약이 없는 종목은 null → 카드 자체를 숨긴다. (테이블이 없어도 에러는 무시)
+let flow: { tone: string; headline: string; body: string; updated_at: string } | null = null;
+try {
+  const { data: flowRow } = await Astro.locals.supabase
+    .from('stock_flows')
+    .select('tone, headline, body, updated_at')
+    .eq('name', canonName)
+    .maybeSingle();
+  if (flowRow) flow = flowRow as typeof flow;
+} catch { flow = null; }
+
 const info = stockInfo.find(s => canonicalStockName(s.name) === canonName);
 
 // 종목 상세(네이버) — 국내 종목만. 코드 조회 후 목표주가·지표·건강태그 가져오기.
@@ -119,6 +131,9 @@ function formatDate(dateStr: string) {
 }
 
 const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
+
+// 흐름 톤별 이모지 (후킹 문구 앞에 붙임)
+const FLOW_EMOJI: Record<string, string> = { good: '😀', watch: '⚠️', neutral: '👀' };
 
 // 종목 정보가 있으면 그 탭을 먼저, 없으면 방송 히스토리 탭을 먼저 보여준다.
 const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
@@ -298,6 +313,19 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
 
     <!-- ===== 방송 언급 히스토리 탭 ===== -->
     <div class={`panel ${defaultTab === 'history' ? 'is-active' : ''}`} data-panel="history">
+
+    <!-- 최근 2주 흐름 요약 (후킹 한 줄 + 짧은 문단) -->
+    {flow && (
+      <section class={`flow-card flow-card--${flow.tone}`}>
+        <div class="flow-head">
+          <span class="flow-emoji">{FLOW_EMOJI[flow.tone] ?? '👀'}</span>
+          <span class="flow-headline">{flow.headline}</span>
+        </div>
+        <p class="flow-body">{flow.body}</p>
+        <p class="flow-meta">최근 2주 방송 흐름 · {formatDate(flow.updated_at.slice(0, 10))} 업데이트</p>
+      </section>
+    )}
+
     {entries.length === 0 ? (
       <div class="empty">아직 언급 기록이 없어요.</div>
     ) : (
@@ -502,6 +530,45 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
     width: 1px;
     height: 20px;
     background: var(--border);
+  }
+
+  /* 최근 2주 흐름 요약 카드 */
+  .flow-card {
+    border-radius: 16px;
+    padding: 18px 18px 16px;
+    margin-bottom: 28px;
+    border: 1px solid var(--border);
+  }
+  .flow-card--good { background: var(--up-bg); border-color: color-mix(in srgb, var(--up) 22%, transparent); }
+  .flow-card--watch { background: var(--down-bg); border-color: color-mix(in srgb, var(--down) 22%, transparent); }
+  .flow-card--neutral { background: #FEF6DC; border-color: color-mix(in srgb, #9A7B0A 28%, transparent); }
+  .flow-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .flow-emoji { font-size: 20px; line-height: 1; }
+  .flow-headline {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-1);
+  }
+  .flow-card--good .flow-headline { color: var(--up); }
+  .flow-card--watch .flow-headline { color: var(--down); }
+  .flow-card--neutral .flow-headline { color: #9A7B0A; }
+  .flow-body {
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--text-1);
+    margin: 0;
+  }
+  .flow-meta {
+    font-size: 12px;
+    color: var(--text-3);
+    margin: 12px 0 0;
+    letter-spacing: -0.01em;
   }
 
   /* 타임라인 */

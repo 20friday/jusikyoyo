@@ -106,6 +106,29 @@ Ted가 방송 스크립트 요약을 주면 `/tmp/insert_post.mjs` 파일을 만
 
 ---
 
+## 종목 흐름 요약 (방송언급 탭 맨 위)
+종목 상세(`/stock/[name]`)의 방송언급 탭 맨 위에, 최근 2주 방송 내용을 친구에게 설명하듯 풀어쓴 **흐름 요약**(후킹 한 줄 + 짧은 문단)을 보여준다. 사용자가 타임라인 전체를 읽지 않아도 "지금 이 종목은 이런 흐름"을 한눈에 잡게 하는 게 목적.
+
+- **테이블:** `stock_flows` (name PK · tone · headline · body · updated_at) — `supabase/stock_flows.sql`
+- **tone:** `good`(긍정 흐름·붉은톤) / `watch`(주의·파란톤) / `neutral`(중립·혼조·노란톤) — 후킹 문구 색상 결정
+- **문단은 규칙으로 못 만든다.** 실제 글을 읽고 Claude가 직접 써야 자연스럽다. 요약 작성 기준(실명 금지·투자권유 금지·시장 해설로 재구성)을 그대로 지킬 것.
+
+### 갱신 워크플로우 (방송 등록할 때마다)
+오늘의 픽 등록이 끝나면, **그날 언급된 종목들의 흐름 요약도 갱신**한다.
+```bash
+# 1) 재료 뽑기 (최근 14일, 실제 상장 종목만)
+node scripts/stock-flows.mjs gather                 # 전체
+node scripts/stock-flows.mjs gather 삼성전자 SK하이닉스   # 특정 종목만
+# 2) Claude가 재료를 읽고 flows.json 작성 → 저장
+node scripts/stock-flows.mjs save flows.json
+```
+- flows.json: `[{ "name": "삼성전자", "tone": "good", "headline": "…", "body": "…" }]`
+- `name`은 반드시 KRX 정식명 (등록 전 `check-stock-names.mjs`로 검증)
+- 언급 없던 종목은 그대로 두면 됨 (그날 언급된 종목만 다시 씀)
+- 요약이 없는 종목은 카드가 자동으로 숨겨짐
+
+---
+
 ## 주요 컴포넌트 구조
 | 파일 | 역할 |
 |------|------|
