@@ -25,8 +25,20 @@ const contentEntries = allReports
 // 2. Supabase (신규 리포트)
 const { data: supabaseReports } = await Astro.locals.supabase
   .from('daily_reports')
-  .select('date, stocks')
+  .select('date, stocks, sentiment')
   .order('date', { ascending: false });
+
+// 대표 감정: 가장 최근 방송일의 status (pos/neu/warn). date desc 정렬이라 첫 매칭이 최신.
+const SENT_LABEL: Record<string, string> = { pos: '긍정', neu: '중립', warn: '주의' };
+let sentiment: string | null = null;
+for (const r of (supabaseReports ?? []) as any[]) {
+  const sent = r.sentiment as Record<string, any> | null;
+  if (!sent) continue;
+  for (const [nm, s] of Object.entries(sent)) {
+    if (s?.status && SENT_LABEL[s.status] && canonicalStockName(nm) === canonName) { sentiment = s.status; break; }
+  }
+  if (sentiment) break;
+}
 
 const supabaseEntries = (supabaseReports ?? [])
   .filter((r: any) => r.stocks?.some(matchesStock))
@@ -117,7 +129,12 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
     <!-- 헤더 -->
     <div class="stock-hero">
       <a href="/" class="back-link" onclick="if(window.history.length>1){window.history.back();return false;}">← 뒤로</a>
-      {info && <span class="stock-sector">{info.sector}</span>}
+      {(info || sentiment) && (
+        <div class="stock-badges">
+          {info && <span class="stock-sector">{info.sector}</span>}
+          {sentiment && <span class={`stock-sent stock-sent--${sentiment}`}>{SENT_LABEL[sentiment]}</span>}
+        </div>
+      )}
       <h1 class="stock-title">{canonName}</h1>
       {(curatedDesc || officialDesc) && (
         <div class="company-intro is-collapsed" data-intro>
@@ -351,6 +368,10 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
     border-bottom: 1px solid var(--border);
     margin-bottom: 32px;
   }
+  .stock-badges {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
   .stock-sector {
     display: inline-block;
     font-size: 11px;
@@ -359,8 +380,15 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
     background: color-mix(in srgb, var(--blue) 12%, transparent);
     border-radius: 6px;
     padding: 2px 8px;
-    margin-bottom: 10px;
   }
+  .stock-sent {
+    display: inline-block;
+    font-size: 11px; font-weight: 700; letter-spacing: -0.01em;
+    border-radius: 6px; padding: 2px 8px;
+  }
+  .stock-sent--pos { background: var(--up-bg); color: var(--up); }
+  .stock-sent--neu { background: #FEF6DC; color: #9A7B0A; box-shadow: inset 0 0 0 1px #9A7B0A; }
+  .stock-sent--warn { background: var(--down-bg); color: var(--down); }
   .stock-title {
     font-size: 32px;
     font-weight: 800;

@@ -183,6 +183,17 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
   }
   .stock-item:hover { opacity: 0.62; }
 
+  /* 감정 태그 칩 (긍정/중립/주의) — 랭킹 페이지와 동일 색 */
+  .stock-sent {
+    flex-shrink: 0; margin-left: 7px;
+    font-size: 12px; font-weight: 700; letter-spacing: -0.01em;
+    border-radius: 6px; padding: 2px 7px;
+  }
+  .stock-sent--pos { background: var(--up-bg); color: var(--up); }
+  .stock-sent--neu { background: #FEF6DC; color: #9A7B0A; box-shadow: inset 0 0 0 1px #9A7B0A; }
+  .stock-sent--warn { background: var(--down-bg); color: var(--down); }
+  .result-meta .stock-sent { margin-left: 0; margin-right: 8px; }
+
   /* 우측 인덱스 바 */
   .index-bar {
     position: fixed; right: 6px; top: 50%; transform: translateY(-50%);
@@ -220,6 +231,14 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
       '<path d="M8 8a5.6 5.6 0 0 0 0 8M16 16a5.6 5.6 0 0 0 0-8M5.2 5.2a9.6 9.6 0 0 0 0 13.6M18.8 18.8a9.6 9.6 0 0 0 0-13.6" ' +
         'stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
     '</svg>';
+
+  // 감정 태그 칩 HTML (status가 있을 때만)
+  function sentChip(status) {
+    var map = { pos: ['pos', '긍정'], neu: ['neu', '중립'], warn: ['warn', '주의'] };
+    var m = map[status];
+    if (!m) return '';
+    return '<span class="stock-sent stock-sent--' + m[0] + '">' + m[1] + '</span>';
+  }
 
   function esc(s) {
     return s.replace(/[&<>"]/g, function (c) {
@@ -305,7 +324,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
     var sections = keys.map(function (key) {
       var items = groups[key].map(function (s) {
         return '<button class="stock-item" data-name="' + esc(s.name) + '">' +
-          esc(s.name) + (s.mentioned ? BC_ICON : '') +
+          esc(s.name) + (s.sentiment ? sentChip(s.sentiment) : (s.mentioned ? BC_ICON : '')) +
           '</button>';
       }).join('');
       return '<div class="stock-section" id="idx-' + encodeURIComponent(key) + '">' +
@@ -352,8 +371,9 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
   function renderResults(list, q) {
     var cards = list.map(function (s) {
       var tag = s.market ? '<span class="result-market">' + esc(s.market) + '</span>' : '';
+      var chip = sentChip(s.sentiment);
       var meta = s.mentioned
-        ? tag + (tag ? '<span class="result-dot"></span>' : '') + '방송 언급 <b>' + s.mentions + '회</b>'
+        ? chip + tag + (tag ? '<span class="result-dot"></span>' : '') + '방송 언급 <b>' + s.mentions + '회</b>'
         : (tag || '아직 방송 언급 없음');
       return '<a class="result-card" href="/stock/' + encodeURIComponent(s.name) + '">' +
         '<div class="result-info">' +
@@ -418,7 +438,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
   // 코스피·코스닥 전체 종목(public/stocks.json)과 방송 언급(daily_reports)을 함께 불러온다.
   Promise.all([
     fetch('/stocks.json').then(function (r) { return r.json(); }),
-    fetch(supabaseUrl + '/rest/v1/daily_reports?select=stocks', {
+    fetch(supabaseUrl + '/rest/v1/daily_reports?select=date,stocks,sentiment', {
       headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + supabaseKey }
     }).then(function (r) { return r.json(); })
   ])
@@ -438,6 +458,22 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
           var canonical = RENAMED[name] || name;
           mentionMap[canonical] = (mentionMap[canonical] || 0) + 1;
         });
+      });
+    });
+
+    // 1-1) 대표 감정 집계 (canonical 종목명 → 가장 최근 방송일의 status)
+    var sentMap = {};
+    reports.forEach(function (report) {
+      var sent = report.sentiment;
+      if (!sent || typeof sent !== 'object') return;
+      var d = report.date || '';
+      Object.keys(sent).forEach(function (name) {
+        var st = sent[name] && sent[name].status;
+        if (!st) return;
+        var canonical = RENAMED[name] || name;
+        if (!sentMap[canonical] || d > sentMap[canonical].date) {
+          sentMap[canonical] = { status: st, date: d };
+        }
       });
     });
 
@@ -474,6 +510,16 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
         byName[mname] = e;
         INDEX.push(e);
       }
+    });
+
+    // 3-1) 대표 감정을 인덱스 항목에 붙인다 (별칭 표기도 정식명에 매칭)
+    Object.keys(sentMap).forEach(function (name) {
+      var target = byName[name];
+      if (!target) {
+        var canon = aliasToName[name.toLowerCase()];
+        if (canon && byName[canon]) target = byName[canon];
+      }
+      if (target) target.sentiment = sentMap[name].status;
     });
 
     // 인기 검색어 = 방송에서 가장 많이 언급된 종목
