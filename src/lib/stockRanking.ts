@@ -8,7 +8,8 @@
  * - nuanceScore   = statusMultiplier × intensity × 4 (-20 ~ +20), 클라이언트에서 반영
  * - rawScore      = mentionScore + tagScore + continuityScore (+ nuanceScore)
  * - displayScore  = clamp(round(rawScore / 155 * 100), 0, 100)
- * 주간/월간: 기간 내 누적 방송 수 기반
+ * 주간/월간: 꾸준함(나온 날 수) + 누적 방송 언급 수 기반.
+ *            오늘의 픽 종목 + 개별 방송 태그 종목 모두 포함(실제 상장 종목만).
  *
  * 7일 순위 변화 차트(rankTrail)도 헤더 순위와 동일한 윈도우 종합 점수로 계산해,
  * 차트 마지막 점 = 헤더 순위가 항상 일치하도록 한다.
@@ -217,9 +218,10 @@ export async function computeRanking(
 
     const isPeriod = period !== 'day'; // 주간·월간
 
-    // ② 일간: 각 방송(posts)에서 태그된 종목도 후보에 추가 (실제 상장 종목만).
-    //    방송 횟수 = 그 종목을 태그한 방송(글) 수. 오늘의 픽에 없던 종목도 여기서 올라온다.
-    if (!isPeriod) {
+    // ② 각 방송(posts)에서 태그된 종목도 후보에 추가 (실제 상장 종목만).
+    //    일간·주간·월간 모두 적용 — 오늘의 픽에 없이 개별 방송에서만 언급된 종목도 순위에 올린다.
+    //    방송 횟수 = 그 종목을 태그한 방송(글) 수.
+    {
       const windowPosts = (allPosts ?? []).filter((p: any) => p.date >= fromD && p.date <= toD);
       for (const post of windowPosts) {
         const slug = String(post.slug ?? '');
@@ -315,15 +317,32 @@ export async function computeRanking(
         rawScore = broadcastScore + curationBonus;   // 감정 제외 기본 (최대 108)
         scoreDivisor = 123;                          // 108 + 감정 15 = 123 → 만점 100 환산
       } else {
-        // ── 주간·월간: 꾸준함 60 + 누적 언급 30 (감정은 ±20) — 기존 유지 ──
+        // ── 주간·월간: 꾸준함 60 + 누적 언급 30 (감정은 ±20) ──
+        // 오늘의 픽 + 개별 방송 태그 종목 모두 포함. 날짜별 방송 합집합으로 누적 언급을 집계해
+        // 같은 날 리포트·태그가 겹쳐도 이중으로 세지 않는다.
+        let totalMentions = 0;
+        for (const d of e.dates) {
+          const repShows = e.reportShowsByDate.get(d) ?? [];
+          const tagBs = [...(e.tagDates.get(d) ?? [])].map((b) => BROADCAST_LABEL[b] ?? b);
+          totalMentions += Math.max(new Set([...repShows, ...tagBs]).size, 1);
+        }
         const consistency = Math.min(e.dates.size / days, 1) * 60;          // 나온 날 수 / 기간 거래일
-        const volume = Math.min(e.totalShows / (days * 3), 1) * 30;         // 누적 방송 언급 수
+        const volume = Math.min(totalMentions / (days * 3), 1) * 30;        // 누적 방송 언급 수
         rawScore = consistency + volume;                                    // 0~90
         scoreDivisor = 100;
         mentionScore = Math.round(consistency);
         continuityScore = Math.round(volume);
         tagScore = 0;
         nuanceScore = picked ? (STATUS_MULT[picked.status] ?? 0) * intensity * 4 : 0;
+
+        // 태그로만 언급된 종목은 리포트 코멘트가 없으니, 최근 등장일의 방송·본문 문장으로 카드를 채운다.
+        if (e.latestShows.length === 0 && e.latestNotes.length === 0) {
+          const repShows = e.reportShowsByDate.get(latestAppear ?? '') ?? [];
+          const tagBs = [...(e.tagDates.get(latestAppear ?? '') ?? [])].map((b) => BROADCAST_LABEL[b] ?? b);
+          const union = new Set([...repShows, ...tagBs]);
+          if (union.size) showsForCard = [...union];
+          notesForCard = e.tagNotesByDate.get(latestAppear ?? '') ?? [];
+        }
       }
       const sortScore = (rawScore + nuanceScore) * decay;
       const score = Math.max(0, Math.min(100, Math.round((sortScore / scoreDivisor) * 100)));
