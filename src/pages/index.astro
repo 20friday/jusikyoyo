@@ -101,7 +101,7 @@ const allPastDates = [
             지금 시장 흐름
           </span>
           <span class={`mflow-status mflow-status--${marketFlow.status === 'shift' ? 'shift' : 'keep'}`}>
-            {marketFlow.status === 'shift' ? '🚩 흐름 전환' : `🔁 같은 흐름 ${marketFlow.streak ?? 1}일째`}
+            {marketFlow.status === 'shift' ? '🚩 흐름 전환' : `같은 흐름 ${marketFlow.streak ?? 1}일째`}
           </span>
         </div>
 
@@ -273,7 +273,6 @@ const allPastDates = [
   .mflow {
     background: var(--card);
     border: 1px solid var(--border);
-    border-left: 4px solid var(--mflow-accent);
     border-radius: 14px;
     padding: 16px 16px 14px;
     margin-bottom: 14px;
