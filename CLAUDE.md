@@ -152,6 +152,28 @@ node scripts/market-flow.mjs save flow.json
 
 ---
 
+## 내일 시장 예측 (메인 피드 맨 위, 흐름 카드 위)
+방송을 AI가 분석해 내일 코스피·코스닥 상승/하락을 예측하고, 실제 종가와 대조해 누적 적중률을 쌓는다. "지금 시장 흐름"과 별개 카드로, 그 위에 노출.
+
+- **테이블:** `market_predictions` (target_date PK) — `supabase/market_predictions.sql`. RLS 없이 생성("Run without RLS").
+- **채점 자동화:** 네이버 지수 API(당일)·야후 일봉(과거 백필)로 실제 종가를 읽어 적중 판정. 등락 부호로 상승/하락, `hit = 예측==실제`.
+- **승률:** 코스피+코스닥 합산 하나. 카드엔 게이지 + 지수별 최근 8회 점(적중=꽉 찬 점).
+- **준법:** 지수·재미 프레이밍, 종목 매수·매도 권유 금지. reason은 요약 작성 기준 준수.
+
+### 갱신 워크플로우 (오늘의 픽 등록할 때마다)
+```bash
+# 1) 어제 만든 예측 채점 (오늘 장 마감 후)
+node scripts/market-prediction.mjs score
+# 2) 오늘 방송 재료로 내일 예측 작성 → 저장
+node scripts/market-prediction.mjs gather
+node scripts/market-prediction.mjs save prediction.json
+```
+- prediction.json: `{ "base_date":"YYYY-MM-DD", "kospi_dir":"up|down", "kosdaq_dir":"up|down", "reason":"…" }` (target_date 생략 시 다음 평일 자동)
+- 공휴일 다음날을 예측할 땐 target_date를 명시(휴장일 판단은 `src/lib/marketHoliday.ts`).
+- 데이터 없으면 카드는 자동으로 숨겨짐.
+
+---
+
 ## 주요 컴포넌트 구조
 | 파일 | 역할 |
 |------|------|
