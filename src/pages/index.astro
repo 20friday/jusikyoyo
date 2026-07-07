@@ -40,6 +40,15 @@ const { data: allReports } = await Astro.locals.supabase
 const reportsByDate: Record<string, { headline: string }> = {};
 for (const r of allReports ?? []) reportsByDate[r.date] = r;
 
+// 시장 흐름 (최신 1건) — 피드 맨 위 "지금 시장 흐름" 카드
+const { data: flowList } = await Astro.locals.supabase
+  .from('market_flow')
+  .select('date, status, streak, tone, headline, body, sectors')
+  .order('date', { ascending: false })
+  .limit(1);
+const marketFlow: any = flowList?.[0] ?? null;
+const flowSectors: any[] = Array.isArray(marketFlow?.sectors) ? marketFlow.sectors.slice(0, 4) : [];
+
 // 날짜 유틸
 const days = ['일', '월', '화', '수', '목', '금', '토'];
 function formatDateShort(dateStr: string) {
@@ -80,6 +89,39 @@ const allPastDates = [
       <h1 class="feed-heading">오늘의 주식 방송 PICK</h1>
       <p class="feed-sub">방송마다 흩어진 종목·섹터·이슈를 한 화면에 정리해드려요.</p>
     </div>
+
+    <!-- ===== 지금 시장 흐름 카드 (흐름 데이터 있을 때만) ===== -->
+    {marketFlow && (
+      <div class={`mflow mflow--${marketFlow.tone ?? 'neutral'}`}>
+        <div class="mflow-top">
+          <span class="mflow-eyebrow">
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M3 8h9a2.5 2.5 0 1 0-2.45-3M3 12h12a2.5 2.5 0 1 1-2.45 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            지금 시장 흐름
+          </span>
+          <span class={`mflow-status mflow-status--${marketFlow.status === 'shift' ? 'shift' : 'keep'}`}>
+            {marketFlow.status === 'shift' ? '🚩 흐름 전환' : `🔁 같은 흐름 ${marketFlow.streak ?? 1}일째`}
+          </span>
+        </div>
+
+        <div class="mflow-headline">{marketFlow.headline}</div>
+
+        {flowSectors.length > 0 && (
+          <div class="mflow-sectors">
+            {flowSectors.map((s: any) => (
+              <span class={`mflow-sec mflow-sec--${s.dir ?? 'neutral'}`}>
+                <span class="mflow-arrow">{s.dir === 'up' ? '↑' : s.dir === 'down' ? '↓' : '→'}</span>
+                {s.name}{s.label ? ` · ${s.label}` : ''}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {marketFlow.body && <p class="mflow-body">{marketFlow.body}</p>}
+        <div class="mflow-date">{formatDateShort(marketFlow.date)} 방송 기준</div>
+      </div>
+    )}
 
     <!-- ===== 오늘 히어로 카드 (오늘 콘텐츠 있을 때만) ===== -->
     {(hasTodayPosts || reportsByDate[todayKey] || showWeeklyCard) && <div class="today-hero">
@@ -225,6 +267,95 @@ const allPastDates = [
     font-size: 15px;
     color: var(--text-3);
     line-height: 1.5;
+  }
+
+  /* ── 지금 시장 흐름 카드 ── */
+  .mflow {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--mflow-accent);
+    border-radius: 14px;
+    padding: 16px 16px 14px;
+    margin-bottom: 14px;
+  }
+  /* 톤별 액센트: good=상승 붉은톤 / watch=주의 파란톤 / neutral=혼조 노란톤 */
+  .mflow--good    { --mflow-accent: #e5484d; }
+  .mflow--watch   { --mflow-accent: #3b7dd8; }
+  .mflow--neutral { --mflow-accent: #e0922f; }
+
+  .mflow-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .mflow-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--mflow-accent);
+    letter-spacing: -0.01em;
+  }
+  .mflow-status {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .mflow-status--keep {
+    background: var(--chip-bg, rgba(128, 128, 128, 0.12));
+    color: var(--text-3);
+  }
+  .mflow-status--shift {
+    background: rgba(229, 72, 77, 0.12);
+    color: #e5484d;
+  }
+
+  .mflow-headline {
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--text-1);
+    line-height: 1.45;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .mflow-sectors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .mflow-sec {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .mflow-arrow { font-weight: 900; }
+  .mflow-sec--up      { background: rgba(229, 72, 77, 0.12);  color: #e5484d; }
+  .mflow-sec--down    { background: rgba(59, 125, 216, 0.12); color: #3b7dd8; }
+  .mflow-sec--neutral { background: rgba(224, 146, 47, 0.14); color: #cf7d1a; }
+
+  .mflow-body {
+    font-size: 15px;
+    color: var(--text-2);
+    line-height: 1.7;
+    letter-spacing: -0.01em;
+  }
+  .mflow-date {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 10px;
   }
 
   /* ── 오늘 히어로 카드 ── */

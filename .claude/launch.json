@@ -5,7 +5,8 @@
       "name": "tedpick-dev",
       "runtimeExecutable": "/opt/homebrew/bin/node",
       "runtimeArgs": ["node_modules/.bin/astro", "dev"],
-      "port": 4321
+      "port": 4321,
+      "autoPort": true
     }
   ]
 }

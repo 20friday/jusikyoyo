@@ -129,6 +129,29 @@ node scripts/stock-flows.mjs save flows.json
 
 ---
 
+## 시장 흐름 예측 (메인 피드 맨 위)
+피드(`/`) 맨 위에, 지금 시장이 어느 쪽으로 도는지(예: "반도체는 숨 고르고, 돈은 내수·방산으로")를 한 줄 예측 + 섹터 방향 칩 + "지속/전환" 배지로 보여준다. `daily_reports`의 시장 요약·섹터 흐름을 한 단계 위로 요약하는 개념.
+
+- **테이블:** `market_flow` (date PK · status · streak · tone · headline · body · sectors) — `supabase/market_flow.sql`. RLS 없이 생성(공개 콘텐츠, anon 읽기).
+- **매일 갱신 + 지속/전환:** 흐름은 매일 다시 쓴다. 대부분은 어제와 비슷 → `status: continue`(🔁 같은 흐름 N일째, N은 저장 시 자동 계산). 실제로 바뀐 날만 `status: shift`(🚩 흐름 전환, streak 1로 리셋).
+- **tone:** good(위험선호·붉은톤) / watch(위험회피·파란톤) / neutral(혼조·노란톤).
+- **sectors[].dir:** up(자금 유입·강세·빨강) / down(주춤·약세·파랑) / neutral(중립·노랑).
+- **방향 예측은 섹터·시장 흐름까지만.** 특정 종목 매수·매도 권유 금지. 요약 작성 기준(실명 금지·투자권유 금지·시장 해설로 재구성)을 그대로 지킨다.
+
+### 갱신 워크플로우 (방송 등록할 때마다)
+오늘의 픽 등록이 끝나면, **그날의 시장 흐름도 갱신**한다.
+```bash
+# 1) 재료 뽑기 (최근 N거래일 시장 요약 + 섹터 흐름 + 직전 흐름 기록)
+node scripts/market-flow.mjs gather            # 기본 7일
+# 2) Claude가 재료를 읽고 flow.json(하루치 1개) 작성 → 저장
+node scripts/market-flow.mjs save flow.json
+```
+- flow.json: `{ "date":"YYYY-MM-DD", "status":"continue|shift", "tone":"…", "headline":"…", "body":"…", "sectors":[{ "name":"…", "dir":"up|down|neutral", "label":"…" }] }`
+- 직전 흐름과 비교해 정말 방향이 바뀌었을 때만 `shift`. 뉘앙스만 비슷하면 `continue`.
+- 데이터 없으면 카드는 자동으로 숨겨짐.
+
+---
+
 ## 주요 컴포넌트 구조
 | 파일 | 역할 |
 |------|------|
