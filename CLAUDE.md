@@ -158,7 +158,7 @@ node scripts/market-flow.mjs save flow.json
 - **테이블:** `market_predictions` (target_date PK) — `supabase/market_predictions.sql`. RLS 없이 생성("Run without RLS").
 - **네비:** `Base.astro`의 `.hdr-tabs`에 실험실 탭(`/lab`) 추가돼 있음.
 - **채점 자동화:** 네이버 지수 API(당일)·야후 일봉(과거 백필)로 실제 종가를 읽어 적중 판정. 등락 부호로 상승/하락, `hit = 예측==실제`.
-- **승률:** 코스피+코스닥 합산 하나. 카드엔 게이지 + 지수별 최근 8회 점(적중=꽉 찬 점).
+- **승률:** 코스피+코스닥 합산 하나. 카드엔 게이지 + 지수별 최근 8회 O/X(적중=O·실패=X).
 - **준법:** 지수·재미 프레이밍, 종목 매수·매도 권유 금지. reason은 요약 작성 기준 준수.
 
 ### 갱신 워크플로우 (오늘의 픽 등록할 때마다)

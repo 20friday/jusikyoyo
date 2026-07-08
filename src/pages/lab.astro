@@ -80,11 +80,11 @@ const showPred = latestPred && latestPred.target_date >= todayKey;
             </div>
             <div class="mpred-dots-row">
               <span class="mpred-dots-label">코스피</span>
-              {kospiDots.map((h: boolean) => <span class={`mpred-dot${h ? ' hit' : ''}`}></span>)}
+              {kospiDots.map((h: boolean) => <span class={`mpred-mark ${h ? 'hit' : 'miss'}`}>{h ? 'O' : 'X'}</span>)}
             </div>
             <div class="mpred-dots-row">
               <span class="mpred-dots-label">코스닥</span>
-              {kosdaqDots.map((h: boolean) => <span class={`mpred-dot${h ? ' hit' : ''}`}></span>)}
+              {kosdaqDots.map((h: boolean) => <span class={`mpred-mark ${h ? 'hit' : 'miss'}`}>{h ? 'O' : 'X'}</span>)}
             </div>
           </div>
         )}
@@ -151,11 +151,13 @@ const showPred = latestPred && latestPred.target_date >= todayKey;
 
   .mpred-dots-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
   .mpred-dots-label { font-size: 14px; color: var(--text-3); width: 46px; }
-  .mpred-dot {
-    width: 16px; height: 16px; border-radius: 4px;
-    background: transparent; border: 1.5px solid rgba(128,128,128,0.35);
+  .mpred-mark {
+    width: 18px; text-align: center;
+    font-size: 16px; font-weight: 800; line-height: 1;
+    letter-spacing: 0;
   }
-  .mpred-dot.hit { background: var(--text-1); border-color: var(--text-1); }
+  .mpred-mark.hit { color: var(--text-1); }
+  .mpred-mark.miss { color: var(--text-3); }
 
   .mpred-disc { font-size: 13px; color: var(--text-3); margin-top: 14px; }
 
