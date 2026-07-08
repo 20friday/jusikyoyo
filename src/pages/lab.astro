@@ -27,6 +27,10 @@ function formatDateShort(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
 }
+function formatMonthDay(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+}
 const showPred = latestPred && latestPred.target_date >= todayKey;
 ---
 
@@ -40,7 +44,7 @@ const showPred = latestPred && latestPred.target_date >= todayKey;
     {showPred ? (
       <div class="mpred">
         <div class="mpred-top">
-          <span class="mpred-eyebrow">✨ AI의 내일 시장 예측</span>
+          <span class="mpred-eyebrow">🔮 {formatMonthDay(latestPred.target_date)} 시장 예측</span>
           <span class="mpred-base">{formatDateShort(latestPred.base_date)} 방송 기준</span>
         </div>
 
