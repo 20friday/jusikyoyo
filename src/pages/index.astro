@@ -98,7 +98,7 @@ const allPastDates = [
             <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <path d="M3 8h9a2.5 2.5 0 1 0-2.45-3M3 12h12a2.5 2.5 0 1 1-2.45 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
             </svg>
-            {marketFlow.date === todayKey ? '오늘까지의' : '어제까지의'} 시장 흐름
+            {marketFlow.date === todayKey ? '오늘의' : '어제까지의'} 시장 흐름
           </span>
           <span class={`mflow-status mflow-status--${marketFlow.status === 'shift' ? 'shift' : 'keep'}`}>
             {marketFlow.status === 'shift' ? '🚩 흐름 전환' : `같은 흐름 ${marketFlow.streak ?? 1}일째`}
