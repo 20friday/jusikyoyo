@@ -98,7 +98,7 @@ const allPastDates = [
             <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <path d="M3 8h9a2.5 2.5 0 1 0-2.45-3M3 12h12a2.5 2.5 0 1 1-2.45 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
             </svg>
-            지금 시장 흐름
+            {formatDateShort(marketFlow.date)} 시장 흐름
           </span>
           <span class={`mflow-status mflow-status--${marketFlow.status === 'shift' ? 'shift' : 'keep'}`}>
             {marketFlow.status === 'shift' ? '🚩 흐름 전환' : `같은 흐름 ${marketFlow.streak ?? 1}일째`}
@@ -119,7 +119,6 @@ const allPastDates = [
         )}
 
         {marketFlow.body && <p class="mflow-body">{marketFlow.body}</p>}
-        <div class="mflow-date">{formatDateShort(marketFlow.date)} 방송 기준</div>
       </div>
     )}
 
@@ -351,12 +350,6 @@ const allPastDates = [
     line-height: 1.7;
     letter-spacing: -0.01em;
   }
-  .mflow-date {
-    font-size: 14px;
-    color: var(--text-3);
-    margin-top: 12px;
-  }
-
   /* ── 오늘 히어로 카드 ── */
   .today-hero {
     background: var(--card);
