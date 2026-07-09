@@ -108,23 +108,37 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
 
   .search-loading { padding: 40px 0; text-align: center; font-size: 15px; color: var(--text-3); }
 
-  /* 입력 전: 인기 검색어 */
+  /* 입력 전: 최근 검색어 */
   .search-idle { padding: 22px 2px 0; }
-  .idle-label { font-size: 14px; font-weight: 700; color: var(--text-3); letter-spacing: -0.01em; margin-bottom: 14px; }
-  .pop-list { display: flex; flex-direction: column; gap: 2px; }
-  .pop-chip {
-    display: flex; align-items: center; gap: 12px;
-    width: 100%; padding: 12px 4px; text-align: left;
+  .idle-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .idle-label { font-size: 14px; font-weight: 700; color: var(--text-3); letter-spacing: -0.01em; }
+  .recent-clear-all {
+    font-size: 14px; font-weight: 700; color: var(--text-3);
+    background: none; border: none; cursor: pointer; padding: 4px 2px;
+    letter-spacing: -0.01em; transition: color 120ms ease;
+  }
+  .recent-clear-all:hover { color: var(--down); }
+  .recent-list { display: flex; flex-direction: column; gap: 2px; }
+  .recent-item { display: flex; align-items: center; gap: 8px; padding: 10px 4px; }
+  .recent-go {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 11px;
+    background: none; border: none; cursor: pointer; text-align: left; padding: 0;
+  }
+  .recent-go:hover .recent-name { opacity: 0.62; }
+  .recent-ico { flex-shrink: 0; color: var(--text-3); }
+  .recent-name {
     font-size: 17px; font-weight: 700; color: var(--text-1); letter-spacing: -0.02em;
-    background: none; border: none; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     transition: opacity 120ms ease;
   }
-  .pop-chip:hover { opacity: 0.62; }
-  .pop-rank {
-    flex-shrink: 0; width: 20px;
-    font-size: 17px; font-weight: 900; color: #ed781f;
-    letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+  .recent-date { flex-shrink: 0; font-size: 14px; font-weight: 600; color: var(--text-3); letter-spacing: -0.01em; }
+  .recent-del {
+    flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%; color: var(--text-3);
+    background: none; border: none; cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
   }
+  .recent-del:hover { background: var(--divider); color: var(--text-1); }
 
   /* 방송 언급 아이콘 (전파 모양) */
   .bc-ico { flex-shrink: 0; color: #ed781f; margin-left: 5px; }
@@ -221,8 +235,42 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
   var bodyEl   = document.getElementById('search-body');
   var cancelEl = document.getElementById('search-cancel');
 
-  var INDEX   = [];
-  var POPULAR = [];
+  var INDEX = [];
+
+  // 최근 검색어 (브라우저 localStorage에 저장)
+  var RECENT_KEY = 'tedpick_recent_searches';
+  function loadRecent() {
+    try {
+      var a = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+      return Array.isArray(a) ? a : [];
+    } catch (e) { return []; }
+  }
+  function saveRecent(a) {
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(a)); } catch (e) {}
+  }
+  function addRecent(name) {
+    if (!name) return;
+    var a = loadRecent().filter(function (x) { return x.name !== name; });
+    a.unshift({ name: name, ts: Date.now() });
+    if (a.length > 20) a = a.slice(0, 20);
+    saveRecent(a);
+  }
+  function removeRecent(name) {
+    saveRecent(loadRecent().filter(function (x) { return x.name !== name; }));
+  }
+  function clearRecent() { saveRecent([]); }
+
+  function fmtDate(ts) {
+    var d = new Date(ts);
+    var day = 86400000;
+    var now = new Date();
+    var today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var t0 = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    var diff = Math.round((today0 - t0) / day);
+    if (diff <= 0) return '오늘';
+    if (diff === 1) return '어제';
+    return (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
+  }
 
   // 방송 언급 표시 아이콘 (전파가 퍼지는 모양)
   var BC_ICON =
@@ -295,11 +343,34 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
   }
 
   function renderIdle() {
-    var chips = POPULAR.map(function (name, i) {
-      return '<button class="pop-chip" data-name="' + esc(name) + '">' +
-        '<span class="pop-rank">' + (i + 1) + '</span>' + esc(name) + BC_ICON +
-        '</button>';
-    }).join('');
+    // 최근 검색어
+    var recent = loadRecent();
+    var recentHtml = '';
+    if (recent.length) {
+      var items = recent.map(function (r) {
+        return '<div class="recent-item">' +
+          '<button class="recent-go" data-name="' + esc(r.name) + '">' +
+            '<svg class="recent-ico" width="16" height="16" viewBox="0 0 24 24" fill="none">' +
+              '<circle cx="12" cy="12" r="8.2" stroke="currentColor" stroke-width="1.8"/>' +
+              '<path d="M12 7.6V12l2.8 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '</svg>' +
+            '<span class="recent-name">' + esc(r.name) + '</span>' +
+          '</button>' +
+          '<span class="recent-date">' + fmtDate(r.ts) + '</span>' +
+          '<button class="recent-del" data-name="' + esc(r.name) + '" aria-label="삭제">' +
+            '<svg width="12" height="12" viewBox="0 0 12 12" fill="none">' +
+              '<path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+            '</svg>' +
+          '</button>' +
+        '</div>';
+      }).join('');
+      recentHtml =
+        '<div class="idle-head">' +
+          '<div class="idle-label">최근 검색어</div>' +
+          '<button class="recent-clear-all">전체 삭제</button>' +
+        '</div>' +
+        '<div class="recent-list">' + items + '</div>';
+    }
 
     // 자음별 그룹핑
     var groups = {};
@@ -341,7 +412,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
 
     bodyEl.innerHTML =
       '<div class="search-idle">' +
-        (POPULAR.length ? '<div class="idle-label">인기 검색어</div><div class="pop-list">' + chips + '</div>' : '') +
+        recentHtml +
         '<div class="stock-index">' +
           '<div class="stock-index-label">전체 종목</div>' +
           sections +
@@ -349,9 +420,25 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
       '</div>' +
       indexBar;
 
-    bodyEl.querySelectorAll('.pop-chip, .stock-item').forEach(function (b) {
+    bodyEl.querySelectorAll('.stock-item, .recent-go').forEach(function (b) {
       b.addEventListener('click', function () {
-        location.href = '/stock/' + encodeURIComponent(b.getAttribute('data-name'));
+        var nm = b.getAttribute('data-name');
+        addRecent(nm);
+        location.href = '/stock/' + encodeURIComponent(nm);
+      });
+    });
+
+    var clearAllBtn = bodyEl.querySelector('.recent-clear-all');
+    if (clearAllBtn) clearAllBtn.addEventListener('click', function () {
+      clearRecent();
+      renderIdle();
+    });
+
+    bodyEl.querySelectorAll('.recent-del').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        removeRecent(b.getAttribute('data-name'));
+        renderIdle();
       });
     });
   }
@@ -375,7 +462,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
       var meta = s.mentioned
         ? chip + tag + (tag ? '<span class="result-dot"></span>' : '') + '방송 언급 <b>' + s.mentions + '회</b>'
         : (tag || '아직 방송 언급 없음');
-      return '<a class="result-card" href="/stock/' + encodeURIComponent(s.name) + '">' +
+      return '<a class="result-card" data-name="' + esc(s.name) + '" href="/stock/' + encodeURIComponent(s.name) + '">' +
         '<div class="result-info">' +
           '<div class="result-name-row"><span class="result-name">' + highlight(s.name, q.trim()) + '</span>' +
             (s.mentioned ? BC_ICON : '') + '</div>' +
@@ -389,6 +476,12 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
     bodyEl.innerHTML =
       '<div class="result-count">' + list.length + '개 종목</div>' +
       '<div class="result-list">' + cards + '</div>';
+
+    bodyEl.querySelectorAll('.result-card').forEach(function (a) {
+      a.addEventListener('click', function () {
+        addRecent(a.getAttribute('data-name'));
+      });
+    });
   }
 
   function onInput() {
@@ -521,12 +614,6 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
       }
       if (target) target.sentiment = sentMap[name].status;
     });
-
-    // 인기 검색어 = 방송에서 가장 많이 언급된 종목
-    POPULAR = INDEX.filter(function (s) { return s.mentioned; })
-      .sort(function (a, b) { return b.mentions - a.mentions; })
-      .slice(0, 6)
-      .map(function (s) { return s.name; });
 
     renderIdle();
     inputEl.focus();
