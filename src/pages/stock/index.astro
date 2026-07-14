@@ -69,6 +69,7 @@ const initialMonthData = '[]';
         <li><span class="rank-status rank-status--warn">주의</span> 우려 섞인 분위기</li>
         <li><span class="rank-status rank-status--mention">단순 언급</span> 평가 없이 이름만 나옴</li>
       </ul>
+      <p class="rank-guide-text" style="margin-top:16px;">종목명 옆 태그는 <b>오늘</b> 방송 분위기예요. 최근 2주 분위기가 오늘과 다를 땐 <span class="rank-flow rank-flow--warn" style="vertical-align:middle;">최근 2주엔 <b>주의</b></span> 처럼 옆에 함께 보여드려요.</p>
     </div>
 
   </div>
@@ -303,6 +304,28 @@ const initialMonthData = '[]';
   .rank-status--warn { background: var(--down-bg); color: var(--down); }
   .rank-status--loading { background: #f0f2f4; color: #94a0ad; }
   .rank-status--mention { background: #f0f2f4; color: #8b95a1; }
+
+  /* 2주 방송 흐름 — 오늘 태그와 별개의 보조 표기 (작고 은은하게) */
+  .rank-flow {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-3);
+    white-space: nowrap;
+  }
+  .rank-flow::before {
+    content: "";
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--tone, currentColor);
+    margin-right: 2px;
+  }
+  .rank-flow b { font-weight: 700; color: var(--tone, inherit); }
+  .rank-flow--pos { --tone: var(--up); }
+  .rank-flow--neu { --tone: #9A7B0A; }
+  .rank-flow--warn { --tone: var(--down); }
   .rank-intensity {
     display: none;
   }
@@ -737,25 +760,36 @@ const STATUS_TITLE = {
   mention: '단순 언급 · 평가 없이 이름만 나옴',
 };
 
+// 메인 태그 = 그날 방송 뉘앙스(오늘 톤). 2주 흐름과 합치지 않는다.
 function statusChip(stock) {
-  // 표시 톤 = 일간 태그와 2주 방송 흐름 중 보수적인 쪽 (서버 stockRanking.ts에서 계산).
-  // 옛/데모 데이터 폴백: displayTone 없으면 일간 status로.
-  const tone = stock.displayTone ?? stock.status;
-  if (tone === 'pos' || tone === 'neu' || tone === 'warn') {
+  if (stock.statusReason !== null && (stock.status === 'pos' || stock.status === 'neu' || stock.status === 'warn')) {
     const map = { pos: ['pos','긍정'], neu: ['neu','중립'], warn: ['warn','주의'] };
-    const [cls, label] = map[tone];
+    const [cls, label] = map[stock.status];
     const fade = stock._sentShown ? '' : ' val-fade';
     stock._sentShown = true;
     return `<span class="rank-status rank-status--${cls}${fade}" title="${STATUS_TITLE[cls]}">${label}</span>`;
   }
-  // 감정도 없고 흐름도 '주의'가 아닌 종목 → "단순 언급"
-  if (tone === 'mention') {
+  // 뉘앙스 분석 결과가 없는 종목: 로딩이 끝났으면 "단순 언급", 아직이면 스켈레톤
+  if (stock.noSentiment) {
     const fade = stock._sentShown ? '' : ' val-fade';
     stock._sentShown = true;
     return `<span class="rank-status rank-status--mention${fade}" title="${STATUS_TITLE.mention}">단순 언급</span>`;
   }
   // 감정 분석 대기 중 → "분석 중" 날것 대신 스켈레톤 칩 (실제 칩과 동일 박스)
   return `<span class="rank-status rank-status--skel" aria-hidden="true">분석중</span>`;
+}
+
+// 최근 2주 방송 분위기를 오늘 톤과 별개로 작게 표기.
+// 오늘 톤과 "다를 때만" 노출한다 — 같으면 중복이라 조용히 숨긴다.
+const FLOW_LABEL = { good: '긍정', neutral: '중립', watch: '주의' };
+const FLOW_CLASS = { good: 'pos', neutral: 'neu', watch: 'warn' };
+function flowChip(stock) {
+  const cls = FLOW_CLASS[stock.flowTone];
+  if (!cls) return ''; // 흐름 데이터(stock_flows) 없음
+  // 오늘 톤: 감정 있으면 pos/neu/warn, 없으면 'mention'
+  const todayCls = stock.noSentiment ? 'mention' : stock.status;
+  if (cls === todayCls) return ''; // 오늘 톤과 같으면 표기 생략
+  return `<span class="rank-flow rank-flow--${cls}" title="최근 2주 방송 분위기는 오늘과 달라요">최근 2주엔 <b>${FLOW_LABEL[stock.flowTone]}</b></span>`;
 }
 
 // 변동률: 로딩이면 스켈레톤 바, 데이터 없으면 "—", 있으면 실제 값(+페이드인)
@@ -918,6 +952,7 @@ function cardHtml(stock) {
             <div class="rank-name-row">
               <span class="rank-name stock-tag" onclick="event.stopPropagation(); window.open('/stock/' + encodeURIComponent('${stock.name}'), '_blank')">${stock.name}</span>
               ${statusChip(stock)}
+              ${flowChip(stock)}
             </div>
             <div class="rank-stat-row">
               ${changeHtml(stock)}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveDisplayTone, snippetFor } from './stockRanking';
+import { snippetFor } from './stockRanking';
 
 // 방송언급 스니펫: 본문 형식이 "**종목명.** 설명…" 라벨일 때,
 // 이름만 남기지 말고 뒤에 오는 설명 문장을 뽑아야 한다.
@@ -28,39 +28,5 @@ describe('snippetFor — 라벨 형식 본문', () => {
     expect(v).toContain('50만 원 아래');
     expect(v).not.toContain('소폭 약세');
     expect(v.endsWith('현대차.')).toBe(false); // 꼬리 라벨 안 붙음
-  });
-});
-
-// 표시 톤 = 일간 태그와 2주 방송 흐름 중 더 보수적인 쪽.
-// (심각도: 주의 0 < 중립 1 < 긍정 2)
-describe('resolveDisplayTone — 보수적 톤 우선', () => {
-  it.each([
-    // [일간, 2주흐름, 기대 표시]
-    ['pos', 'watch', 'warn'],       // 긍정 vs 주의 → 주의
-    ['pos', 'neutral', 'neu'],      // 긍정 vs 중립 → 중립
-    ['pos', 'good', 'pos'],         // 긍정 vs 긍정 → 긍정
-    ['neu', 'watch', 'warn'],       // 중립 vs 주의 → 주의 (한화오션)
-    ['warn', 'good', 'warn'],       // 주의 vs 긍정 → 주의 (한미반도체)
-  ] as const)('(%s, %s) → %s', (daily, flow, expected) => {
-    expect(resolveDisplayTone(daily, flow)).toBe(expected);
-  });
-
-  it('단순 언급 + 흐름 주의 → 주의로 승격', () => {
-    expect(resolveDisplayTone('mention', 'watch')).toBe('warn');
-  });
-
-  it('단순 언급 + 흐름 긍정 → 단순 언급 유지', () => {
-    expect(resolveDisplayTone('mention', 'good')).toBe('mention');
-  });
-
-  it('흐름 레코드 없음(undefined) → 일간 태그 그대로 (주의 폴백 금지)', () => {
-    expect(resolveDisplayTone('pos', undefined)).toBe('pos');
-    expect(resolveDisplayTone('pos', null)).toBe('pos');
-    expect(resolveDisplayTone('mention', undefined)).toBe('mention');
-  });
-
-  it('흐름 톤이 예상 밖 값 → 일간 태그 그대로 (조용히 폴백)', () => {
-    expect(resolveDisplayTone('pos', 'unknown')).toBe('pos');
-    expect(resolveDisplayTone('mention', 'unknown')).toBe('mention');
   });
 });
