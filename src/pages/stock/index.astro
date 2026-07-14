@@ -49,7 +49,7 @@ const initialMonthData = '[]';
 
     <!-- 고지문 -->
     <div class="rank-disclaimer">
-      이 랭킹은 방송 언급 빈도·이슈 강도·주가 변동·지속성을 기반으로 AI가 자동 집계한 정보예요. 종목 추천이나 투자 권유가 아니에요. 투자 판단과 책임은 본인에게 있어요.
+      이 랭킹은 방송 언급 빈도·이슈 강도·방송 간 의견 일치·지속성을 기반으로 AI가 자동 집계한 정보예요. 종목 추천이나 투자 권유가 아니에요. 투자 판단과 책임은 본인에게 있어요.
     </div>
 
     <!-- 감정 태그 설명 바텀시트 -->
@@ -738,15 +738,18 @@ const STATUS_TITLE = {
 };
 
 function statusChip(stock) {
-  if (stock.statusReason !== null) {
+  // 표시 톤 = 일간 태그와 2주 방송 흐름 중 보수적인 쪽 (서버 stockRanking.ts에서 계산).
+  // 옛/데모 데이터 폴백: displayTone 없으면 일간 status로.
+  const tone = stock.displayTone ?? stock.status;
+  if (tone === 'pos' || tone === 'neu' || tone === 'warn') {
     const map = { pos: ['pos','긍정'], neu: ['neu','중립'], warn: ['warn','주의'] };
-    const [cls, label] = map[stock.status] || ['neu','중립'];
+    const [cls, label] = map[tone];
     const fade = stock._sentShown ? '' : ' val-fade';
     stock._sentShown = true;
     return `<span class="rank-status rank-status--${cls}${fade}" title="${STATUS_TITLE[cls]}">${label}</span>`;
   }
-  // 뉘앙스 분석 결과가 없는 종목: 로딩이 끝났으면 "단순 언급", 아직이면 스켈레톤
-  if (stock.noSentiment) {
+  // 감정도 없고 흐름도 '주의'가 아닌 종목 → "단순 언급"
+  if (tone === 'mention') {
     const fade = stock._sentShown ? '' : ' val-fade';
     stock._sentShown = true;
     return `<span class="rank-status rank-status--mention${fade}" title="${STATUS_TITLE.mention}">단순 언급</span>`;

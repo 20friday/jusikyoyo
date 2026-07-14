@@ -27,6 +27,39 @@ export function isRealStock(name: string): boolean {
   return VALID_STOCK_NAMES.has(name) || getStockCode(name) != null;
 }
 
+// ── 표시 감정 톤: 일간 태그 ⊕ 2주 방송 흐름 중 "더 보수적인 쪽" ──────
+// 랭킹 카드가 상세 페이지(2주 흐름)보다 낙관적으로 보이지 않도록,
+// 화면에 찍는 태그를 두 신호 중 보수적인 쪽으로 맞춘다.
+// ⚠️ 표시 전용 — 순위·점수·정렬에는 절대 쓰지 않는다. DB·DOM 의존 없는 순수 함수.
+export type DailyTone = 'pos' | 'neu' | 'warn' | 'mention';
+export type FlowTone = 'good' | 'neutral' | 'watch';
+
+// 심각도(작을수록 보수적): 주의 0 < 중립 1 < 긍정 2
+const TONE_SEVERITY: Record<string, number> = {
+  warn: 0, watch: 0,
+  neu: 1, neutral: 1,
+  pos: 2, good: 2,
+};
+const SEVERITY_TO_DAILY: Record<number, DailyTone> = { 0: 'warn', 1: 'neu', 2: 'pos' };
+
+export function resolveDisplayTone(
+  dailySentiment: DailyTone,
+  flowTone?: string | null
+): DailyTone {
+  // 예외 2) 단순 언급은 감정 값이 아니라 "판단 불가" → 심각도 비교에서 제외.
+  //   흐름이 '주의'면 주의로 승격, 그 외엔 단순 언급 유지.
+  if (dailySentiment === 'mention') {
+    return flowTone === 'watch' ? 'warn' : 'mention';
+  }
+  // 예외 1·3) 흐름 톤이 없거나(신규 진입) 예상 밖 값이면 일간 태그 그대로.
+  //   폴백은 절대 '주의'로 하지 않는다.
+  const flowSev = flowTone != null ? TONE_SEVERITY[flowTone] : undefined;
+  if (flowSev === undefined) return dailySentiment;
+  // 보수적 톤 우선: 더 낮은(=보수적) 심각도를 표시한다.
+  const dailySev = TONE_SEVERITY[dailySentiment];
+  return SEVERITY_TO_DAILY[Math.min(dailySev, flowSev)];
+}
+
 // 방송 슬러그 접미사 → 방송명 (태그로만 언급된 종목의 카드 근거 표기용)
 export const BROADCAST_LABEL: Record<string, string> = {
   hankyungtv: '한국경제TV',
@@ -41,8 +74,16 @@ export function snippetFor(content: string, name: string): string {
   if (!content) return '';
   const plain = content.replace(/[*#>`]/g, '');
   const parts = plain.split(/\n+|(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
-  const hits = parts.filter((p) => p.includes(name));
-  const text = hits.slice(0, 2).join(' ');
+  // "현대차." 처럼 종목명만 있는 라벨 조각인지 (본문 형식: **종목명.** 설명…).
+  // 이름을 빼고 남은 게 문장부호뿐이면 설명이 아니라 라벨이다.
+  const isBareLabel = (s: string) => s.replace(name, '').replace(/[^가-힣\w]/g, '') === '';
+  // 종목명 라벨 블록이 있으면 그 뒤 설명이 그 종목 전용 코멘트다(가장 정확).
+  // 없으면 이름이 들어간 문장을 쓴다. 어느 경우든 라벨 조각 자체는 스니펫에서 뺀다.
+  const labelIdx = parts.findIndex(isBareLabel);
+  const pool = labelIdx !== -1 ? parts.slice(labelIdx + 1) : parts.filter((p) => p.includes(name));
+  const chosen = pool.filter((p) => !isBareLabel(p)).slice(0, 2);
+  if (chosen.length === 0) return '';
+  const text = chosen.join(' ');
   return text.length > 240 ? text.slice(0, 240) : text;
 }
 
@@ -59,6 +100,8 @@ export interface RankedStock {
   tagScore: number;
   continuityScore: number;
   intensity: number;    // 1~5, 대표 감정 강도
+  flowTone: string | null;      // 2주 방송 흐름 톤 (good/neutral/watch) — 없으면 null
+  displayTone: DailyTone;       // 화면 표시 톤 = 일간·2주 흐름 중 보수적인 쪽
   sentimentDate: string | null; // 대표 감정이 나온 날짜
   mentionDate: string | null;   // 가장 최근 등장 날짜
   noSentiment: boolean; // 등장한 어느 날에도 감정 데이터 없음 → "단순 언급"
@@ -381,6 +424,20 @@ export async function computeRanking(
   if (scoredToday.length === 0) return [];
   const top10 = scoredToday.slice(0, 10);
 
+  // ── 2주 방송 흐름 톤 조회 (top10만) ─────────────────────────
+  // 표시 태그를 일간·흐름 중 보수적인 쪽으로 맞추는 데만 쓴다. 순위엔 영향 없음.
+  // 흐름 조회가 실패해도 일간 태그로 조용히 폴백한다.
+  const flowToneMap = new Map<string, string>();
+  try {
+    const { data: flowRows } = await supabase
+      .from('stock_flows')
+      .select('name, tone')
+      .in('name', top10.map((s) => s.name));
+    for (const row of flowRows ?? []) {
+      if (row?.name && row?.tone) flowToneMap.set(row.name, row.tone);
+    }
+  } catch { /* 흐름 없으면 일간 태그 그대로 */ }
+
   // ── 기준일부터 7거래일 각 날짜의 순위 맵 (트레일·move 공용) ──
   const last7 = allTradingDates.slice(anchorIdx, anchorIdx + trailLen);
   const dayRankMaps = last7.map(d => {
@@ -394,6 +451,11 @@ export async function computeRanking(
   // ── 최종 결과 조합 ───────────────────────────────────────────
   const results: RankedStock[] = top10.map((s, idx) => {
     const rank = idx + 1;
+
+    // 표시 톤: 일간 태그(감정 없으면 'mention')와 2주 흐름 중 보수적인 쪽
+    const flowTone = flowToneMap.get(s.name) ?? null;
+    const dailyTone: DailyTone = s.noSentiment ? 'mention' : (s.status as 'pos' | 'neu' | 'warn');
+    const displayTone = resolveDisplayTone(dailyTone, flowTone);
 
     // rankTrail: 오래된→최신 순 (마지막 = 오늘 = 헤더 순위와 동일)
     const rankTrail: (number | null)[] = dayRankMaps
@@ -458,6 +520,8 @@ export async function computeRanking(
       date: (allReports as any[])[0]?.date ?? today,
       name: s.name,
       status: (s.status as 'pos' | 'neu' | 'warn'),
+      flowTone,
+      displayTone,
       move,
       score: s.score,
       rawScore: s.rawScore,
