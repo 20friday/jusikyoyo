@@ -135,6 +135,12 @@ const totalMentions = entries.reduce((acc, e) => acc + e.shows.length, 0);
 // 흐름 톤별 이모지 (후킹 문구 앞에 붙임)
 const FLOW_EMOJI: Record<string, string> = { good: '😀', watch: '⚠️', neutral: '👀' };
 
+// 2주 흐름 톤 → 감정 클래스 (good=긍정·neutral=중립·watch=주의).
+// 히어로 배지: 일간 감정과 2주 흐름이 "다를 때만" 옆에 "최근 2주엔 …"을 덧붙인다(순위 카드와 동일 규칙).
+const FLOW_TO_SENT: Record<string, string> = { good: 'pos', neutral: 'neu', watch: 'warn' };
+const flowSent: string | null = flow ? (FLOW_TO_SENT[flow.tone] ?? null) : null;
+const showFlowChip = Boolean(sentiment && flowSent && flowSent !== sentiment);
+
 // 종목 정보가 있으면 그 탭을 먼저, 없으면 방송 히스토리 탭을 먼저 보여준다.
 const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
 ---
@@ -148,6 +154,11 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
         <div class="stock-badges">
           {info && <span class="stock-sector">{info.sector}</span>}
           {sentiment && <span class={`stock-sent stock-sent--${sentiment}`}>{SENT_LABEL[sentiment]}</span>}
+          {showFlowChip && (
+            <span class={`stock-flowtag stock-flowtag--${flowSent}`} title="최근 2주 방송 흐름은 오늘과 달라요">
+              최근 2주엔 <b>{SENT_LABEL[flowSent!]}</b>
+            </span>
+          )}
         </div>
       )}
       <h1 class="stock-title">{canonName}</h1>
@@ -417,6 +428,20 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
   .stock-sent--pos { background: var(--up-bg); color: var(--up); }
   .stock-sent--neu { background: #FEF6DC; color: #9A7B0A; box-shadow: inset 0 0 0 1px #9A7B0A; }
   .stock-sent--warn { background: var(--down-bg); color: var(--down); }
+  /* 2주 흐름이 일간과 다를 때만 노출하는 보조 표기 (배지가 아니라 은은한 텍스트) */
+  .stock-flowtag {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11px; font-weight: 500; color: var(--text-3);
+    white-space: nowrap;
+  }
+  .stock-flowtag::before {
+    content: ""; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--tone, currentColor); margin-right: 1px;
+  }
+  .stock-flowtag b { font-weight: 700; color: var(--tone, inherit); }
+  .stock-flowtag--pos { --tone: var(--up); }
+  .stock-flowtag--neu { --tone: #9A7B0A; }
+  .stock-flowtag--warn { --tone: var(--down); }
   .stock-title {
     font-size: 32px;
     font-weight: 800;
