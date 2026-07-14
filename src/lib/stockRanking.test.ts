@@ -29,4 +29,44 @@ describe('snippetFor — 라벨 형식 본문', () => {
     expect(v).not.toContain('소폭 약세');
     expect(v.endsWith('현대차.')).toBe(false); // 꼬리 라벨 안 붙음
   });
+
+  it('설명형 헤더(**현대차 - …**)도 전용 블록으로 인식', () => {
+    const content = '**현대차 - 로봇 기대.** 보스턴다이내믹스 인수로 로봇 사업을 직접 끌고 가요.';
+    expect(snippetFor(content, '현대차')).toContain('보스턴다이내믹스');
+  });
+});
+
+// 다른 종목 블록에서 비교 대상으로만 스친 문장은 그 종목 얘기가 아니다.
+describe('snippetFor — 비교 언급 제외', () => {
+  it('전용 블록 없이 "현대차보다"로만 나오면 뽑지 않는다 (기아 블록)', () => {
+    const content =
+      '**기아 - 저평가 매력.** PER 7배 초반에 현대차보다 크게 할인된 자리예요. 국내·유럽 판매가 현대차보다 좋았고 로보틱스 모멘텀까지 더해졌어요.';
+    expect(snippetFor(content, '현대차')).toBe('');
+  });
+
+  it('현대차가 주체인 문장은 그대로 뽑는다', () => {
+    const content =
+      '**자동차.** 기아는 PER 6배로 싸고, 현대차는 보스턴다이내믹스 로보틱스가 재평가 포인트로 꼽혔어요.';
+    const v = snippetFor(content, '현대차');
+    expect(v).toContain('현대차는');
+    expect(v).toContain('재평가');
+  });
+
+  it('전용 블록이 있으면 다른 블록의 비교 문장은 무시', () => {
+    const content =
+      '**기아.** 현대차보다 저평가 매력이 있어요.\n\n**현대차.** 로봇 모멘텀이 중장기 재료로 거론돼요.';
+    const v = snippetFor(content, '현대차');
+    expect(v).toContain('로봇 모멘텀');
+    expect(v).not.toContain('저평가');
+  });
+
+  it('현대차증권 같은 다른 상장사 문장은 현대차로 뽑지 않는다', () => {
+    const content = '반면 현대차증권은 목표주가 44만 원을 유지했어요.';
+    expect(snippetFor(content, '현대차')).toBe('');
+  });
+
+  it('현대차그룹처럼 상장사가 아닌 표현은 현대차 언급으로 인정', () => {
+    const content = '현대차그룹이 보스턴다이내믹스를 100% 자회사로 만들 예정이에요.';
+    expect(snippetFor(content, '현대차')).toContain('보스턴다이내믹스');
+  });
 });

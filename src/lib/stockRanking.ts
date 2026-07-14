@@ -27,6 +27,19 @@ export function isRealStock(name: string): boolean {
   return VALID_STOCK_NAMES.has(name) || getStockCode(name) != null;
 }
 
+// 이름을 부분 문자열로 포함하는 "더 긴 다른 상장 종목명" 목록.
+// 예: 현대차 → [현대차증권, 현대차우, 현대차2우B, …]. 문장에서 이걸 먼저 지우면
+// "현대차증권은 …" 같은 다른 종목 문장이 현대차 언급으로 오인되지 않는다.
+const longerNameCache = new Map<string, string[]>();
+function longerConfusableNames(name: string): string[] {
+  let list = longerNameCache.get(name);
+  if (!list) {
+    list = [...VALID_STOCK_NAMES].filter((n) => n.length > name.length && n.includes(name));
+    longerNameCache.set(name, list);
+  }
+  return list;
+}
+
 // 방송 슬러그 접미사 → 방송명 (태그로만 언급된 종목의 카드 근거 표기용)
 export const BROADCAST_LABEL: Record<string, string> = {
   hankyungtv: '한국경제TV',
@@ -35,23 +48,56 @@ export const BROADCAST_LABEL: Record<string, string> = {
   '12simannaayo': '12시에 만나요',
 };
 
-// 방송 본문(마크다운)에서 특정 종목이 언급된 문장을 뽑는다.
+// 방송 본문(마크다운)에서 특정 종목을 "그 종목 얘기로" 뽑는다.
 // 오늘의 픽에 없이 태그로만 언급된 종목의 카드 근거·감정분석 근거로 쓴다.
+// 본문 형식: 줄마다 "**종목명.** 설명…" 블록. 다른 종목 블록에서 비교 대상으로만
+// 스쳐 언급된 문장(예: "현대차보다 싸다")은 그 종목 얘기가 아니므로 뽑지 않는다.
 export function snippetFor(content: string, name: string): string {
   if (!content) return '';
+  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const clip = (s: string) => (s.length > 240 ? s.slice(0, 240) : s);
+  // 문장 최대 2개까지
+  const twoSentences = (s: string) =>
+    s.split(/(?<=[.!?])\s+/).map((t) => t.trim()).filter(Boolean).slice(0, 2).join(' ');
+
+  // 1) 이 종목 전용 블록(**현대차.** / **현대차 - …**)의 설명을 최우선으로 쓴다.
+  //    헤더가 종목명으로 시작하는 줄부터 다음 헤더 전까지가 그 종목 전용 코멘트(가장 정확).
+  //    옛 글은 헤더와 본문이 다른 줄로 나뉘어 있기도 해서 뒷줄까지 이어 붙인다.
+  const lines = content.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  const headerOf = (line: string) => {
+    const m = line.match(/^\*\*\s*(.+?)\s*\*\*\s*(.*)$/);
+    return m ? { head: m[1], rest: m[2] } : null;
+  };
+  // 헤더가 종목명으로 "시작"하는가 (뒤에 경계 문자) — "현대차", "현대차 - 로봇", "현대차·기아"
+  const startsWithName = new RegExp(`^${esc}(?=$|[\\s.,\\-·)])`);
+  for (let i = 0; i < lines.length; i++) {
+    const h = headerOf(lines[i]);
+    if (!h || !startsWithName.test(h.head)) continue;
+    const bodyLines = [h.rest];
+    for (let j = i + 1; j < lines.length && !headerOf(lines[j]); j++) bodyLines.push(lines[j]);
+    const body = twoSentences(bodyLines.join(' ').replace(/[*#>`]/g, '').trim());
+    if (body) return clip(body);
+  }
+
+  // 2) 전용 블록이 없으면, 종목이 '주체'로 나온 문장만 뽑는다.
+  //    "현대차보다/대비/만큼/처럼/대신"처럼 비교 대상으로만 등장한 문장은
+  //    다른 종목 얘기라 제외한다(현대차 카드에 기아 코멘트가 뜨는 문제 방지).
+  //    이름만 있는 라벨 조각("현대차")도 설명이 아니므로 제외한다.
   const plain = content.replace(/[*#>`]/g, '');
   const parts = plain.split(/\n+|(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
-  // "현대차." 처럼 종목명만 있는 라벨 조각인지 (본문 형식: **종목명.** 설명…).
-  // 이름을 빼고 남은 게 문장부호뿐이면 설명이 아니라 라벨이다.
+  const comparativeOnly = new RegExp(`${esc}\\s*(보다|대비|만큼|처럼|대신)`, 'g');
   const isBareLabel = (s: string) => s.replace(name, '').replace(/[^가-힣\w]/g, '') === '';
-  // 종목명 라벨 블록이 있으면 그 뒤 설명이 그 종목 전용 코멘트다(가장 정확).
-  // 없으면 이름이 들어간 문장을 쓴다. 어느 경우든 라벨 조각 자체는 스니펫에서 뺀다.
-  const labelIdx = parts.findIndex(isBareLabel);
-  const pool = labelIdx !== -1 ? parts.slice(labelIdx + 1) : parts.filter((p) => p.includes(name));
-  const chosen = pool.filter((p) => !isBareLabel(p)).slice(0, 2);
-  if (chosen.length === 0) return '';
-  const text = chosen.join(' ');
-  return text.length > 240 ? text.slice(0, 240) : text;
+  const confusables = longerConfusableNames(name);
+  // 종목이 '진짜 주체'로 나온 문장인가:
+  //   ① 더 긴 다른 종목명(현대차증권)을 지우고 ② 비교 표현(현대차보다)을 지운 뒤에도 이름이 남아야 한다.
+  const isRealSubject = (s: string) => {
+    let clean = s;
+    for (const cn of confusables) clean = clean.split(cn).join(' ');
+    return clean.replace(comparativeOnly, '').includes(name);
+  };
+  const hits = parts.filter((p) => p.includes(name) && isRealSubject(p) && !isBareLabel(p));
+  if (hits.length === 0) return '';
+  return clip(hits.slice(0, 2).join(' '));
 }
 
 export interface RankedStock {
