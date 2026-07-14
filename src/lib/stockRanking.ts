@@ -46,6 +46,9 @@ export const BROADCAST_LABEL: Record<string, string> = {
   samprotv: '삼프로TV',
   yonhapeconomy: '연합뉴스경제TV',
   '12simannaayo': '12시에 만나요',
+  // 초기 글의 옛 슬러그 접미사 (같은 방송, 슬러그만 다름)
+  yonhaptv: '연합뉴스경제TV',
+  '12si': '12시에 만나요',
 };
 
 // 방송 본문(마크다운)에서 특정 종목을 "그 종목 얘기로" 뽑는다.
@@ -54,6 +57,9 @@ export const BROADCAST_LABEL: Record<string, string> = {
 // 스쳐 언급된 문장(예: "현대차보다 싸다")은 그 종목 얘기가 아니므로 뽑지 않는다.
 export function snippetFor(content: string, name: string): string {
   if (!content) return '';
+  // 초기 글의 인라인 지시문(::stock{name="…" dir="up"} 등)은 설명이 아니라
+  // 렌더링용 칩 마크업이므로 먼저 제거한다. 안 지우면 날것으로 스니펫에 뜬다.
+  const src = content.replace(/::[a-zA-Z][\w-]*\{[^}]*\}/g, ' ');
   const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const clip = (s: string) => (s.length > 240 ? s.slice(0, 240) : s);
   // 문장 최대 2개까지
@@ -63,18 +69,22 @@ export function snippetFor(content: string, name: string): string {
   // 1) 이 종목 전용 블록(**현대차.** / **현대차 - …**)의 설명을 최우선으로 쓴다.
   //    헤더가 종목명으로 시작하는 줄부터 다음 헤더 전까지가 그 종목 전용 코멘트(가장 정확).
   //    옛 글은 헤더와 본문이 다른 줄로 나뉘어 있기도 해서 뒷줄까지 이어 붙인다.
-  const lines = content.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  const lines = src.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   const headerOf = (line: string) => {
     const m = line.match(/^\*\*\s*(.+?)\s*\*\*\s*(.*)$/);
     return m ? { head: m[1], rest: m[2] } : null;
   };
+  // 블록 경계: 다음 종목 헤더 / 구분선(---) / 섹션 헤딩(## …, 💡·✅ 등).
+  // 여기서 본문을 끊어 "인사이트" 같은 다음 섹션이 딸려오지 않게 한다.
+  const isBoundary = (line: string) =>
+    !!headerOf(line) || /^-{3,}$/.test(line) || /^#{1,6}(\s|$)/.test(line) || /^[📊🔎📰📌💡✅]/u.test(line);
   // 헤더가 종목명으로 "시작"하는가 (뒤에 경계 문자) — "현대차", "현대차 - 로봇", "현대차·기아"
   const startsWithName = new RegExp(`^${esc}(?=$|[\\s.,\\-·)])`);
   for (let i = 0; i < lines.length; i++) {
     const h = headerOf(lines[i]);
     if (!h || !startsWithName.test(h.head)) continue;
     const bodyLines = [h.rest];
-    for (let j = i + 1; j < lines.length && !headerOf(lines[j]); j++) bodyLines.push(lines[j]);
+    for (let j = i + 1; j < lines.length && !isBoundary(lines[j]); j++) bodyLines.push(lines[j]);
     const body = twoSentences(bodyLines.join(' ').replace(/[*#>`]/g, '').trim());
     if (body) return clip(body);
   }
@@ -83,8 +93,11 @@ export function snippetFor(content: string, name: string): string {
   //    "현대차보다/대비/만큼/처럼/대신"처럼 비교 대상으로만 등장한 문장은
   //    다른 종목 얘기라 제외한다(현대차 카드에 기아 코멘트가 뜨는 문제 방지).
   //    이름만 있는 라벨 조각("현대차")도 설명이 아니므로 제외한다.
-  const plain = content.replace(/[*#>`]/g, '');
-  const parts = plain.split(/\n+|(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  const plain = src.replace(/[*#>`]/g, '');
+  const parts = plain
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((s) => s.trim().replace(/^[-*•]\s+/, '')) // 앞머리 목록 기호 제거
+    .filter(Boolean);
   const comparativeOnly = new RegExp(`${esc}\\s*(보다|대비|만큼|처럼|대신)`, 'g');
   const isBareLabel = (s: string) => s.replace(name, '').replace(/[^가-힣\w]/g, '') === '';
   const confusables = longerConfusableNames(name);

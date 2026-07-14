@@ -70,3 +70,31 @@ describe('snippetFor — 비교 언급 제외', () => {
     expect(snippetFor(content, '현대차')).toContain('보스턴다이내믹스');
   });
 });
+
+// 초기 글의 ::stock{...} 지시문은 스니펫에 날것으로 새지 않아야 한다.
+describe('snippetFor — 인라인 지시문 제거', () => {
+  it('지시문 뒤 설명이 있으면 설명만 뽑는다', () => {
+    const content =
+      '::stock{name="한화오션" dir="up"}\n- **한화오션** — 잠수함 등 방산 영역에서 강점이 있는 회사예요.';
+    const v = snippetFor(content, '한화오션');
+    expect(v).not.toContain('::stock');
+    expect(v).not.toMatch(/^-\s/); // 앞머리 목록 기호 없음
+    expect(v).toContain('잠수함');
+  });
+
+  it('지시문만 있으면 빈 문자열', () => {
+    expect(snippetFor('::stock{name="한화오션" dir="up"}', '한화오션')).toBe('');
+  });
+});
+
+// 전용 블록 본문이 다음 섹션(구분선·인사이트 헤딩)까지 딸려오면 안 된다.
+describe('snippetFor — 섹션 경계에서 끊기', () => {
+  it('--- 구분선과 ## 인사이트 헤딩은 스니펫에 안 붙는다', () => {
+    const content =
+      '**한화오션·HD현대중공업**\n\n핵추진 잠수함, 특수선, 방산 기대감이 붙으며 급등했어요.\n\n---\n\n## 💡 오늘의 투자 인사이트\n\n오늘은 조선주가 강했어요.';
+    const v = snippetFor(content, '한화오션');
+    expect(v).toBe('핵추진 잠수함, 특수선, 방산 기대감이 붙으며 급등했어요.');
+    expect(v).not.toContain('인사이트');
+    expect(v).not.toContain('---');
+  });
+});
