@@ -208,6 +208,23 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
   .stock-sent--warn { background: var(--down-bg); color: var(--down); }
   .result-meta .stock-sent { margin-left: 0; margin-right: 8px; }
 
+  /* 2주 흐름 보조 표기 — 일간과 다를 때만. 배지가 아니라 은은한 텍스트 */
+  .stock-flowtag {
+    flex-shrink: 0; margin-left: 6px;
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 12px; font-weight: 500; color: var(--text-3);
+    white-space: nowrap;
+  }
+  .stock-flowtag::before {
+    content: ""; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--tone, currentColor); margin-right: 1px;
+  }
+  .stock-flowtag b { font-weight: 700; color: var(--tone, inherit); }
+  .stock-flowtag--pos { --tone: var(--up); }
+  .stock-flowtag--neu { --tone: #9A7B0A; }
+  .stock-flowtag--warn { --tone: var(--down); }
+  .result-meta .stock-flowtag { margin-left: 0; margin-right: 8px; }
+
   /* 우측 인덱스 바 */
   .index-bar {
     position: fixed; right: 6px; top: 50%; transform: translateY(-50%);
@@ -286,6 +303,16 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
     var m = map[status];
     if (!m) return '';
     return '<span class="stock-sent stock-sent--' + m[0] + '">' + m[1] + '</span>';
+  }
+
+  // 2주 흐름 칩 — 일간 감정과 "다를 때만" 노출 (순위 카드·상세 페이지와 동일 규칙)
+  var FLOW_TO_SENT = { good: 'pos', neutral: 'neu', watch: 'warn' };
+  var FLOW_LABEL = { pos: '긍정', neu: '중립', warn: '주의' };
+  function flowChip(status, flowTone) {
+    var cls = FLOW_TO_SENT[flowTone];
+    if (!cls || !status || cls === status) return '';
+    return '<span class="stock-flowtag stock-flowtag--' + cls + '" title="최근 2주 방송 흐름은 오늘과 달라요">' +
+      '최근 2주엔 <b>' + FLOW_LABEL[cls] + '</b></span>';
   }
 
   function esc(s) {
@@ -395,7 +422,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
     var sections = keys.map(function (key) {
       var items = groups[key].map(function (s) {
         return '<button class="stock-item" data-name="' + esc(s.name) + '">' +
-          esc(s.name) + (s.sentiment ? sentChip(s.sentiment) : (s.mentioned ? BC_ICON : '')) +
+          esc(s.name) + (s.sentiment ? sentChip(s.sentiment) + flowChip(s.sentiment, s.flowTone) : (s.mentioned ? BC_ICON : '')) +
           '</button>';
       }).join('');
       return '<div class="stock-section" id="idx-' + encodeURIComponent(key) + '">' +
@@ -458,7 +485,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
   function renderResults(list, q) {
     var cards = list.map(function (s) {
       var tag = s.market ? '<span class="result-market">' + esc(s.market) + '</span>' : '';
-      var chip = sentChip(s.sentiment);
+      var chip = sentChip(s.sentiment) + flowChip(s.sentiment, s.flowTone);
       var meta = s.mentioned
         ? chip + tag + (tag ? '<span class="result-dot"></span>' : '') + '방송 언급 <b>' + s.mentions + '회</b>'
         : (tag || '아직 방송 언급 없음');
@@ -533,11 +560,16 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
     fetch('/stocks.json').then(function (r) { return r.json(); }),
     fetch(supabaseUrl + '/rest/v1/daily_reports?select=date,stocks,sentiment', {
       headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + supabaseKey }
-    }).then(function (r) { return r.json(); })
+    }).then(function (r) { return r.json(); }),
+    // 최근 2주 방송 흐름 톤 (일간 감정과 다르면 함께 표기). 실패해도 검색은 동작.
+    fetch(supabaseUrl + '/rest/v1/stock_flows?select=name,tone', {
+      headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + supabaseKey }
+    }).then(function (r) { return r.json(); }).catch(function () { return []; })
   ])
   .then(function (res) {
     var allStocks = res[0] || [];
     var reports   = res[1] || [];
+    var flows     = res[2] || [];
 
     // 1) 방송 언급 횟수 집계 (canonical 종목명 → 횟수)
     var mentionMap = {};
@@ -568,6 +600,12 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
           sentMap[canonical] = { status: st, date: d };
         }
       });
+    });
+
+    // 1-2) 2주 흐름 톤 집계 (canonical 종목명 → good/neutral/watch)
+    var flowMap = {};
+    (flows || []).forEach(function (f) {
+      if (f && f.name && f.tone) flowMap[RENAMED[f.name] || f.name] = f.tone;
     });
 
     // 2) 전체 종목 목록을 기본 인덱스로 구성
@@ -613,6 +651,16 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
         if (canon && byName[canon]) target = byName[canon];
       }
       if (target) target.sentiment = sentMap[name].status;
+    });
+
+    // 3-2) 2주 흐름 톤도 인덱스 항목에 붙인다
+    Object.keys(flowMap).forEach(function (name) {
+      var target = byName[name];
+      if (!target) {
+        var canon = aliasToName[name.toLowerCase()];
+        if (canon && byName[canon]) target = byName[canon];
+      }
+      if (target) target.flowTone = flowMap[name];
     });
 
     renderIdle();
