@@ -40,6 +40,34 @@ function longerConfusableNames(name: string): string[] {
   return list;
 }
 
+// 이름이 "독립된 토큰"으로 등장하는지 (더 긴 단어의 일부가 아닌지) 판정.
+//  - 앞이 한글/영숫자면 더 큰 단어의 일부 (예: 예"상보"다, "하이닉스"의 이닉스)
+//  - 영숫자로 끝나는 이름 뒤에 영숫자가 붙으면 더 큰 토큰 (예: "TP"U, "3S"BIO)
+//  ※ 한글 조사(현대차"는", STX엔진"은")는 이름 뒤라도 허용된다.
+function hasStandaloneName(text: string, name: string): boolean {
+  const alnum = (c?: string) => c !== undefined && /[A-Za-z0-9]/.test(c);
+  const hanAlnum = (c?: string) => c !== undefined && /[가-힣A-Za-z0-9]/.test(c);
+  const endsAlnum = /[A-Za-z0-9]$/.test(name);
+  let i = text.indexOf(name);
+  while (i >= 0) {
+    const before = text[i - 1];
+    const after = text[i + name.length];
+    if ((i === 0 || !hanAlnum(before)) && !(endsAlnum && alnum(after))) return true;
+    i = text.indexOf(name, i + 1);
+  }
+  return false;
+}
+
+// 이 텍스트가 그 종목을 "진짜로" 언급하는가.
+// 더 긴 다른 종목명(SK → SK하이닉스) 안이나 일반 단어(상보 → 예상보다) 안에
+// 이름 글자가 스쳐 들어간 경우는 언급으로 치지 않는다. 방송언급 판정 공용 함수.
+export function mentionsStock(text: string, name: string): boolean {
+  if (!text || !name || !text.includes(name)) return false;
+  let s = text;
+  for (const L of longerConfusableNames(name)) s = s.split(L).join(' '.repeat(L.length));
+  return hasStandaloneName(s, name);
+}
+
 // 방송 슬러그 접미사 → 방송명 (태그로만 언급된 종목의 카드 근거 표기용)
 export const BROADCAST_LABEL: Record<string, string> = {
   hankyungtv: '한국경제TV',
@@ -106,7 +134,9 @@ export function snippetFor(content: string, name: string): string {
   const isRealSubject = (s: string) => {
     let clean = s;
     for (const cn of confusables) clean = clean.split(cn).join(' ');
-    return clean.replace(comparativeOnly, '').includes(name);
+    clean = clean.replace(comparativeOnly, '');
+    // 일반 단어 속 substring(예상보다→상보, TPU→TP)은 언급이 아니다 → 단어 경계로 확인
+    return hasStandaloneName(clean, name);
   };
   const hits = parts.filter((p) => p.includes(name) && isRealSubject(p) && !isBareLabel(p));
   if (hits.length === 0) return '';

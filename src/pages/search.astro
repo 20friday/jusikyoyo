@@ -1,15 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
 import { stockInfo } from '../lib/stockInfo';
-import { RENAMED_STOCKS } from '../lib/stockCodes';
-
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
-
-// 미국 주식 이름 목록 — 검색 인덱스에서 제외
-const usStockNames = JSON.stringify(
-  stockInfo.filter(s => s.isUS).map(s => s.name)
-);
 
 // 종목명 → aliases 맵 (검색 시 별칭 매핑용)
 const stockAliasMap = JSON.stringify(
@@ -17,9 +8,6 @@ const stockAliasMap = JSON.stringify(
     stockInfo.filter(s => s.aliases?.length).map(s => [s.name, s.aliases])
   )
 );
-
-// 옛 이름 → 정식명 매핑 (INDEX 정규화용)
-const renamedStocks = JSON.stringify(RENAMED_STOCKS);
 ---
 
 <Base title="종목 검색" footer="none" header="none">
@@ -245,7 +233,7 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
   .noresult-sub { font-size: 15px; font-weight: 500; color: var(--text-3); line-height: 1.6; letter-spacing: -0.01em; max-width: 280px; }
 </style>
 
-<script define:vars={{ supabaseUrl, supabaseKey, usStockNames, stockAliasMap, renamedStocks }}>
+<script define:vars={{ stockAliasMap }}>
 (function () {
   var inputEl  = document.getElementById('search-input');
   var clearEl  = document.getElementById('search-clear');
@@ -534,133 +522,32 @@ const renamedStocks = JSON.stringify(RENAMED_STOCKS);
     else location.href = '/';
   });
 
-  var US_STOCKS = new Set(JSON.parse(usStockNames));
-  // 종목명이 아닌 테마·키워드 등 잘못 등록된 항목 차단 목록
-  var BLOCKLIST = new Set(['AI 토큰', '비트코인', '이더리움', '암호화폐']);
-
-  function isValidStockName(name) {
-    // "·"가 포함된 복합 종목명 제외 (분리해서 따로 집계)
-    if (name.indexOf('·') >= 0) return false;
-    // 괄호가 있는 부가설명 형태 제외 (예: 엔비디아(회사채))
-    if (/\(.+\)/.test(name)) return false;
-    // 미국 주식 및 테마 키워드 제외
-    if (US_STOCKS.has(name)) return false;
-    if (BLOCKLIST.has(name)) return false;
-    // 공백 포함 + 한글 없는 경우 제외 (예: "AI 토큰", "ETF 상품" 같은 테마 키워드)
-    if (name.includes(' ') && !/[가-힣]/.test(name)) return false;
-    // 너무 짧은 단어 제외 (1글자)
-    if (name.length < 2) return false;
-    return true;
-  }
-
   var MARKET_LABEL = { KP: '코스피', KQ: '코스닥' };
 
-  // 코스피·코스닥 전체 종목(public/stocks.json)과 방송 언급(daily_reports)을 함께 불러온다.
+  // 전체 종목(stocks.json) + 방송 언급·감정·흐름 메타(/api/stock-search-meta)를 함께 불러온다.
+  // 메타는 서버에서 KRX 정식 종목만·정확한 단어경계 매칭으로 계산해 준다.
+  //  → 유형1(테마키워드 유령항목) 원천 차단, 유형2(개별 방송 언급까지 카운트) 반영.
+  var ALIAS_MAP = JSON.parse(stockAliasMap);
   Promise.all([
     fetch('/stocks.json').then(function (r) { return r.json(); }),
-    fetch(supabaseUrl + '/rest/v1/daily_reports?select=date,stocks,sentiment', {
-      headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + supabaseKey }
-    }).then(function (r) { return r.json(); }),
-    // 최근 2주 방송 흐름 톤 (일간 감정과 다르면 함께 표기). 실패해도 검색은 동작.
-    fetch(supabaseUrl + '/rest/v1/stock_flows?select=name,tone', {
-      headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + supabaseKey }
-    }).then(function (r) { return r.json(); }).catch(function () { return []; })
+    fetch('/api/stock-search-meta').then(function (r) { return r.json(); }).catch(function () { return {}; })
   ])
   .then(function (res) {
     var allStocks = res[0] || [];
-    var reports   = res[1] || [];
-    var flows     = res[2] || [];
+    var meta = res[1] || {};
 
-    // 1) 방송 언급 횟수 집계 (canonical 종목명 → 횟수)
-    var mentionMap = {};
-    var RENAMED = JSON.parse(renamedStocks);
-    reports.forEach(function (report) {
-      (report.stocks || []).forEach(function (stock) {
-        if (!stock.name) return;
-        // "·"로 묶인 복합 종목은 개별 종목으로 분리해서 각각 집계
-        stock.name.split('·').map(function (n) { return n.trim(); }).forEach(function (name) {
-          if (!name || !isValidStockName(name)) return;
-          var canonical = RENAMED[name] || name;
-          mentionMap[canonical] = (mentionMap[canonical] || 0) + 1;
-        });
-      });
-    });
-
-    // 1-1) 대표 감정 집계 (canonical 종목명 → 가장 최근 방송일의 status)
-    var sentMap = {};
-    reports.forEach(function (report) {
-      var sent = report.sentiment;
-      if (!sent || typeof sent !== 'object') return;
-      var d = report.date || '';
-      Object.keys(sent).forEach(function (name) {
-        var st = sent[name] && sent[name].status;
-        if (!st) return;
-        var canonical = RENAMED[name] || name;
-        if (!sentMap[canonical] || d > sentMap[canonical].date) {
-          sentMap[canonical] = { status: st, date: d };
-        }
-      });
-    });
-
-    // 1-2) 2주 흐름 톤 집계 (canonical 종목명 → good/neutral/watch)
-    var flowMap = {};
-    (flows || []).forEach(function (f) {
-      if (f && f.name && f.tone) flowMap[RENAMED[f.name] || f.name] = f.tone;
-    });
-
-    // 2) 전체 종목 목록을 기본 인덱스로 구성
-    var ALIAS_MAP = JSON.parse(stockAliasMap);
-    var byName = {};
+    // 전체 종목을 인덱스로 구성하고 방송 메타를 붙인다. (KRX에 없는 이름은 인덱스에 아예 안 넣음)
     INDEX = allStocks.map(function (s) {
-      var e = {
+      var m = meta[s.n] || {};
+      var cnt = m.m || 0;
+      return {
         name: s.n, code: s.c, market: MARKET_LABEL[s.m] || '',
-        mentions: 0, mentioned: false, aliases: ALIAS_MAP[s.n] || []
+        aliases: ALIAS_MAP[s.n] || [],
+        mentions: cnt,
+        mentioned: cnt > 0,
+        sentiment: m.s,
+        flowTone: m.f
       };
-      byName[s.n] = e;
-      return e;
-    });
-
-    // 별칭 → 정식명 역맵 (방송에서 다른 표기로 언급된 경우 정식명에 붙이기 위함)
-    var aliasToName = {};
-    Object.keys(ALIAS_MAP).forEach(function (nm) {
-      (ALIAS_MAP[nm] || []).forEach(function (al) { aliasToName[al.toLowerCase()] = nm; });
-    });
-
-    // 3) 방송 언급을 전체 목록에 병합. 목록에 없는 종목은 새 항목으로 추가.
-    Object.keys(mentionMap).forEach(function (mname) {
-      var target = byName[mname];
-      if (!target) {
-        var canon = aliasToName[mname.toLowerCase()];
-        if (canon && byName[canon]) target = byName[canon];
-      }
-      if (target) {
-        target.mentions += mentionMap[mname];
-        target.mentioned = true;
-      } else {
-        var e = { name: mname, code: '', market: '', mentions: mentionMap[mname], mentioned: true, aliases: ALIAS_MAP[mname] || [] };
-        byName[mname] = e;
-        INDEX.push(e);
-      }
-    });
-
-    // 3-1) 대표 감정을 인덱스 항목에 붙인다 (별칭 표기도 정식명에 매칭)
-    Object.keys(sentMap).forEach(function (name) {
-      var target = byName[name];
-      if (!target) {
-        var canon = aliasToName[name.toLowerCase()];
-        if (canon && byName[canon]) target = byName[canon];
-      }
-      if (target) target.sentiment = sentMap[name].status;
-    });
-
-    // 3-2) 2주 흐름 톤도 인덱스 항목에 붙인다
-    Object.keys(flowMap).forEach(function (name) {
-      var target = byName[name];
-      if (!target) {
-        var canon = aliasToName[name.toLowerCase()];
-        if (canon && byName[canon]) target = byName[canon];
-      }
-      if (target) target.flowTone = flowMap[name];
     });
 
     renderIdle();

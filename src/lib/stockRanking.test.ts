@@ -1,5 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { snippetFor } from './stockRanking';
+import { snippetFor, mentionsStock } from './stockRanking';
+
+// 짧은 종목명이 다른 단어에 박힌 substring은 '언급'이 아니다.
+describe('mentionsStock — 단어 경계', () => {
+  it('일반 단어 속 substring은 언급 아님', () => {
+    expect(mentionsStock('물가가 예상보다 높아요.', '상보')).toBe(false);   // 예"상보"다
+    expect(mentionsStock('구글 TPU 기반 AI 인프라예요.', 'TP')).toBe(false); // "TP"U
+    expect(mentionsStock('엔캐리 트레이드를 봐야 해요.', '캐리')).toBe(false); // 엔"캐리"
+    expect(mentionsStock('SK하이닉스가 올랐어요.', '이닉스')).toBe(false);    // 하"이닉스"
+  });
+  it('독립 토큰(조사 붙어도) 언급으로 인정', () => {
+    expect(mentionsStock('상보가 강세였어요.', '상보')).toBe(true);
+    expect(mentionsStock('STX엔진은 방산주예요.', 'STX엔진')).toBe(true);
+    expect(mentionsStock('네이처셀이 급등했어요.', '네이처셀')).toBe(true);
+  });
+  it('더 긴 다른 종목명 안의 substring은 언급 아님', () => {
+    expect(mentionsStock('SK하이닉스와 SK스퀘어가 강해요.', 'SK')).toBe(false);
+    expect(mentionsStock('SK가 지주사로 부각됐어요.', 'SK')).toBe(true);
+  });
+});
 
 // 방송언급 스니펫: 본문 형식이 "**종목명.** 설명…" 라벨일 때,
 // 이름만 남기지 말고 뒤에 오는 설명 문장을 뽑아야 한다.

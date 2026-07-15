@@ -12,9 +12,19 @@
  */
 import { createAdminClient } from './adminSupabase';
 import { STOCK_CODES } from './stockCodes';
+import stockList from '../../public/stocks.json';
 
 export type Market = 'KOSPI' | 'KOSDAQ';
 export interface ResolvedCode { code: string; market: Market; }
+
+// KRX 전체 상장 종목 마스터(코드·시장 포함) — 가장 정확한 소스.
+// 네이버가 못 찾는 이름(THE E&M·SUN&L 등)도 여기 코드가 있으므로 1순위로 쓴다.
+const KRX_MAP: Map<string, ResolvedCode> = new Map(
+  (stockList as Array<{ n: string; c: string; m: string }>).map((s) => [
+    s.n,
+    { code: String(s.c), market: (s.m === 'KQ' ? 'KOSDAQ' : 'KOSPI') as Market },
+  ])
+);
 
 /**
  * 표시명 → 조회용 정식명 별칭
@@ -69,7 +79,7 @@ export async function resolveStockCodes(names: string[]): Promise<Map<string, Re
 
 async function resolveByQueryNames(names: string[]): Promise<Map<string, ResolvedCode>> {
   const out = new Map<string, ResolvedCode>();
-  const unknown: string[] = [];
+  let unknown: string[] = [];
 
   // 1) 메모리 캐시
   for (const name of names) {
@@ -80,6 +90,16 @@ async function resolveByQueryNames(names: string[]): Promise<Map<string, Resolve
       unknown.push(name);
     }
   }
+  if (!unknown.length) return out;
+
+  // 1-1) KRX 마스터(stocks.json) — 정식 종목명이면 여기서 바로 해결. 네이버 불필요.
+  const afterKrx: string[] = [];
+  for (const name of unknown) {
+    const rc = KRX_MAP.get(name);
+    if (rc) { memCache.set(name, rc); out.set(name, rc); }
+    else afterKrx.push(name);
+  }
+  unknown = afterKrx;
   if (!unknown.length) return out;
 
   // 2) Supabase 영구 캐시 일괄 조회 (테이블 없으면 조용히 패스)

@@ -112,6 +112,7 @@ export const RENAMED_STOCKS: Record<string, string> = {
   '한화에어로': '한화에어로스페이스',
   'SM': '에스엠',
   'JYP': 'JYP Ent.',
+  'D&D파마텍': '디앤디파마텍',
 };
 
 /** 옛 이름이면 현재 이름으로 바꿔서 돌려준다. 아니면 그대로. */
