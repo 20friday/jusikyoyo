@@ -18,6 +18,20 @@ describe('mentionsStock — 단어 경계', () => {
     expect(mentionsStock('SK하이닉스와 SK스퀘어가 강해요.', 'SK')).toBe(false);
     expect(mentionsStock('SK가 지주사로 부각됐어요.', 'SK')).toBe(true);
   });
+  it('이름 뒤 조사 아닌 한글(일반 단어)이면 언급 아님', () => {
+    expect(mentionsStock('태양광 발전 수요가 커요.', '태양')).toBe(false);       // 태양"광" (경계)
+    expect(mentionsStock('태양이 정책 수혜로 강세였어요.', '태양')).toBe(true);   // 태양+조사
+  });
+  it('회사 접미사(그룹·지주)는 언급으로 인정', () => {
+    expect(mentionsStock('현대차그룹이 로봇 사업을 키워요.', '현대차')).toBe(true);
+  });
+  it('일반 단어와 겹치는 종목명은 본문 매칭 제외', () => {
+    expect(mentionsStock('선진·신흥 지수 격차를 봐야 해요.', '선진')).toBe(false);
+    expect(mentionsStock('관세 대상 그룹에 포함됐어요.', '대상')).toBe(false);
+    expect(mentionsStock('러셀2000 지수가 올랐어요.', '러셀')).toBe(false);
+    // 제외 목록에 없는 진짜 종목은 그대로 인정
+    expect(mentionsStock('고영이 실적 호조로 강세였어요.', '고영')).toBe(true);
+  });
 });
 
 // 방송언급 스니펫: 본문 형식이 "**종목명.** 설명…" 라벨일 때,

@@ -40,29 +40,52 @@ function longerConfusableNames(name: string): string[] {
   return list;
 }
 
+// 명사 뒤 조사(격조사·보조사) 첫 음절. 이름 뒤가 이거면 "이름+조사"(언급),
+// 아니면 "이름+다른 단어"(선진→선진국, 태양→태양광)로 본다.
+const JOSA_FIRST = new Set('은는이가을를의에와과도만로으나랑부까처보조마밖한께같'.split(''));
+// 같은 회사를 가리키는 접미사 — 현대차"그룹"처럼 뒤에 붙어도 그 종목 언급으로 인정.
+const SAME_ENTITY_SUFFIX = ['그룹', '지주', '홀딩스'];
+
 // 이름이 "독립된 토큰"으로 등장하는지 (더 긴 단어의 일부가 아닌지) 판정.
 //  - 앞이 한글/영숫자면 더 큰 단어의 일부 (예: 예"상보"다, "하이닉스"의 이닉스)
-//  - 영숫자로 끝나는 이름 뒤에 영숫자가 붙으면 더 큰 토큰 (예: "TP"U, "3S"BIO)
-//  ※ 한글 조사(현대차"는", STX엔진"은")는 이름 뒤라도 허용된다.
+//  - 영숫자 이름 뒤 영숫자면 더 큰 토큰 (예: "TP"U, "3S"BIO)
+//  - 한글 이름 뒤에 '조사가 아닌' 한글이 오면 다른 단어 (예: "선진"국, "태양"광)
+//    ※ 조사(현대차"는")·회사 접미사(현대차"그룹")는 언급으로 인정.
 function hasStandaloneName(text: string, name: string): boolean {
-  const alnum = (c?: string) => c !== undefined && /[A-Za-z0-9]/.test(c);
   const hanAlnum = (c?: string) => c !== undefined && /[가-힣A-Za-z0-9]/.test(c);
   const endsAlnum = /[A-Za-z0-9]$/.test(name);
+  const endsHangul = /[가-힣]$/.test(name);
   let i = text.indexOf(name);
   while (i >= 0) {
     const before = text[i - 1];
-    const after = text[i + name.length];
-    if ((i === 0 || !hanAlnum(before)) && !(endsAlnum && alnum(after))) return true;
+    const end = i + name.length;
+    const after = text[end];
+    const leftClean = i === 0 || !hanAlnum(before);
+    let rightGlue = false;
+    if (endsAlnum && after !== undefined && /[A-Za-z0-9]/.test(after)) {
+      rightGlue = true;
+    } else if (endsHangul && after !== undefined && /[가-힣]/.test(after)) {
+      rightGlue = !JOSA_FIRST.has(after) && !SAME_ENTITY_SUFFIX.some((s) => text.startsWith(s, end));
+    }
+    if (leftClean && !rightGlue) return true;
     i = text.indexOf(name, i + 1);
   }
   return false;
 }
 
+// 일반 단어·해외 지수명과 겹쳐 본문 substring으로는 진짜 언급을 가릴 수 없는 종목명.
+// (선진→"선진국·선진시장", 대상→"관세 대상", 러셀→"Russell 지수", 알트→"샘 알트만" …)
+// 이런 종목은 본문 매칭으로 세지 않고, 방송이 명시적으로 '태그'한 경우만 언급으로 인정한다.
+// 발견되는 대로 추가한다.
+const CONTENT_MATCH_BLOCKLIST = new Set([
+  '선진', '신흥', '대상', '서한', '전방', '진도', '진영', '러셀', '배럴', '알트',
+]);
+
 // 이 텍스트가 그 종목을 "진짜로" 언급하는가.
 // 더 긴 다른 종목명(SK → SK하이닉스) 안이나 일반 단어(상보 → 예상보다) 안에
 // 이름 글자가 스쳐 들어간 경우는 언급으로 치지 않는다. 방송언급 판정 공용 함수.
 export function mentionsStock(text: string, name: string): boolean {
-  if (!text || !name || !text.includes(name)) return false;
+  if (!text || !name || CONTENT_MATCH_BLOCKLIST.has(name) || !text.includes(name)) return false;
   let s = text;
   for (const L of longerConfusableNames(name)) s = s.split(L).join(' '.repeat(L.length));
   return hasStandaloneName(s, name);
@@ -85,6 +108,9 @@ export const BROADCAST_LABEL: Record<string, string> = {
 // 스쳐 언급된 문장(예: "현대차보다 싸다")은 그 종목 얘기가 아니므로 뽑지 않는다.
 export function snippetFor(content: string, name: string): string {
   if (!content) return '';
+  // 일반 단어와 겹치는 종목명(선진·대상 등)은 본문 매칭이 불가능 → 근거 문장을 뽑지 않는다.
+  // (태그로 언급된 경우엔 상세 페이지가 태그 기준으로 따로 표기한다)
+  if (CONTENT_MATCH_BLOCKLIST.has(name)) return '';
   // 초기 글의 인라인 지시문(::stock{name="…" dir="up"} 등)은 설명이 아니라
   // 렌더링용 칩 마크업이므로 먼저 제거한다. 안 지우면 날것으로 스니펫에 뜬다.
   const src = content.replace(/::[a-zA-Z][\w-]*\{[^}]*\}/g, ' ');
