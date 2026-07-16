@@ -132,11 +132,14 @@ export function snippetFor(content: string, name: string): string {
   // 여기서 본문을 끊어 "인사이트" 같은 다음 섹션이 딸려오지 않게 한다.
   const isBoundary = (line: string) =>
     !!headerOf(line) || /^-{3,}$/.test(line) || /^#{1,6}(\s|$)/.test(line) || /^[📊🔎📰📌💡✅]/u.test(line);
-  // 헤더가 종목명으로 "시작"하는가 (뒤에 경계 문자) — "현대차", "현대차 - 로봇", "현대차·기아"
-  const startsWithName = new RegExp(`^${esc}(?=$|[\\s.,\\-·)])`);
+  // 헤더가 이 종목의 블록인가. 묶음 헤더(**한국콜마·코스맥스.**)의 두 번째 이후 종목도
+  // 자기 블록으로 인식해야 한다(안 그러면 코스맥스가 헤더 줄만 뽑는 버그).
+  // "·"·"," 로 나눈 각 조각이 종목명으로 시작하면 매칭. — "현대차", "현대차 - 로봇", "한국콜마·코스맥스"
+  const segStartsWithName = new RegExp(`^\\s*${esc}(?=$|[\\s.,\\-)])`);
+  const headHasName = (head: string) => head.split(/[·,]/).some((seg) => segStartsWithName.test(seg));
   for (let i = 0; i < lines.length; i++) {
     const h = headerOf(lines[i]);
-    if (!h || !startsWithName.test(h.head)) continue;
+    if (!h || !headHasName(h.head)) continue;
     const bodyLines = [h.rest];
     for (let j = i + 1; j < lines.length && !isBoundary(lines[j]); j++) bodyLines.push(lines[j]);
     const body = twoSentences(bodyLines.join(' ').replace(/[*#>`]/g, '').trim());
@@ -154,6 +157,8 @@ export function snippetFor(content: string, name: string): string {
     .filter(Boolean);
   const comparativeOnly = new RegExp(`${esc}\\s*(보다|대비|만큼|처럼|대신)`, 'g');
   const isBareLabel = (s: string) => s.replace(name, '').replace(/[^가-힣\w]/g, '') === '';
+  // "한국콜마·코스맥스." 처럼 종목명만 ·로 나열된 줄은 설명이 아니라 라벨이다 → 스니펫에서 제외.
+  const isNamesOnly = (s: string) => /^[\w가-힣]+([·,][\w가-힣]+)+\.?$/.test(s);
   const confusables = longerConfusableNames(name);
   // 종목이 '진짜 주체'로 나온 문장인가:
   //   ① 더 긴 다른 종목명(현대차증권)을 지우고 ② 비교 표현(현대차보다)을 지운 뒤에도 이름이 남아야 한다.
@@ -164,7 +169,7 @@ export function snippetFor(content: string, name: string): string {
     // 일반 단어 속 substring(예상보다→상보, TPU→TP)은 언급이 아니다 → 단어 경계로 확인
     return hasStandaloneName(clean, name);
   };
-  const hits = parts.filter((p) => p.includes(name) && isRealSubject(p) && !isBareLabel(p));
+  const hits = parts.filter((p) => p.includes(name) && isRealSubject(p) && !isBareLabel(p) && !isNamesOnly(p));
   if (hits.length === 0) return '';
   return clip(hits.slice(0, 2).join(' '));
 }

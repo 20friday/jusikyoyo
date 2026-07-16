@@ -67,6 +67,18 @@ describe('snippetFor — 라벨 형식 본문', () => {
     const content = '**현대차 - 로봇 기대.** 보스턴다이내믹스 인수로 로봇 사업을 직접 끌고 가요.';
     expect(snippetFor(content, '현대차')).toContain('보스턴다이내믹스');
   });
+
+  it('묶음 헤더(**한국콜마·코스맥스.**)의 두 번째 종목도 자기 블록 설명을 뽑는다', () => {
+    const content = '**한국콜마·코스맥스.** 뒤에서 제품을 만들어 주는 ODM 업체가 안정적이라는 시각이에요.';
+    expect(snippetFor(content, '코스맥스')).toContain('ODM');
+    expect(snippetFor(content, '한국콜마')).toContain('ODM');
+    expect(snippetFor(content, '코스맥스')).not.toBe('한국콜마·코스맥스.');
+  });
+
+  it('종목명만 ·로 나열된 줄은 스니펫으로 뽑지 않는다', () => {
+    // 설명 없이 이름만 있는 경우 → 빈 문자열(상세 페이지는 "언급됐지만 코멘트 없어요" 카드 표시)
+    expect(snippetFor('**한국콜마·코스맥스.**', '코스맥스')).toBe('');
+  });
 });
 
 // 다른 종목 블록에서 비교 대상으로만 스친 문장은 그 종목 얘기가 아니다.
