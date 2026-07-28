@@ -69,7 +69,21 @@ python3 scripts/fetch-transcripts.py --file urls.txt
 ---
 
 ## 글 등록 방식
-Ted가 방송 스크립트 요약을 주면 `/tmp/insert_post.mjs` 파일을 만들어 `node`로 실행하는 방식으로 Supabase에 직접 등록한다.
+방송별 개별 글(`posts`)은 **공용 등록 스크립트로 등록한다.** 손으로 insert 스크립트를 짜면 방송명(`show`) 같은 필드를 빠뜨리는 사고가 반복돼서(2026-07-21·07-27 두 번 다 show 누락), 검증·자동채움을 한 곳에 모았다.
+
+```bash
+# 1) 글 JSON 파일 작성 (한 개 객체 또는 여러 개 배열) → posts.json
+# 2) 미리보기(등록 안 함)로 검증만
+node scripts/insert-post.mjs posts.json --dry
+# 3) 실제 등록 (slug 기준 upsert, 다시 실행해도 중복 안 생김)
+node scripts/insert-post.mjs posts.json
+```
+
+- **방송명(`show`)은 slug 뒷부분에서 자동으로 채워진다.** 안 써도 되고, 슬러그가 규칙 밖이면 등록이 아예 멈춘다.
+- `title`·`content`·`summary`가 비면 등록을 멈춘다. 등록 후 slug·show를 DB에서 다시 읽어 눈으로 확인 출력.
+- posts.json 형식·필드 기본값은 `scripts/insert-post.mjs` 상단 주석 참고.
+
+`daily_reports`·`weekly_reports` 등 다른 테이블은 기존처럼 `/tmp/insert_post.mjs`를 만들어 `node`로 실행한다(단, `.env` 파싱 때문에 프로젝트 루트에서 실행).
 
 ### 등록 테이블 3가지
 | 테이블 | 용도 |
