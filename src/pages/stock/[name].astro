@@ -152,7 +152,6 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
 
     <!-- 헤더 -->
     <div class="stock-hero">
-      <a href="/" class="back-link" onclick="if(window.history.length>1){window.history.back();return false;}">← 뒤로</a>
       {(info || sentiment) && (
         <div class="stock-badges">
           {info && <span class="stock-sector">{info.sector}</span>}
@@ -394,15 +393,6 @@ const defaultTab: 'info' | 'history' = detail ? 'info' : 'history';
     margin: 0 auto;
     padding: 20px 16px 80px;
   }
-
-  .back-link {
-    display: block;
-    font-size: 14px;
-    color: var(--text-3);
-    text-decoration: none;
-    margin-bottom: 24px;
-  }
-  .back-link:hover { color: var(--text-1); }
 
   /* 헤더 */
   .stock-hero {
