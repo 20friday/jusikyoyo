@@ -102,6 +102,16 @@ export const BROADCAST_LABEL: Record<string, string> = {
   '12si': '12시에 만나요',
 };
 
+// 감정 status를 코드(pos/neu/warn)로 통일한다.
+// 저장 데이터에 한글 라벨(긍정/중립/주의)이 섞여 들어오는 경우가 있어(수기 작성 등),
+// 읽는 지점에서 코드로 정규화해 화면 칩·점수 계산이 깨지지 않게 한다.
+export function normalizeStatus(status: unknown): 'pos' | 'neu' | 'warn' {
+  const s = String(status ?? '').trim();
+  if (s === 'pos' || s === '긍정') return 'pos';
+  if (s === 'warn' || s === '주의') return 'warn';
+  return 'neu'; // neu·중립·그 외 전부 중립으로
+}
+
 // 방송 본문(마크다운)에서 특정 종목을 "그 종목 얘기로" 뽑는다.
 // 오늘의 픽에 없이 태그로만 언급된 종목의 카드 근거·감정분석 근거로 쓴다.
 // 본문 형식: 줄마다 "**종목명.** 설명…" 블록. 다른 종목 블록에서 비교 대상으로만
@@ -390,7 +400,7 @@ export async function computeRanking(
         if (s?.status) {
           e.daySentiments.push({
             date: report.date,
-            status: s.status,
+            status: normalizeStatus(s.status),
             intensity: Math.min(Math.max(Math.round(Number(s.intensity) || 1), 1), 5),
             reason: s.reason ?? '',
           });

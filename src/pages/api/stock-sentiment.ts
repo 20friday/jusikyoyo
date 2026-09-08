@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { ANTHROPIC_API_KEY } from 'astro:env/server';
 import { canonicalStockName } from '../../lib/stockCodes';
 import { isExcludedStock } from '../../lib/excludedStocks';
-import { isRealStock, BROADCAST_LABEL, snippetFor } from '../../lib/stockRanking';
+import { isRealStock, BROADCAST_LABEL, snippetFor, normalizeStatus } from '../../lib/stockRanking';
 
 type Period = 'day' | 'week' | 'month';
 
@@ -143,7 +143,8 @@ export const GET: APIRoute = async ({ url }) => {
           if (!stockNotesMap.has(name)) {
             stockNotesMap.set(name, []);
           }
-          const statusLabel = s.status === 'pos' ? '긍정' : s.status === 'warn' ? '주의' : '중립';
+          const st = normalizeStatus(s.status);
+          const statusLabel = st === 'pos' ? '긍정' : st === 'warn' ? '주의' : '중립';
           stockNotesMap.get(name)!.push({
             show: dateLabel,
             view: `${statusLabel} — ${s.reason ?? ''}`,
